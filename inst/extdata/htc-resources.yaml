@@ -1,0 +1,21 @@
+# Default HTC resource presets for submitr
+# These values reflect CHTC recommendations as of 2026.
+#
+# To customize for a specific project, copy this file to your project
+# directory as htc-resources.yaml and edit the values. htc_gen_submit()
+# will use your local file if present, falling back to these defaults.
+
+small:
+  cpus: 1
+  memory: "4GB"
+  disk: "4GB"
+
+medium:
+  cpus: 4
+  memory: "16GB"
+  disk: "15GB"
+
+large:
+  cpus: 8
+  memory: "64GB"
+  disk: "32GB"

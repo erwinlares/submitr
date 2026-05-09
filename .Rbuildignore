@@ -1,6 +1,16 @@
+^renv$
+^renv\.lock$
 ^submitr\.Rproj$
 ^\.Rproj\.user$
 ^\.positai$
 ^\.claude$
 ^LICENSE\.md$
 ^\.github$
+^codecov\.yml$
+inside-testing/
+JOURNAL.md
+PLAN.md
+on-testing.md
+^_pkgdown\.yml$
+^docs$
+^pkgdown$

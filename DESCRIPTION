@@ -1,18 +1,37 @@
 Package: submitr
-Title: What the Package Does (One Line, Title Case)
+Title: Scaffold and Submit Computational Jobs to HTC Schedulers
 Version: 0.0.0.9000
 Authors@R: 
     person("Erwin", "Lares", , "erwin.lares@wisc.edu", role = c("aut", "cre"),
            comment = c(ORCID = "0000-0002-3284-828X"))
-Description: What the package does (one paragraph).
+Description: Provides scaffolding tools to help researchers prepare and submit
+    computational jobs to high-throughput computing (HTC) schedulers. Generates
+    the files required to run containerized R analyses on 'HTCondor', including
+    submit files and executable scripts, and wraps the system commands needed to
+    stage files, submit jobs, monitor status, and retrieve results from a CHTC
+    submit node. Provides 'htc_config()' for managing connection details and
+    SSH connection reuse guidance. Works naturally alongside 'containr' for
+    container image management and 'toolero' for dataset splitting and project
+    scaffolding. 'HTCondor' and 'CHTC' are the initial targets; 'HPC'
+    scheduler support ('Slurm', 'PBS') is planned for a future release.
 License: MIT + file LICENSE
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
-RoxygenNote: 7.3.2
-Suggests: 
-    testthat (>= 3.0.0)
+Imports:
+    cli,
+    glue,
+    readr,
+    yaml
+Suggests:
+    containr,
+    toolero,
+    spelling,
+    testthat (>= 3.0.0),
+    withr,
+    knitr,
+    rmarkdown
+Language: en-US
 Config/testthat/edition: 3
-Imports: 
-    lifecycle
-URL: https://github.com/erwinlares/submitr
-BugReports: https://github.com/erwinlares/submitr/issues
+Config/roxygen2/version: 8.0.0
+VignetteBuilder: knitr
+URL: https://erwinlares.github.io/submitr/

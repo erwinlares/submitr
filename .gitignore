@@ -5,3 +5,8 @@
 .DS_Store
 .quarto
 .positai
+inside-testing/
+htc.cfg
+inst/doc
+on-testing.md
+docs
