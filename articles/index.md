@@ -2,5 +2,5 @@
 
 ### All vignettes
 
-- [Intro to
-  submitr](https://erwinlares.github.io/submitr/articles/intro-to-submitr.md):
+- [From the Notebook to the Cluster: Your First CHTC Job with
+  submitr](https://erwinlares.github.io/submitr/articles/from-notebook-to-cluster.md):

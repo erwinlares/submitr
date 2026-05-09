@@ -12,6 +12,12 @@ naturally alongside 'containr' for container image management and
 'CHTC' are the initial targets; 'HPC' scheduler support ('Slurm', 'PBS')
 is planned for a future release.
 
+## See also
+
+Useful links:
+
+- <https://erwinlares.github.io/submitr/>
+
 ## Author
 
 **Maintainer**: Erwin Lares <erwin.lares@wisc.edu>
