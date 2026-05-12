@@ -1,6 +1,67 @@
 # Changelog
 
-## submitr (development version)
+## submitr 0.1.0
+
+### Initial release
+
+`submitr` is the third package in the **From the Notebook to the
+Cluster** family, alongside `toolero` and `containr`. It provides a
+workflow for submitting containerized R analyses to the UW-Madison
+Center for High Throughput Computing (CHTC) from inside R.
+
+### New functions
+
+#### Connection management
+
+- [`htc_config()`](https://erwinlares.github.io/submitr/reference/htc_config.md)
+  – create or read a project-level `htc.cfg` configuration file,
+  validate SSH connectivity to a CHTC submit node, and display
+  ControlMaster setup guidance on first use.
+
+#### Job scaffolding
+
+- [`htc_gen_submit()`](https://erwinlares.github.io/submitr/reference/htc_gen_submit.md)
+  – generate an HTCondor `.sub` submit file from project parameters.
+  Supports single-job and multiple-job modes. Resource presets (`small`,
+  `medium`, `large`) cover the most common job sizes. `comments = TRUE`
+  annotates each section of the generated file.
+
+- [`htc_gen_executable()`](https://erwinlares.github.io/submitr/reference/htc_gen_executable.md)
+  – generate the `.sh` executable script that HTCondor runs inside the
+  container. Handles results directory creation, `Rscript` invocation,
+  and result archiving. Supports single-job and multiple-job modes.
+
+#### File transfer and job control
+
+- [`htc_upload()`](https://erwinlares.github.io/submitr/reference/htc_upload.md)
+  – copy files to the CHTC submit node via `scp`. Accepts single files,
+  vectors of files, and glob patterns. `dry_run = TRUE` previews the
+  command without executing it.
+
+- [`htc_submit()`](https://erwinlares.github.io/submitr/reference/htc_submit.md)
+  – run `condor_submit` on the remote submit node via SSH and return the
+  cluster ID for use with
+  [`htc_status()`](https://erwinlares.github.io/submitr/reference/htc_status.md).
+
+- [`htc_status()`](https://erwinlares.github.io/submitr/reference/htc_status.md)
+  – check job progress via `condor_q`. `watch = TRUE` polls until all
+  jobs in the cluster leave the queue.
+
+- [`htc_download()`](https://erwinlares.github.io/submitr/reference/htc_download.md)
+  – copy result files back from the submit node via `scp`. Supports glob
+  patterns such as `"*.tar.gz"` and `"job.*"`.
+
+### Testing
+
+The test suite uses a three-layer strategy to handle the fact that
+end-to-end testing requires a live HTCondor environment and SSH access.
+Layer 1 covers argument validation. Layer 2 covers command construction
+using `dry_run = TRUE` and mocked bindings. Layer 3 covers integration
+tests, which are opt-in via
+`Sys.setenv(SUBMITR_INTEGRATION_TESTS = "true")` and never run on CRAN
+or CI.
+
+------------------------------------------------------------------------
 
 ## submitr 0.0.0.9000
 
@@ -32,7 +93,7 @@
   container. Generates a four-element script: shebang, `mkdir`,
   `Rscript`, and `tar`. In multiple-job mode, passes `${1}` as a
   positional argument to the R script. `r_script` must be supplied
-  explicitly — there is no default. `set_executable = TRUE` (default)
+  explicitly – there is no default. `set_executable = TRUE` (default)
   sets executable permissions via
   [`Sys.chmod()`](https://rdrr.io/r/base/files2.html).
 

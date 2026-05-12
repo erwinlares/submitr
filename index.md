@@ -1,6 +1,6 @@
 # submitr
 
-## From the Notebook to the Cluster
+## The problem with the handoff
 
 You have an R analysis that runs on your laptop. Maybe it takes a while.
 Maybe you need to run it many times — once per species, once per county,
@@ -74,40 +74,25 @@ You can adopt these packages one at a time. `submitr` does not require
 so that each step prepares cleanly for the next when your project is
 ready to scale.
 
-A typical path looks like this:
+------------------------------------------------------------------------
 
-``` r
+## Before you start
 
-# toolero: organize the project and split the data
-toolero::init_project("my-analysis")
-toolero::write_by_group(
-  data,
-  group_col  = "species",
-  output_dir = "data/jobs",
-  manifest   = TRUE
-)
+`submitr` assumes your project is already organized and containerized.
+Before using it, confirm that:
 
-# containr: containerize the software environment
-containr::generate_dockerfile(r_version = "4.4.0", output = ".")
-containr::build_image()
-containr::push_image(
-  image_id = "974123909a36",
-  netid    = "your.netid",
-  project  = "my-analysis",
-  tag      = "1.0.0"
-)
+- your R script runs with `Rscript analysis.R` outside RStudio;
+- your container image is pushed to a registry CHTC can access;
+- you have SSH access to a CHTC submit node such as
+  `ap2002.chtc.wisc.edu`.
 
-# submitr: submit to CHTC and retrieve results
-cfg <- submitr::htc_config()
-
-cluster_id <- submitr::htc_submit(
-  submit_file = "analysis.sub",
-  config      = cfg
-)
-
-submitr::htc_status(cluster_id = cluster_id, config = cfg)
-submitr::htc_download(files = "*.tar.gz", config = cfg, local_path = "results/")
-```
+**Set up SSH connection reuse before anything else.** Every `submitr`
+function that touches CHTC opens an SSH connection, which can trigger a
+Duo MFA prompt. Setting up ControlMaster caches your authenticated
+session and makes the entire workflow significantly smoother. The setup
+takes two minutes and is worth doing before your first
+[`htc_config()`](https://erwinlares.github.io/submitr/reference/htc_config.md)
+call. Full instructions appear after Step 1 below.
 
 ------------------------------------------------------------------------
 
@@ -123,78 +108,61 @@ pak::pak("erwinlares/submitr")
 
 ------------------------------------------------------------------------
 
-## Requirements
-
-Before using `submitr`, you need:
-
-- R (\>= 4.2.0);
-- SSH access to a CHTC submit node, such as `ap2002.chtc.wisc.edu`;
-- a container image pushed to a registry accessible from CHTC;
-- an R script that can run with `Rscript`;
-- input data that are appropriate to transfer to and process on CHTC.
-
-If your project is not yet containerized, start with
-[`containr`](https://github.com/erwinlares/containr). If your project is
-not yet organized for reproducible analysis, start with
-[`toolero`](https://github.com/erwinlares/toolero).
-
-------------------------------------------------------------------------
-
-## What an HTCondor job needs
-
-Before walking through the workflow, it helps to understand what
-HTCondor needs to run your analysis.
-
-At minimum, you need:
-
-- a **container image** that holds your R version, packages, and system
-  libraries;
-- a **submit file** (`.sub`) that tells HTCondor what to run, what
-  resources to request, what files to transfer, and where to write logs;
-- an **executable script** (`.sh`) that runs inside the container,
-  usually by calling `Rscript`;
-- your **analysis script** and any **input files** the job needs;
-- a way to **retrieve results** after the job finishes.
-
-`submitr` helps with the parts that are easy to standardize:
-
-- [`htc_gen_submit()`](https://erwinlares.github.io/submitr/reference/htc_gen_submit.md)
-  generates the submit file;
-- [`htc_gen_executable()`](https://erwinlares.github.io/submitr/reference/htc_gen_executable.md)
-  generates the executable script;
-- [`htc_upload()`](https://erwinlares.github.io/submitr/reference/htc_upload.md)
-  transfers files to the submit node;
-- [`htc_submit()`](https://erwinlares.github.io/submitr/reference/htc_submit.md)
-  submits the job;
-- [`htc_status()`](https://erwinlares.github.io/submitr/reference/htc_status.md)
-  checks progress;
-- [`htc_download()`](https://erwinlares.github.io/submitr/reference/htc_download.md)
-  retrieves results.
-
-------------------------------------------------------------------------
-
-## A first single-job submission
-
-The simplest path is one job: one container, one script, one result
-archive. Start here before scaling to many jobs.
-
-### Step 1 — Configure your connection
-
-On first use,
-[`htc_config()`](https://erwinlares.github.io/submitr/reference/htc_config.md)
-prompts for your NetID and server, writes `htc.cfg` to your project
-directory, and displays instructions for setting up SSH connection reuse
-to avoid repeated Duo MFA prompts.
+## A first workflow
 
 ``` r
 
 library(submitr)
 
+# 1. Configure your CHTC connection
 cfg <- htc_config()
+
+# 2. Generate the submit file
+htc_gen_submit(
+  output_file     = "analysis.sub",
+  container_image = "docker://registry.doit.wisc.edu/your.netid/my-analysis:1.0.0",
+  executable      = "analysis.sh",
+  input_files     = c("analysis.R", "data.csv"),
+  output_files    = "results.tar.gz",
+  resources       = "small",
+  comments        = TRUE
+)
+
+# 3. Generate the executable script
+htc_gen_executable(
+  r_script       = "analysis.R",
+  output_file    = "analysis.sh",
+  results_folder = "results",
+  comments       = TRUE
+)
+
+# 4. Upload files to the submit node
+htc_upload(
+  files  = c("analysis.sub", "analysis.sh", "analysis.R", "data.csv"),
+  config = cfg
+)
+
+# 5. Submit the job
+cluster_id <- htc_submit(submit_file = "analysis.sub", config = cfg)
+
+# 6. Check progress
+htc_status(cluster_id = cluster_id, config = cfg)
+
+# 7. Download results
+htc_download(files = "*.tar.gz", config = cfg, local_path = "results/")
 ```
 
-Subsequent calls read the existing `htc.cfg` and validate the
-connection:
+------------------------------------------------------------------------
+
+## Core workflow functions
+
+### `htc_config()`
+
+On first use,
+[`htc_config()`](https://erwinlares.github.io/submitr/reference/htc_config.md)
+prompts for your NetID and submit node, writes `htc.cfg` to your project
+directory, and displays ControlMaster setup instructions. Subsequent
+calls read the existing config and validate the connection.
 
 ``` r
 
@@ -203,11 +171,38 @@ cfg <- htc_config()
 #> ✔ Connected to "ap2002.chtc.wisc.edu" as "your.netid".
 ```
 
-The configuration file keeps project-specific connection information in
-one place so you do not need to repeatedly type your username and
-server.
+------------------------------------------------------------------------
 
-### Step 2 — Generate the submit file
+### Setting up SSH connection reuse
+
+Before continuing, take two minutes to set up ControlMaster. Add this
+block to `~/.ssh/config`:
+
+``` bash
+Host *.chtc.wisc.edu
+  ControlMaster auto
+  ControlPersist 2h
+  ControlPath ~/.ssh/connections/%r@%h:%p
+```
+
+Then create the directory used by `ControlPath`:
+
+``` bash
+mkdir -p ~/.ssh/connections
+```
+
+With ControlMaster in place, all subsequent SSH connections — uploads,
+submits, status checks, downloads — reuse the same authenticated session
+without prompting for Duo MFA. Full documentation is at
+<https://chtc.cs.wisc.edu/uw-research-computing/configure-ssh>.
+
+------------------------------------------------------------------------
+
+### `htc_gen_submit()`
+
+Generates the HTCondor `.sub` submit file. It tells HTCondor which
+container to use, which executable to run, which files to transfer, what
+resources to request, and what output files to expect.
 
 ``` r
 
@@ -215,35 +210,39 @@ htc_gen_submit(
   output_file     = "analysis.sub",
   container_image = "docker://registry.doit.wisc.edu/your.netid/my-analysis:1.0.0",
   executable      = "analysis.sh",
-  input_files     = "analysis.R",
+  input_files     = c("analysis.R", "data.csv"),
   output_files    = "results.tar.gz",
   resources       = "small",
-  comments        = TRUE,
-  output          = "."
+  comments        = TRUE
 )
 ```
 
-The submit file is the job description. It tells HTCondor which
-container to use, which executable to run, which files to transfer, what
-resources to request, and what output files to expect.
+Use `comments = TRUE` on a first submission. The generated file includes
+explanations of each section, making it useful both as a working submit
+file and as a learning document.
 
-For a first submission, use `comments = TRUE`. The generated file will
-include explanations for each section, making it useful as both a
-working submit file and a learning document.
+**Resource presets:**
 
-Three resource presets are available:
+| preset | cpus | memory | disk | when to use |
+|----|----|----|----|----|
+| small | 1 | 4 GB | 4 GB | first test jobs, lightweight scripts, quick summaries |
+| medium | 4 | 16 GB | 15 GB | moderate analyses, multiple input files, model fitting |
+| large | 8 | 64 GB | 32 GB | memory-intensive work, large datasets, parallel computation |
 
-| preset | cpus | memory | disk  |
-|--------|------|--------|-------|
-| small  | 1    | 4 GB   | 4 GB  |
-| medium | 4    | 16 GB  | 15 GB |
-| large  | 8    | 64 GB  | 32 GB |
+Start with `"small"` for a first test regardless of what your eventual
+job will need. The HTCondor log file reports actual resource usage after
+each run, which is the best guide for tuning future submissions.
+Requesting too little causes jobs to fail; requesting much more than you
+need makes jobs harder to match with available resources. The log is the
+ground truth.
 
-Start small. The HTCondor log file reports actual resource usage after
-each run, which is the best guide for tuning future submissions. Request
-enough for the job to run, but avoid asking for much more than you need.
+------------------------------------------------------------------------
 
-### Step 3 — Generate the executable script
+### `htc_gen_executable()`
+
+Generates the `.sh` script that HTCondor runs inside the container. The
+generated script creates the results directory, runs your R script with
+`Rscript`, and archives the results as a `.tar.gz` file.
 
 ``` r
 
@@ -255,45 +254,37 @@ htc_gen_executable(
 )
 ```
 
-The executable script is what HTCondor runs inside the container. The
-generated script handles the common ordering details:
+------------------------------------------------------------------------
 
-1.  create the results directory;
-2.  run your R script with `Rscript`;
-3.  archive the results folder as `results.tar.gz`.
+### `htc_upload()`
 
-It also sets executable permissions automatically, so the file is ready
-to transfer without an extra `chmod` step.
-
-### Step 4 — Preview and upload files
-
-Before copying files to the submit node, preview the transfer command:
+Copies files to the CHTC submit node via `scp`. Use `dry_run = TRUE` to
+preview the command before running it.
 
 ``` r
 
+# Preview first
 htc_upload(
-  files   = c("analysis.sub", "analysis.sh", "analysis.R"),
+  files   = c("analysis.sub", "analysis.sh", "analysis.R", "data.csv"),
   config  = cfg,
   dry_run = TRUE
 )
 #> ✔ Dry run -- command that would be executed:
-#>   `scp analysis.sub analysis.sh analysis.R your.netid@ap2002.chtc.wisc.edu:~/`
-```
+#>   `scp analysis.sub analysis.sh analysis.R data.csv your.netid@ap2002.chtc.wisc.edu:~/`
 
-`dry_run = TRUE` is available on the system-facing functions. Use it
-liberally while learning the workflow.
-
-Once the command looks right, upload the files:
-
-``` r
-
+# Then upload
 htc_upload(
-  files  = c("analysis.sub", "analysis.sh", "analysis.R"),
+  files  = c("analysis.sub", "analysis.sh", "analysis.R", "data.csv"),
   config = cfg
 )
 ```
 
-### Step 5 — Submit the job
+------------------------------------------------------------------------
+
+### `htc_submit()`
+
+Runs `condor_submit` on the remote server via SSH and returns the
+cluster ID.
 
 ``` r
 
@@ -303,80 +294,54 @@ cluster_id <- htc_submit(
   verbose     = TRUE
 )
 #> Submitting "analysis.sub" on "ap2002.chtc.wisc.edu"...
-#> Submitting job(s)...
 #> 1 job(s) submitted to cluster 6302860.
-#> ✔ Job submitted from "~/analysis.sub" on "ap2002.chtc.wisc.edu".
+#> ✔ Job submitted successfully.
 ```
 
-[`htc_submit()`](https://erwinlares.github.io/submitr/reference/htc_submit.md)
-returns the cluster ID invisibly. Assigning it to `cluster_id` lets you
-reuse it when checking status.
+------------------------------------------------------------------------
 
-### Step 6 — Monitor progress
+### `htc_status()`
+
+Runs `condor_q` on the remote server. Use `watch = TRUE` to poll until
+all jobs in the cluster leave the queue.
 
 ``` r
 
-# One-shot status check
+# One-shot check
 htc_status(cluster_id = cluster_id, config = cfg)
 
-# Watch until the job completes
+# Watch until complete
 htc_status(cluster_id = cluster_id, config = cfg, watch = TRUE)
 ```
 
-Watching is useful for small test jobs. For larger workloads, occasional
-one-shot checks are usually a better fit.
+------------------------------------------------------------------------
 
-### Step 7 — Download results
+### `htc_download()`
 
-``` r
-
-htc_download(
-  files      = "results.tar.gz",
-  config     = cfg,
-  local_path = "results/"
-)
-```
-
-You can also download logs or other files by name or glob pattern:
+Copies files back from the submit node via `scp`. Supports glob
+patterns.
 
 ``` r
 
-htc_download(
-  files      = c("job.log", "job.err", "job.out"),
-  config     = cfg,
-  local_path = "logs/"
-)
+# Download results
+htc_download(files = "*.tar.gz", config = cfg, local_path = "results/")
+
+# Download logs
+htc_download(files = c("job.log", "job.err"), config = cfg, local_path = "logs/")
 ```
 
 ------------------------------------------------------------------------
 
 ## Scaling to many jobs
 
-High-throughput computing becomes powerful when one analysis can become
-many independent jobs. That might mean one job per species, county,
-participant, image tile, simulation parameter, bootstrap replicate,
-model specification, or experimental condition.
-
-Once your single job works, scaling up is mostly a matter of changing
-the queue. Use
+Once a single job works, scaling up is mostly a matter of changing the
+queue. Use
 [`toolero::write_by_group()`](https://erwinlares.github.io/toolero/reference/write_by_group.html)
-to split your dataset and produce a manifest, then switch
-[`htc_gen_submit()`](https://erwinlares.github.io/submitr/reference/htc_gen_submit.md)
-and
-[`htc_gen_executable()`](https://erwinlares.github.io/submitr/reference/htc_gen_executable.md)
-to multiple-job mode.
+to split your dataset and produce a manifest, then switch to
+multiple-job mode:
 
 ``` r
 
-# Split the dataset earlier in the workflow
-toolero::write_by_group(
-  data,
-  group_col  = "species",
-  output_dir = "data/jobs",
-  manifest   = TRUE
-)
-
-# Queue one job per row in the manifest
 htc_gen_submit(
   output_file     = "analysis.sub",
   container_image = "docker://registry.doit.wisc.edu/your.netid/my-analysis:1.0.0",
@@ -388,7 +353,6 @@ htc_gen_submit(
   comments        = TRUE
 )
 
-# Generate the executable for multiple-job mode
 htc_gen_executable(
   r_script       = "analysis.R",
   output_file    = "analysis.sh",
@@ -400,58 +364,29 @@ htc_gen_executable(
 
 In multiple-job mode, HTCondor passes each subset filename to your R
 script as a positional argument. Your script should read that argument
-when it is called through `Rscript`.
-
-One useful pattern is to combine this with
-[`toolero::detect_execution_context()`](https://erwinlares.github.io/toolero/reference/detect_execution_context.html):
+explicitly:
 
 ``` r
 
-context <- toolero::detect_execution_context()
+args       <- commandArgs(trailingOnly = TRUE)
+input_file <- args[[1]]
 
-input_file <- switch(context,
-  interactive = "data/sample.csv",
-  quarto      = params$input_file,
-  rscript     = commandArgs(trailingOnly = TRUE)[1]
-)
+data <- readr::read_csv(input_file)
 ```
-
-This helps the same analysis behave correctly whether you run it
-interactively, render it as a Quarto document, or submit it to HTCondor.
-It is a small guard against code drift: you do not need one script for
-local development, another for the report, and a third for the cluster.
 
 ------------------------------------------------------------------------
 
-## SSH connection reuse
+## Quick function reference
 
-Each
-[`htc_upload()`](https://erwinlares.github.io/submitr/reference/htc_upload.md),
-[`htc_submit()`](https://erwinlares.github.io/submitr/reference/htc_submit.md),
-[`htc_status()`](https://erwinlares.github.io/submitr/reference/htc_status.md),
-and
-[`htc_download()`](https://erwinlares.github.io/submitr/reference/htc_download.md)
-call opens a new SSH connection, which can trigger a Duo MFA prompt. You
-can reduce repeated prompts by configuring ControlMaster in your
-`~/.ssh/config`:
-
-``` text
-Host *.chtc.wisc.edu
-  ControlMaster auto
-  ControlPersist 2h
-  ControlPath ~/.ssh/connections/%r@%h:%p
-```
-
-Then create the connections directory:
-
-``` bash
-mkdir -p ~/.ssh/connections
-```
-
-[`htc_config()`](https://erwinlares.github.io/submitr/reference/htc_config.md)
-displays these instructions automatically on first use. Full
-documentation:
-<https://chtc.cs.wisc.edu/uw-research-computing/configure-ssh>
+| Function | What it does |
+|----|----|
+| [`htc_config()`](https://erwinlares.github.io/submitr/reference/htc_config.md) | Create or read `htc.cfg`, validate connection |
+| [`htc_gen_submit()`](https://erwinlares.github.io/submitr/reference/htc_gen_submit.md) | Generate the HTCondor `.sub` submit file |
+| [`htc_gen_executable()`](https://erwinlares.github.io/submitr/reference/htc_gen_executable.md) | Generate the `.sh` executable script |
+| [`htc_upload()`](https://erwinlares.github.io/submitr/reference/htc_upload.md) | Copy files to the submit node via `scp` |
+| [`htc_submit()`](https://erwinlares.github.io/submitr/reference/htc_submit.md) | Run `condor_submit` on the submit node |
+| [`htc_status()`](https://erwinlares.github.io/submitr/reference/htc_status.md) | Check job progress via `condor_q` |
+| [`htc_download()`](https://erwinlares.github.io/submitr/reference/htc_download.md) | Copy results back from the submit node |
 
 ------------------------------------------------------------------------
 
@@ -474,43 +409,13 @@ right resource for complex workflow questions.
 
 ------------------------------------------------------------------------
 
-## Function reference
+## Learn more
 
-### Connection management
+The package vignette walks through a complete first submission step by
+step, with annotated output at each stage:
 
-[`htc_config()`](https://erwinlares.github.io/submitr/reference/htc_config.md)
-creates or reads `htc.cfg`, validates server reachability, and displays
-ControlMaster guidance on first use.
-
-### Scaffolding
-
-[`htc_gen_submit()`](https://erwinlares.github.io/submitr/reference/htc_gen_submit.md)
-generates an HTCondor `.sub` submit file. Supports single-job and
-multiple-job modes. Resource presets are loaded from a YAML file and can
-be customized per project.
-
-[`htc_gen_executable()`](https://erwinlares.github.io/submitr/reference/htc_gen_executable.md)
-generates the `.sh` script that HTCondor runs inside the container. It
-can be generated for single-job or multiple-job submissions.
-
-### Job submission
-
-[`htc_upload()`](https://erwinlares.github.io/submitr/reference/htc_upload.md)
-copies files to the CHTC submit node via `scp`. Accepts single files,
-vectors of files, and directory paths.
-
-[`htc_submit()`](https://erwinlares.github.io/submitr/reference/htc_submit.md)
-runs `condor_submit` on the remote server via SSH. Returns the cluster
-ID for use with
-[`htc_status()`](https://erwinlares.github.io/submitr/reference/htc_status.md).
-
-[`htc_status()`](https://erwinlares.github.io/submitr/reference/htc_status.md)
-runs `condor_q` on the remote server. When `watch = TRUE`, it polls
-repeatedly until all jobs in the cluster leave the queue.
-
-[`htc_download()`](https://erwinlares.github.io/submitr/reference/htc_download.md)
-copies files back from the submit node via `scp`. Supports glob patterns
-such as `"*.tar.gz"` and `"job.*"`.
+- [From the Notebook to the Cluster: Your First CHTC Job with
+  submitr](https://erwinlares.github.io/submitr/articles/submitr-workflow.html)
 
 ------------------------------------------------------------------------
 
@@ -524,7 +429,7 @@ family:
   datasets for parallel jobs
 - [containr](https://github.com/erwinlares/containr) — containerize the
   software environment
-- **submitr** — submit to CHTC and retrieve results
+- **submitr** — submit to CHTC and retrieve results (this package)
 
 ------------------------------------------------------------------------
 
