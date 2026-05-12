@@ -56,10 +56,9 @@ Center for High Throughput Computing (CHTC) from inside R.
 The test suite uses a three-layer strategy to handle the fact that
 end-to-end testing requires a live HTCondor environment and SSH access.
 Layer 1 covers argument validation. Layer 2 covers command construction
-using `dry_run = TRUE` and mocked bindings. Layer 3 covers integration
-tests, which are opt-in via
-`Sys.setenv(SUBMITR_INTEGRATION_TESTS = "true")` and never run on CRAN
-or CI.
+using `dry_run = TRUE` and mocked bindings. Layer 3 integration tests
+are opt-in via `Sys.setenv(CHTC_USERNAME = "your.netid")` and never run
+on CRAN or CI.
 
 ------------------------------------------------------------------------
 

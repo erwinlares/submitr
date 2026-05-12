@@ -63,7 +63,7 @@
 </div>
 <div class="section level3">
 <h3 id="testing-0-1-0">Testing<a class="anchor" aria-label="anchor" href="#testing-0-1-0"></a></h3>
-<p>The test suite uses a three-layer strategy to handle the fact that end-to-end testing requires a live HTCondor environment and SSH access. Layer 1 covers argument validation. Layer 2 covers command construction using <code>dry_run = TRUE</code> and mocked bindings. Layer 3 covers integration tests, which are opt-in via <code>Sys.setenv(SUBMITR_INTEGRATION_TESTS = "true")</code> and never run on CRAN or CI.</p>
+<p>The test suite uses a three-layer strategy to handle the fact that end-to-end testing requires a live HTCondor environment and SSH access. Layer 1 covers argument validation. Layer 2 covers command construction using <code>dry_run = TRUE</code> and mocked bindings. Layer 3 integration tests are opt-in via <code>Sys.setenv(CHTC_USERNAME = "your.netid")</code> and never run on CRAN or CI.</p>
 <hr></div>
 </div>
     <div class="section level2">
