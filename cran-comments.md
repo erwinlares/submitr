@@ -49,10 +49,11 @@ HTCondor installed.
 Layer 3 -- Integration: tests that call real system commands against a live
 environment. These are guarded behind an explicit opt-in environment variable:
 
-    Sys.setenv(CONTAINR_INTEGRATION_TESTS = "true")
+    Sys.setenv(CHTC_USERNAME = "your.netid")
 
-Integration tests never run automatically on CRAN or CI. They are intended
-for local pre-release verification only.
+Integration tests are guarded by the CHTC_USERNAME environment variable.
+They run only when CHTC_USERNAME is set to a non-empty value (the developer's
+NetID). They never run on CRAN or CI where this variable is unset.
 
 ## R CMD check results
 
