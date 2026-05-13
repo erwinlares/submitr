@@ -8,15 +8,15 @@ system commands needed to stage files, submit jobs, monitor status, and
 retrieve results from a CHTC submit node. Provides 'htc_config()' for
 managing connection details and SSH connection reuse guidance. Works
 naturally alongside 'containr' for container image management and
-'toolero' for dataset splitting and project scaffolding. 'HTCondor' and
-'CHTC' are the initial targets; 'HPC' scheduler support ('Slurm', 'PBS')
-is planned for a future release.
+'toolero' for dataset splitting and project scaffolding.
 
 ## See also
 
 Useful links:
 
 - <https://erwinlares.github.io/submitr/>
+
+- Report bugs at <https://github.com/erwinlares/submitr/issues>
 
 ## Author
 

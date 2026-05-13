@@ -2,7 +2,7 @@
 
 `htc_upload()` copies one or more local files or directories to a
 directory on an HTC submit node via `scp`. It is the first step in the
-job submission workflow — files must be present on the submit node
+job submission workflow – files must be present on the submit node
 before
 [`htc_submit()`](https://erwinlares.github.io/submitr/reference/htc_submit.md)
 can run `condor_submit`.
@@ -96,7 +96,7 @@ tmp <- tempfile(fileext = ".sub")
 writeLines("queue 1", tmp)
 htc_upload(files = tmp, config = cfg, dry_run = TRUE)
 #> ✔ Dry run -- command that would be executed:
-#>   `scp /tmp/RtmpqyeDRN/file4a2d2c653c57.sub netid@ap2002.chtc.wisc.edu:~/`
+#>   `scp /tmp/RtmpvZ5QtO/file4a72227743d2.sub netid@ap2002.chtc.wisc.edu:~/`
 # }
 
 if (FALSE) { # \dontrun{

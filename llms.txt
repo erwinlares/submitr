@@ -415,7 +415,7 @@ The package vignette walks through a complete first submission step by
 step, with annotated output at each stage:
 
 - [From the Notebook to the Cluster: Your First CHTC Job with
-  submitr](https://erwinlares.github.io/submitr/articles/submitr-workflow.html)
+  submitr](https://erwinlares.github.io/submitr/articles/from-notebook-to-cluster.html)
 
 ------------------------------------------------------------------------
 

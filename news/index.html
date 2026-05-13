@@ -36,6 +36,10 @@
     </div>
 
     <div class="section level2">
+<h2 class="pkg-version" data-toc-text="0.1.0.9000" id="submitr-0109000">submitr 0.1.0.9000<a class="anchor" aria-label="anchor" href="#submitr-0109000"></a></h2>
+<ul><li>Development version following initial release.</li>
+</ul></div>
+    <div class="section level2">
 <h2 class="pkg-version" data-toc-text="0.1.0" id="submitr-010">submitr 0.1.0<a class="anchor" aria-label="anchor" href="#submitr-010"></a></h2>
 <div class="section level3">
 <h3 id="initial-release-0-1-0">Initial release<a class="anchor" aria-label="anchor" href="#initial-release-0-1-0"></a></h3>
@@ -46,51 +50,31 @@
 <div class="section level4">
 <h4 id="connection-management-0-1-0">Connection management<a class="anchor" aria-label="anchor" href="#connection-management-0-1-0"></a></h4>
 <ul><li>
-<code><a href="../reference/htc_config.html">htc_config()</a></code> – create or read a project-level <code>htc.cfg</code> configuration file, validate SSH connectivity to a CHTC submit node, and display ControlMaster setup guidance on first use.</li>
+<code><a href="../reference/htc_config.html">htc_config()</a></code> – create or read a project-level <code>htc.cfg</code> configuration file. On first use, prompts interactively for username and server, displays ControlMaster SSH setup guidance to reduce Duo MFA prompts, writes <code>htc.cfg</code>, and adds it to <code>.gitignore</code>. Subsequent calls read the existing file and validate server reachability. Returns a named list with <code>username</code> and <code>server</code>. Errors informatively when <code>username</code> or <code>server</code> are supplied as empty strings.</li>
 </ul></div>
 <div class="section level4">
 <h4 id="job-scaffolding-0-1-0">Job scaffolding<a class="anchor" aria-label="anchor" href="#job-scaffolding-0-1-0"></a></h4>
-<ul><li><p><code><a href="../reference/htc_gen_submit.html">htc_gen_submit()</a></code> – generate an HTCondor <code>.sub</code> submit file from project parameters. Supports single-job and multiple-job modes. Resource presets (<code>small</code>, <code>medium</code>, <code>large</code>) cover the most common job sizes. <code>comments = TRUE</code> annotates each section of the generated file.</p></li>
-<li><p><code><a href="../reference/htc_gen_executable.html">htc_gen_executable()</a></code> – generate the <code>.sh</code> executable script that HTCondor runs inside the container. Handles results directory creation, <code>Rscript</code> invocation, and result archiving. Supports single-job and multiple-job modes.</p></li>
+<ul><li><p><code><a href="../reference/htc_gen_submit.html">htc_gen_submit()</a></code> – generate an HTCondor <code>.sub</code> submit file from project parameters. Supports single-job and multiple-job modes. Multiple mode reads a manifest from <code>toolero::write_by_group(manifest = TRUE)</code>, extracts filenames, writes <code>subdatasets.csv</code>, and emits <code>queue file from subdatasets.csv</code>. Resource presets (<code>small</code>, <code>medium</code>, <code>large</code>, <code>custom</code>) are loaded at runtime from <code>inst/extdata/htc-resources.yaml</code>; a local <code>./htc-resources.yaml</code> takes precedence over the package default. GPU support via <code>gpu = TRUE</code> and <code>gpu_options</code>. <code>comments = TRUE</code> annotates each section of the generated file with explanatory text.</p></li>
+<li><p><code><a href="../reference/htc_gen_executable.html">htc_gen_executable()</a></code> – generate the <code>.sh</code> executable script that HTCondor runs inside the container. Produces a four-element script: shebang, <code>mkdir</code>, <code>Rscript</code>, and <code>tar</code>. In multiple-job mode, passes <code>${1}</code> as a positional argument to the R script. <code>r_script</code> must be supplied explicitly – there is no default. <code>set_executable = TRUE</code> (default) sets executable permissions via <code><a href="https://rdrr.io/r/base/files2.html" class="external-link">Sys.chmod()</a></code>.</p></li>
 </ul></div>
 <div class="section level4">
 <h4 id="file-transfer-and-job-control-0-1-0">File transfer and job control<a class="anchor" aria-label="anchor" href="#file-transfer-and-job-control-0-1-0"></a></h4>
-<ul><li><p><code><a href="../reference/htc_upload.html">htc_upload()</a></code> – copy files to the CHTC submit node via <code>scp</code>. Accepts single files, vectors of files, and glob patterns. <code>dry_run = TRUE</code> previews the command without executing it.</p></li>
-<li><p><code><a href="../reference/htc_submit.html">htc_submit()</a></code> – run <code>condor_submit</code> on the remote submit node via SSH and return the cluster ID for use with <code><a href="../reference/htc_status.html">htc_status()</a></code>.</p></li>
-<li><p><code><a href="../reference/htc_status.html">htc_status()</a></code> – check job progress via <code>condor_q</code>. <code>watch = TRUE</code> polls until all jobs in the cluster leave the queue.</p></li>
-<li><p><code><a href="../reference/htc_download.html">htc_download()</a></code> – copy result files back from the submit node via <code>scp</code>. Supports glob patterns such as <code>"*.tar.gz"</code> and <code>"job.*"</code>.</p></li>
+<ul><li><p><code><a href="../reference/htc_upload.html">htc_upload()</a></code> – copy files to the CHTC submit node via <code>scp</code>. Accepts single files, vectors of files, directories (transferred recursively), and glob patterns. <code>remote_path</code> defaults to <code>"~/"</code>. <code>dry_run = TRUE</code> previews the command without executing it.</p></li>
+<li><p><code><a href="../reference/htc_submit.html">htc_submit()</a></code> – run <code>condor_submit</code> on the remote submit node via SSH from the remote directory where files were uploaded. Returns the cluster ID invisibly for use with <code><a href="../reference/htc_status.html">htc_status()</a></code>. Supports <code>dry_run = TRUE</code>.</p></li>
+<li><p><code><a href="../reference/htc_status.html">htc_status()</a></code> – check job progress via <code>condor_q</code>. Optionally filters by cluster ID. <code>watch = TRUE</code> polls at <code>interval</code> seconds (default 60) until the cluster ID leaves the queue. Returns <code>condor_q</code> output invisibly as a character vector. Supports <code>dry_run = TRUE</code>.</p></li>
+<li><p><code><a href="../reference/htc_download.html">htc_download()</a></code> – copy result files back from the submit node via <code>scp</code>. Supports single filenames, vectors of filenames, and glob patterns (<code>"*.tar.gz"</code>, <code>"job.*"</code>). Glob patterns are single-quoted to prevent local shell expansion. <code>local_path</code> defaults to <code>"."</code>. Supports <code>dry_run = TRUE</code>.</p></li>
 </ul></div>
 </div>
+<div class="section level3">
+<h3 id="package-infrastructure-0-1-0">Package infrastructure<a class="anchor" aria-label="anchor" href="#package-infrastructure-0-1-0"></a></h3>
+<ul><li><p><code>inst/extdata/htc-resources.yaml</code> ships with the package and provides default resource presets for <code><a href="../reference/htc_gen_submit.html">htc_gen_submit()</a></code>.</p></li>
+<li><p><code>inst/extdata/hello-world.sub</code> and <code>inst/extdata/hello-world.sh</code> included as test files for end-to-end workflow verification.</p></li>
+<li><p><code>inst/extdata/sample.R</code> included as a sample R script for use in examples.</p></li>
+</ul></div>
 <div class="section level3">
 <h3 id="testing-0-1-0">Testing<a class="anchor" aria-label="anchor" href="#testing-0-1-0"></a></h3>
-<p>The test suite uses a three-layer strategy to handle the fact that end-to-end testing requires a live HTCondor environment and SSH access. Layer 1 covers argument validation. Layer 2 covers command construction using <code>dry_run = TRUE</code> and mocked bindings. Layer 3 integration tests are opt-in via <code>Sys.setenv(CHTC_USERNAME = "your.netid")</code> and never run on CRAN or CI.</p>
-<hr></div>
+<p>The test suite uses a three-layer strategy to handle the fact that end-to-end testing requires a live HTCondor environment and SSH access. Layer 1 covers argument validation. Layer 2 covers command construction using <code>dry_run = TRUE</code> and mocked bindings. Layer 3 integration tests are opt-in via <code>Sys.setenv(CHTC_USERNAME = "your.netid")</code> and never run on CRAN or CI. 153 tests passing across seven test files.</p>
 </div>
-    <div class="section level2">
-<h2 class="pkg-version" data-toc-text="0.0.0.9000" id="submitr-0009000">submitr 0.0.0.9000<a class="anchor" aria-label="anchor" href="#submitr-0009000"></a></h2>
-<div class="section level3">
-<h3 id="new-functions-0-0-0-9000">New functions<a class="anchor" aria-label="anchor" href="#new-functions-0-0-0-9000"></a></h3>
-<ul><li><p><code><a href="../reference/htc_config.html">htc_config()</a></code> creates or reads <code>htc.cfg</code> in the project directory, managing the connection details passed to all system-facing functions. On first use it prompts interactively for username and server, displays ControlMaster SSH setup guidance to reduce Duo MFA prompts, writes <code>htc.cfg</code>, and adds it to <code>.gitignore</code>. Subsequent calls read the existing file and validate server reachability. Returns a named list with <code>username</code> and <code>server</code>.</p></li>
-<li><p><code><a href="../reference/htc_gen_submit.html">htc_gen_submit()</a></code> writes a ready-to-use HTCondor submit file (<code>.sub</code>) for running a containerized R job. Supports single-job and multiple-job submission modes. Multiple mode reads a manifest from <code>toolero::write_by_group(manifest = TRUE)</code>, extracts filenames, writes <code>subdatasets.csv</code>, and emits <code>queue file from subdatasets.csv</code>. Resource presets (<code>"small"</code>, <code>"medium"</code>, <code>"large"</code>, <code>"custom"</code>) are loaded at runtime from <code>inst/extdata/htc-resources.yaml</code>. A local <code>./htc-resources.yaml</code> takes precedence over the package default. GPU support via <code>gpu = TRUE</code> and <code>gpu_options</code>. The <code>comments = TRUE</code> argument annotates each section with explanatory text.</p></li>
-<li><p><code><a href="../reference/htc_gen_executable.html">htc_gen_executable()</a></code> writes the bash script (<code>.sh</code>) that HTCondor runs inside the container. Generates a four-element script: shebang, <code>mkdir</code>, <code>Rscript</code>, and <code>tar</code>. In multiple-job mode, passes <code>${1}</code> as a positional argument to the R script. <code>r_script</code> must be supplied explicitly – there is no default. <code>set_executable = TRUE</code> (default) sets executable permissions via <code><a href="https://rdrr.io/r/base/files2.html" class="external-link">Sys.chmod()</a></code>.</p></li>
-<li><p><code><a href="../reference/htc_upload.html">htc_upload()</a></code> copies files from the local machine to the CHTC submit node via <code>scp</code>. Accepts a single file, a vector of files, or a directory path. Directories are transferred recursively. <code>remote_path</code> defaults to <code>"~/"</code>. Supports <code>dry_run = TRUE</code> to preview the <code>scp</code> command without executing it.</p></li>
-<li><p><code><a href="../reference/htc_submit.html">htc_submit()</a></code> connects to the CHTC submit node via SSH and runs <code>condor_submit</code> from the remote directory where files were uploaded. Returns the cluster ID invisibly so it can be passed directly to <code><a href="../reference/htc_status.html">htc_status()</a></code>. Supports <code>dry_run = TRUE</code>.</p></li>
-<li><p><code><a href="../reference/htc_status.html">htc_status()</a></code> runs <code>condor_q</code> on the remote server to report job queue status. Optionally filters by cluster ID. When <code>watch = TRUE</code>, polls repeatedly at <code>interval</code> seconds (default 60) until the cluster ID disappears from the queue, signaling job completion. Returns <code>condor_q</code> output invisibly as a character vector. Supports <code>dry_run = TRUE</code>.</p></li>
-<li><p><code><a href="../reference/htc_download.html">htc_download()</a></code> copies files from the CHTC submit node back to the local machine via <code>scp</code>. Accepts single filenames, vectors of filenames, and glob patterns (<code>"*.tar.gz"</code>, <code>"job.*"</code>). Glob patterns are single-quoted to prevent local shell expansion. <code>local_path</code> defaults to <code>"."</code>. Supports <code>dry_run = TRUE</code>.</p></li>
-</ul></div>
-<div class="section level3">
-<h3 id="bug-fixes-0-0-0-9000">Bug fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-0-0-0-9000"></a></h3>
-<ul><li><p><code><a href="../reference/htc_config.html">htc_config()</a></code> now errors informatively when <code>username</code> or <code>server</code> are supplied as empty strings. Previously, empty strings passed validation silently and were written to <code>htc.cfg</code>.</p></li>
-<li><p><code><a href="../reference/htc_upload.html">htc_upload()</a></code> fixed a <code>cli</code> pluralization error in the missing-files error message. The <code>{?s}</code> pluralization token now receives the correct numeric quantity.</p></li>
-</ul></div>
-<div class="section level3">
-<h3 id="package-infrastructure-0-0-0-9000">Package infrastructure<a class="anchor" aria-label="anchor" href="#package-infrastructure-0-0-0-9000"></a></h3>
-<ul><li><p><code>inst/extdata/htc-resources.yaml</code> ships with the package and provides default resource presets for <code><a href="../reference/htc_gen_submit.html">htc_gen_submit()</a></code>.</p></li>
-<li><p><code>inst/extdata/hello-world.sub</code> and <code>inst/extdata/hello-world.sh</code> are included as test files for end-to-end workflow verification.</p></li>
-<li><p><code>inst/extdata/sample.R</code> included as a sample R script for use in examples.</p></li>
-<li><p>Three-layer testing strategy documented in <code>on-testing.md</code>: argument validation (Layer 1, always runs), command construction via <code>dry_run</code> and mocked <code><a href="https://rdrr.io/r/base/system2.html" class="external-link">system2()</a></code> (Layer 2, always runs), and integration tests guarded by <code>CHTC_USERNAME</code> environment variable (Layer 3, local only).</p></li>
-<li><p>153 tests passing across seven test files, 5 Layer 3 integration tests skipping as expected.</p></li>
-</ul></div>
 </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
     </nav></aside></div>

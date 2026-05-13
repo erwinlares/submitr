@@ -30,7 +30,7 @@ htc_gen_executable(
 - r_script:
 
   A character string. Name of the R script that HTCondor will run inside
-  the container, e.g. `"analysis.R"`. Must be supplied explicitly —
+  the container, e.g. `"analysis.R"`. Must be supplied explicitly –
   there is no default. If you used
   `toolero::create_qmd(use_purl = TRUE)`, the script is the `.R` file
   produced by `purl.R` after rendering.
@@ -88,7 +88,7 @@ referenced by the `executable` argument in
 The two functions should always use the same `mode`. In `"multiple"`
 mode, HTCondor passes each subset filename to the script as `${1}`,
 which is forwarded to the R script as a positional argument. The R
-script must be written to accept this argument — the recommended
+script must be written to accept this argument – the recommended
 approach is
 [`toolero::detect_execution_context()`](https://erwinlares.github.io/toolero/reference/detect_execution_context.html):
 
@@ -125,6 +125,6 @@ htc_gen_executable(
 #> Writing results folder creation
 #> Writing Rscript execution line (mode: single)
 #> Writing compression line
-#> Set executable permissions on /tmp/RtmpqyeDRN/run.sh
-#> ✔ Executable script written to /tmp/RtmpqyeDRN/run.sh
+#> Set executable permissions on /tmp/RtmpvZ5QtO/run.sh
+#> ✔ Executable script written to /tmp/RtmpvZ5QtO/run.sh
 ```

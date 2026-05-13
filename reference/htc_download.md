@@ -2,7 +2,7 @@
 
 `htc_download()` copies one or more files from a directory on an HTC
 submit node to a local directory via `scp`. It is the final step in the
-job submission workflow — called after
+job submission workflow – called after
 [`htc_status()`](https://erwinlares.github.io/submitr/reference/htc_status.md)
 confirms all jobs have completed.
 
@@ -95,13 +95,13 @@ is single-quoted in the `scp` command to prevent local shell expansion.
 
 Common patterns:
 
-- `"*.tar.gz"` — all result tarballs
+- `"*.tar.gz"` – all result tarballs
 
-- `"*.log"` — all log files
+- `"*.log"` – all log files
 
-- `"*.out"` — all output files
+- `"*.out"` – all output files
 
-- `"*.err"` — all error files
+- `"*.err"` – all error files
 
 ## SSH connection reuse
 
@@ -127,7 +127,7 @@ if (FALSE) { # \dontrun{
 cfg <- htc_config()
 
 # Download a single file
-htc_download(files = "results.tar.gz", config = cfg)
+htc_download(files = "r <- esults.tar.gz", config = cfg)
 
 # Download multiple specific files
 htc_download(

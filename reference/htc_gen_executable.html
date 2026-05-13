@@ -75,7 +75,7 @@ Must end in <code>".sh"</code>. Defaults to <code>"job.sh"</code>.</p></dd>
 <dt id="arg-r-script">r_script<a class="anchor" aria-label="anchor" href="#arg-r-script"></a></dt>
 <dd><p>A character string. Name of the R script that HTCondor
 will run inside the container, e.g. <code>"analysis.R"</code>. Must be supplied
-explicitly — there is no default. If you used
+explicitly – there is no default. If you used
 <code>toolero::create_qmd(use_purl = TRUE)</code>, the script is the <code>.R</code> file
 produced by <code>purl.R</code> after rendering.</p></dd>
 
@@ -135,7 +135,7 @@ referenced by the <code>executable</code> argument in <code><a href="htc_gen_sub
 functions should always use the same <code>mode</code>. In <code>"multiple"</code> mode,
 HTCondor passes each subset filename to the script as <code>${1}</code>, which is
 forwarded to the R script as a positional argument. The R script must
-be written to accept this argument — the recommended approach is
+be written to accept this argument – the recommended approach is
 <code><a href="https://erwinlares.github.io/toolero/reference/detect_execution_context.html" class="external-link">toolero::detect_execution_context()</a></code>:</p>
 <p></p><div class="sourceCode r"><pre><code><span><span class="va">context</span> <span class="op">&lt;-</span> <span class="fu">toolero</span><span class="fu">::</span><span class="fu"><a href="https://erwinlares.github.io/toolero/reference/detect_execution_context.html" class="external-link">detect_execution_context</a></span><span class="op">(</span><span class="op">)</span></span>
 <span></span>
@@ -170,8 +170,8 @@ be written to accept this argument — the recommended approach is
 <span class="r-msg co"><span class="r-pr">#&gt;</span> Writing results folder creation</span>
 <span class="r-msg co"><span class="r-pr">#&gt;</span> Writing Rscript execution line (mode: single)</span>
 <span class="r-msg co"><span class="r-pr">#&gt;</span> Writing compression line</span>
-<span class="r-msg co"><span class="r-pr">#&gt;</span> Set executable permissions on <span style="color: #0000BB;">/tmp/RtmpqyeDRN/run.sh</span></span>
-<span class="r-msg co"><span class="r-pr">#&gt;</span> <span style="color: #00BB00;">✔</span> Executable script written to <span style="color: #0000BB;">/tmp/RtmpqyeDRN/run.sh</span></span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> Set executable permissions on <span style="color: #0000BB;">/tmp/RtmpvZ5QtO/run.sh</span></span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> <span style="color: #00BB00;">✔</span> Executable script written to <span style="color: #0000BB;">/tmp/RtmpvZ5QtO/run.sh</span></span>
 </code></pre></div>
     </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
