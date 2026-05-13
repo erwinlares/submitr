@@ -9,7 +9,7 @@
 #'   Must end in `".sh"`. Defaults to `"job.sh"`.
 #' @param r_script A character string. Name of the R script that HTCondor
 #'   will run inside the container, e.g. `"analysis.R"`. Must be supplied
-#'   explicitly — there is no default. If you used
+#'   explicitly -- there is no default. If you used
 #'   `toolero::create_qmd(use_purl = TRUE)`, the script is the `.R` file
 #'   produced by `purl.R` after rendering.
 #' @param results_folder A character string. Name of the folder created
@@ -45,7 +45,7 @@
 #' functions should always use the same `mode`. In `"multiple"` mode,
 #' HTCondor passes each subset filename to the script as `${1}`, which is
 #' forwarded to the R script as a positional argument. The R script must
-#' be written to accept this argument — the recommended approach is
+#' be written to accept this argument -- the recommended approach is
 #' `toolero::detect_execution_context()`:
 #'
 #' ```r

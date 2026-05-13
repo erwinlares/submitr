@@ -21,7 +21,7 @@ Must end in \code{".sh"}. Defaults to \code{"job.sh"}.}
 
 \item{r_script}{A character string. Name of the R script that HTCondor
 will run inside the container, e.g. \code{"analysis.R"}. Must be supplied
-explicitly — there is no default. If you used
+explicitly -- there is no default. If you used
 \code{toolero::create_qmd(use_purl = TRUE)}, the script is the \code{.R} file
 produced by \code{purl.R} after rendering.}
 
@@ -71,7 +71,7 @@ referenced by the \code{executable} argument in \code{\link[=htc_gen_submit]{htc
 functions should always use the same \code{mode}. In \code{"multiple"} mode,
 HTCondor passes each subset filename to the script as \verb{$\{1\}}, which is
 forwarded to the R script as a positional argument. The R script must
-be written to accept this argument — the recommended approach is
+be written to accept this argument -- the recommended approach is
 \code{toolero::detect_execution_context()}:
 
 \if{html}{\out{<div class="sourceCode r">}}\preformatted{context <- toolero::detect_execution_context()

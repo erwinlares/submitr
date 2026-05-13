@@ -41,7 +41,7 @@ Called for its side effects. Returns \code{invisible(NULL)}.
 \description{
 \code{htc_download()} copies one or more files from a directory on an HTC
 submit node to a local directory via \code{scp}. It is the final step in the
-job submission workflow — called after \code{\link[=htc_status]{htc_status()}} confirms all jobs
+job submission workflow -- called after \code{\link[=htc_status]{htc_status()}} confirms all jobs
 have completed.
 }
 \details{
@@ -75,10 +75,10 @@ is single-quoted in the \code{scp} command to prevent local shell expansion.
 
 Common patterns:
 \itemize{
-\item \code{"*.tar.gz"} — all result tarballs
-\item \code{"*.log"} — all log files
-\item \code{"*.out"} — all output files
-\item \code{"*.err"} — all error files
+\item \code{"*.tar.gz"} -- all result tarballs
+\item \code{"*.log"} -- all log files
+\item \code{"*.out"} -- all output files
+\item \code{"*.err"} -- all error files
 }
 }
 
@@ -101,7 +101,7 @@ htc_download(files = "*.tar.gz", config = cfg, dry_run = TRUE)
 cfg <- htc_config()
 
 # Download a single file
-htc_download(files = "results.tar.gz", config = cfg)
+htc_download(files = "r <- esults.tar.gz", config = cfg)
 
 # Download multiple specific files
 htc_download(

@@ -2,7 +2,7 @@
 #'
 #' `htc_upload()` copies one or more local files or directories to a
 #' directory on an HTC submit node via `scp`. It is the first step in the
-#' job submission workflow — files must be present on the submit node before
+#' job submission workflow -- files must be present on the submit node before
 #' `htc_submit()` can run `condor_submit`.
 #'
 #' @param files A character vector. One or more local file paths or directory

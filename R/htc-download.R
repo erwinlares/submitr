@@ -2,7 +2,7 @@
 #'
 #' `htc_download()` copies one or more files from a directory on an HTC
 #' submit node to a local directory via `scp`. It is the final step in the
-#' job submission workflow — called after [htc_status()] confirms all jobs
+#' job submission workflow -- called after [htc_status()] confirms all jobs
 #' have completed.
 #'
 #' Glob patterns such as `"*.tar.gz"` are supported and are evaluated on the
@@ -50,10 +50,10 @@
 #' is single-quoted in the `scp` command to prevent local shell expansion.
 #'
 #' Common patterns:
-#' - `"*.tar.gz"` — all result tarballs
-#' - `"*.log"` — all log files
-#' - `"*.out"` — all output files
-#' - `"*.err"` — all error files
+#' - `"*.tar.gz"` -- all result tarballs
+#' - `"*.log"` -- all log files
+#' - `"*.out"` -- all output files
+#' - `"*.err"` -- all error files
 #'
 #' @section SSH connection reuse:
 #' Each call to `htc_download()` opens a new SSH connection. If you have
@@ -74,7 +74,7 @@
 #' cfg <- htc_config()
 #'
 #' # Download a single file
-#' htc_download(files = "results.tar.gz", config = cfg)
+#' htc_download(files = "r <- esults.tar.gz", config = cfg)
 #'
 #' # Download multiple specific files
 #' htc_download(
@@ -142,7 +142,7 @@ htc_download <- function(files,
 
     # -- 5. Build scp arguments ------------------------------------------------
     # Each file or glob pattern is prefixed with the remote host and path.
-    # Glob patterns are single-quoted to prevent local shell expansion —
+    # Glob patterns are single-quoted to prevent local shell expansion --
     # the remote shell evaluates them against files on the submit node.
     remote_sources <- vapply(files, function(f) {
         # If the file contains a glob character, single-quote the full

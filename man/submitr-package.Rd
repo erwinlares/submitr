@@ -8,12 +8,13 @@
 \description{
 \if{html}{\figure{logo.png}{options: style='float: right' alt='logo' width='120'}}
 
-Provides scaffolding tools to help researchers prepare and submit computational jobs to high-throughput computing (HTC) schedulers. Generates the files required to run containerized R analyses on 'HTCondor', including submit files and executable scripts, and wraps the system commands needed to stage files, submit jobs, monitor status, and retrieve results from a CHTC submit node. Provides 'htc_config()' for managing connection details and SSH connection reuse guidance. Works naturally alongside 'containr' for container image management and 'toolero' for dataset splitting and project scaffolding. 'HTCondor' and 'CHTC' are the initial targets; 'HPC' scheduler support ('Slurm', 'PBS') is planned for a future release.
+Provides scaffolding tools to help researchers prepare and submit computational jobs to high-throughput computing (HTC) schedulers. Generates the files required to run containerized R analyses on 'HTCondor', including submit files and executable scripts, and wraps the system commands needed to stage files, submit jobs, monitor status, and retrieve results from a CHTC submit node. Provides 'htc_config()' for managing connection details and SSH connection reuse guidance. Works naturally alongside 'containr' for container image management and 'toolero' for dataset splitting and project scaffolding.
 }
 \seealso{
 Useful links:
 \itemize{
   \item \url{https://erwinlares.github.io/submitr/}
+  \item Report bugs at \url{https://github.com/erwinlares/submitr/issues}
 }
 
 }

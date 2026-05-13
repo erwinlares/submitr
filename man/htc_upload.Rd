@@ -38,7 +38,7 @@ Called for its side effects. Returns \code{invisible(NULL)}.
 \description{
 \code{htc_upload()} copies one or more local files or directories to a
 directory on an HTC submit node via \code{scp}. It is the first step in the
-job submission workflow — files must be present on the submit node before
+job submission workflow -- files must be present on the submit node before
 \code{htc_submit()} can run \code{condor_submit}.
 }
 \section{Workflow}{
