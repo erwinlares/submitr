@@ -62,7 +62,7 @@ test_that("htc_gen_executable() errors when r_script is NULL", {
 })
 
 # ---------------------------------------------------------------------------
-# Script content — shebang
+# Script content -- shebang and shell options
 # ---------------------------------------------------------------------------
 
 test_that("script starts with #!/bin/bash", {
@@ -72,8 +72,35 @@ test_that("script starts with #!/bin/bash", {
     expect_equal(lines[[1]], "#!/bin/bash")
 })
 
+test_that("script includes set -euo pipefail after shebang", {
+    tmp <- withr::local_tempdir()
+    htc_gen_executable(r_script = "analysis.R", output = tmp)
+    lines <- read_script(tmp)
+    expect_equal(lines[[2]], "set -euo pipefail")
+})
+
 # ---------------------------------------------------------------------------
-# Script content — results folder
+# Script content -- working directory
+# ---------------------------------------------------------------------------
+
+test_that("script includes cd /home", {
+    tmp <- withr::local_tempdir()
+    htc_gen_executable(r_script = "analysis.R", output = tmp)
+    lines <- read_script(tmp)
+    expect_true(any(grepl("^cd /home$", lines)))
+})
+
+test_that("cd /home appears before mkdir", {
+    tmp <- withr::local_tempdir()
+    htc_gen_executable(r_script = "analysis.R", output = tmp)
+    lines <- read_script(tmp)
+    pos_cd    <- which(grepl("^cd /home$", lines))
+    pos_mkdir <- which(grepl("^mkdir", lines))
+    expect_true(pos_cd < pos_mkdir)
+})
+
+# ---------------------------------------------------------------------------
+# Script content -- results folder
 # ---------------------------------------------------------------------------
 
 test_that("script contains mkdir for default results folder", {
@@ -92,7 +119,7 @@ test_that("script reflects custom results_folder name", {
 })
 
 # ---------------------------------------------------------------------------
-# Script content — Rscript execution line
+# Script content -- Rscript execution line
 # ---------------------------------------------------------------------------
 
 test_that("single mode Rscript line has no positional argument", {
@@ -119,7 +146,7 @@ test_that("Rscript line reflects custom r_script name", {
 })
 
 # ---------------------------------------------------------------------------
-# Script content — compression line
+# Script content -- compression line
 # ---------------------------------------------------------------------------
 
 test_that("single mode compression line uses r_script-derived tarball name", {
@@ -162,15 +189,19 @@ test_that("compression line reflects custom results_folder name", {
 # Section order
 # ---------------------------------------------------------------------------
 
-test_that("script sections appear in correct order: shebang, mkdir, Rscript, tar", {
+test_that("script sections appear in correct order: shebang, set, cd, mkdir, Rscript, tar", {
     tmp <- withr::local_tempdir()
     htc_gen_executable(r_script = "analysis.R", output = tmp)
     lines <- read_script(tmp)
-    pos_shebang  <- which(grepl("^#!/bin/bash",  lines))
-    pos_mkdir    <- which(grepl("^mkdir",         lines))
-    pos_rscript  <- which(grepl("^Rscript",       lines))
-    pos_tar      <- which(grepl("^tar",           lines))
-    expect_true(pos_shebang < pos_mkdir)
+    pos_shebang  <- which(grepl("^#!/bin/bash",        lines))
+    pos_set      <- which(grepl("^set -euo pipefail",  lines))
+    pos_cd       <- which(grepl("^cd /home$",          lines))
+    pos_mkdir    <- which(grepl("^mkdir",              lines))
+    pos_rscript  <- which(grepl("^Rscript",            lines))
+    pos_tar      <- which(grepl("^tar",                lines))
+    expect_true(pos_shebang < pos_set)
+    expect_true(pos_set     < pos_cd)
+    expect_true(pos_cd      < pos_mkdir)
     expect_true(pos_mkdir   < pos_rscript)
     expect_true(pos_rscript < pos_tar)
 })
@@ -183,18 +214,17 @@ test_that("comments = TRUE writes comment lines to the script", {
     tmp <- withr::local_tempdir()
     htc_gen_executable(r_script = "analysis.R", comments = TRUE, output = tmp)
     lines <- read_script(tmp)
-    # shebang has no comment so at least one other section must have one
     comment_lines <- grep("^#", lines)
     expect_true(length(comment_lines) > 0)
 })
 
-test_that("comments = FALSE writes no comment lines beyond shebang", {
+test_that("comments = FALSE writes no comment lines beyond shebang and set", {
     tmp <- withr::local_tempdir()
     htc_gen_executable(r_script = "analysis.R", comments = FALSE, output = tmp)
     lines <- read_script(tmp)
-    # only the shebang line starts with #
     comment_lines <- lines[grepl("^#", lines)]
-    # #!/bin/bash starts with # and counts as one comment line
+    # #!/bin/bash is the only line starting with #
+    # set -euo pipefail and cd /home do not start with #
     expect_equal(length(comment_lines), 1L)
 })
 
@@ -217,9 +247,6 @@ test_that("set_executable = TRUE sets executable permissions on the script", {
     tmp  <- withr::local_tempdir()
     htc_gen_executable(r_script = "analysis.R", set_executable = TRUE, output = tmp)
     path <- file.path(tmp, "job.sh")
-    # file.info()$mode returns an octal-class integer; convert to check the
-    # owner execute bit. 0755 octal = 493 decimal. Owner execute is bit 6
-    # (value 64). Any mode with owner execute set will have mode & 64 != 0.
     mode <- as.integer(file.info(path)$mode)
     expect_true(bitwAnd(mode, 64L) != 0L)
 })

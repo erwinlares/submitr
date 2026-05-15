@@ -190,6 +190,29 @@ test_that("submit file contains placeholder comment when container_image is NULL
     expect_true(any(grepl("# container_image", lines, fixed = TRUE)))
 })
 
+test_that("submit file prepends docker:// when container_image lacks prefix", {
+    tmp <- withr::local_tempdir()
+    htc_gen_submit(
+        container_image = "registry.doit.wisc.edu/netid/myimage",
+        output          = tmp
+    )
+    lines <- read_subfile(tmp)
+    expect_true(any(grepl(
+        "container_image = docker://registry.doit.wisc.edu/netid/myimage",
+        lines, fixed = TRUE
+    )))
+})
+
+test_that("submit file does not double-prepend docker:// when already present", {
+    tmp <- withr::local_tempdir()
+    htc_gen_submit(
+        container_image = "docker://registry.doit.wisc.edu/netid/myimage",
+        output          = tmp
+    )
+    lines <- read_subfile(tmp)
+    expect_false(any(grepl("docker://docker://", lines, fixed = TRUE)))
+})
+
 test_that("submit file contains executable when supplied", {
     tmp <- withr::local_tempdir()
     htc_gen_submit(executable = "analysis.sh", output = tmp)
@@ -211,6 +234,20 @@ test_that("submit file contains log, error, and output logging lines", {
     expect_true(any(grepl("^log ", lines)))
     expect_true(any(grepl("^error ", lines)))
     expect_true(any(grepl("^output ", lines)))
+})
+
+test_that("submit file contains should_transfer_files = YES", {
+    tmp <- withr::local_tempdir()
+    htc_gen_submit(output = tmp)
+    lines <- read_subfile(tmp)
+    expect_true(any(grepl("should_transfer_files   = YES", lines, fixed = TRUE)))
+})
+
+test_that("submit file contains when_to_transfer_output = ON_EXIT", {
+    tmp <- withr::local_tempdir()
+    htc_gen_submit(output = tmp)
+    lines <- read_subfile(tmp)
+    expect_true(any(grepl("when_to_transfer_output = ON_EXIT", lines, fixed = TRUE)))
 })
 
 test_that("submit file contains queue 1 in single mode", {

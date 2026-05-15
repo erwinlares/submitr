@@ -1,9 +1,10 @@
 #' Generate an HTCondor executable shell script for an R job
 #'
 #' `htc_gen_executable()` writes a ready-to-use bash script (`.sh`) that
-#' HTCondor runs inside the container for each job. The script creates a
-#' results folder, runs the R script via `Rscript`, and compresses the
-#' results into a tarball for transfer back to the submit node.
+#' HTCondor runs inside the container for each job. The script changes to
+#' the container's working directory, creates a results folder, runs the
+#' R script via `Rscript`, and compresses the results into a tarball for
+#' transfer back to the submit node.
 #'
 #' @param output_file A character string. Name of the shell script to write.
 #'   Must end in `".sh"`. Defaults to `"job.sh"`.
@@ -57,6 +58,13 @@
 #'   rscript     = commandArgs(trailingOnly = TRUE)[1]
 #' )
 #' ```
+#'
+#' @section Working directory inside the container:
+#' HTCondor may start the executable from a scratch directory that differs
+#' from the container's `WORKDIR`. The generated script includes a `cd /home`
+#' line to ensure file paths resolve correctly against the container's
+#' layout. This matches the `home_dir = "/home"` default used by
+#' `containr::generate_dockerfile()`.
 #'
 #' @export
 #'
@@ -127,8 +135,8 @@ htc_gen_executable <- function(output_file    = "job.sh",
 
         shebang = list(
             verbose_msg = "Writing shebang line",
-            comment     = NULL,
-            lines       = c("#!/bin/bash", "")
+            comment     = "# Exit immediately on errors, undefined variables, or pipe failures.",
+            lines       = c("#!/bin/bash", "set -euo pipefail", "")
         ),
 
         permissions = list(
@@ -146,69 +154,80 @@ htc_gen_executable <- function(output_file    = "job.sh",
             lines       = NULL
         ),
 
-results_dir = list(
-    verbose_msg = "Writing results folder creation",
-    comment     = paste0(
-        "# Create a folder to collect all output files produced by the job.\n",
-        "# HTCondor transfers everything in the top-level working directory\n",
-        "# back to the submit node when the job finishes. Placing outputs in\n",
-        "# a subfolder keeps them organized before compression."
-    ),
-    lines       = glue::glue("mkdir {results_folder}")
-),
+        workdir = list(
+            verbose_msg = "Writing working directory change",
+            comment     = paste0(
+                "# Change to the container's working directory where baked-in files live.\n",
+                "# HTCondor may start the script from a scratch directory that differs\n",
+                "# from the container's WORKDIR. This ensures Rscript and file paths\n",
+                "# resolve correctly against the container's /home layout."
+            ),
+            lines       = c("cd /home", "")
+        ),
 
-execute = list(
-    verbose_msg = glue::glue(
-        "Writing Rscript execution line (mode: {mode})"
-    ),
-    comment     = if (mode == "single") {
-        paste0(
-            "# Run the R script using Rscript rather than R itself.\n",
-            "# Rscript executes the script non-interactively with no GUI,\n",
-            "# which is required for headless execution on the execute node."
-        )
-    } else {
-        paste0(
-            "# Run the R script using Rscript rather than R itself.\n",
-            "# ${1} is the first positional argument passed by HTCondor --\n",
-            "# the subset filename substituted from subdatasets.csv.\n",
-            "# The R script receives this as commandArgs(trailingOnly = TRUE)[1].\n",
-            "# Use toolero::detect_execution_context() in your R script to\n",
-            "# handle this argument correctly across all execution contexts."
-        )
-    },
-    lines       = if (mode == "single") {
-        glue::glue("Rscript {r_script}")
-    } else {
-        glue::glue("Rscript {r_script} ${{1}}")
-    }
-),
+        results_dir = list(
+            verbose_msg = "Writing results folder creation",
+            comment     = paste0(
+                "# Create a folder to collect all output files produced by the job.\n",
+                "# HTCondor transfers everything in the top-level working directory\n",
+                "# back to the submit node when the job finishes. Placing outputs in\n",
+                "# a subfolder keeps them organized before compression."
+            ),
+            lines       = glue::glue("mkdir {results_folder}")
+        ),
 
-compress = list(
-    verbose_msg = "Writing compression line",
-    comment     = if (mode == "single") {
-        paste0(
-            "# Compress the results folder into a single tarball.\n",
-            "# This reduces the number of files transferred back to the submit\n",
-            "# node and keeps results from different runs organized."
+        execute = list(
+            verbose_msg = glue::glue(
+                "Writing Rscript execution line (mode: {mode})"
+            ),
+            comment     = if (mode == "single") {
+                paste0(
+                    "# Run the R script using Rscript rather than R itself.\n",
+                    "# Rscript executes the script non-interactively with no GUI,\n",
+                    "# which is required for headless execution on the execute node."
+                )
+            } else {
+                paste0(
+                    "# Run the R script using Rscript rather than R itself.\n",
+                    "# ${1} is the first positional argument passed by HTCondor --\n",
+                    "# the subset filename substituted from subdatasets.csv.\n",
+                    "# The R script receives this as commandArgs(trailingOnly = TRUE)[1].\n",
+                    "# Use toolero::detect_execution_context() in your R script to\n",
+                    "# handle this argument correctly across all execution contexts."
+                )
+            },
+            lines       = if (mode == "single") {
+                glue::glue("Rscript {r_script}")
+            } else {
+                glue::glue("Rscript {r_script} ${{1}}")
+            }
+        ),
+
+        compress = list(
+            verbose_msg = "Writing compression line",
+            comment     = if (mode == "single") {
+                paste0(
+                    "# Compress the results folder into a single tarball.\n",
+                    "# This reduces the number of files transferred back to the submit\n",
+                    "# node and keeps results from different runs organized."
+                )
+            } else {
+                paste0(
+                    "# Compress the results folder into a per-job tarball.\n",
+                    "# ${1} is the subset filename, giving each job a unique archive\n",
+                    "# name (e.g. adelie.csv-results.tar.gz) so results from different\n",
+                    "# jobs do not overwrite each other on the submit node."
+                )
+            },
+            lines       = if (mode == "single") {
+                glue::glue(
+                    "tar -czf {tools::file_path_sans_ext(r_script)}-results.tar.gz ",
+                    "{results_folder}"
+                )
+            } else {
+                glue::glue("tar -czf ${{1}}-results.tar.gz {results_folder}")
+            }
         )
-    } else {
-        paste0(
-            "# Compress the results folder into a per-job tarball.\n",
-            "# ${1} is the subset filename, giving each job a unique archive\n",
-            "# name (e.g. adelie.csv-results.tar.gz) so results from different\n",
-            "# jobs do not overwrite each other on the submit node."
-        )
-    },
-    lines       = if (mode == "single") {
-        glue::glue(
-            "tar -czf {tools::file_path_sans_ext(r_script)}-results.tar.gz ",
-            "{results_folder}"
-        )
-    } else {
-        glue::glue("tar -czf ${{1}}-results.tar.gz {results_folder}")
-    }
-)
     )
 
     # -- 6. Write script -------------------------------------------------------

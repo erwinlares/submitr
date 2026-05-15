@@ -16,3 +16,4 @@ on-testing.md
 ^pkgdown$
 ^CONTRIBUTING\.md$
 ^cran-comments\.md$
+^CRAN-SUBMISSION$

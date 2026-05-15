@@ -23,12 +23,9 @@ htc_gen_submit(
 )
 }
 \arguments{
-\item{output_file}{A character string. Name of the submit file to write.
-Must end in \code{".sub"}. Defaults to \code{"job.sub"}.}
-
 \item{container_image}{A character string. The container image to use,
-including the registry prefix, e.g.
-\code{"docker://registry.doit.wisc.edu/netid/myimage"}. Defaults to \code{NULL},
+e.g. \code{"registry.doit.wisc.edu/netid/myimage"}. The \verb{docker://} prefix
+is added automatically if not already present. Defaults to \code{NULL},
 which writes a placeholder comment in the submit file.}
 
 \item{executable}{A character string. The shell script that HTCondor will

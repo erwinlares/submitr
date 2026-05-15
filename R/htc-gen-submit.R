@@ -4,11 +4,9 @@
 #' for running a containerized R job on an HTC cluster such as CHTC. It
 #' supports both single-job and multiple-job submission modes.
 #'
-#' @param output_file A character string. Name of the submit file to write.
-#'   Must end in `".sub"`. Defaults to `"job.sub"`.
 #' @param container_image A character string. The container image to use,
-#'   including the registry prefix, e.g.
-#'   `"docker://registry.doit.wisc.edu/netid/myimage"`. Defaults to `NULL`,
+#'   e.g. `"registry.doit.wisc.edu/netid/myimage"`. The `docker://` prefix
+#'   is added automatically if not already present. Defaults to `NULL`,
 #'   which writes a placeholder comment in the submit file.
 #' @param executable A character string. The shell script that HTCondor will
 #'   run inside the container, e.g. `"analysis.sh"`. Defaults to `NULL`,
@@ -177,6 +175,11 @@ htc_gen_submit <- function(output_file      = "job.sub",
         cli::cli_abort(
             "Output directory {.path {output}} does not exist."
         )
+    }
+
+    # -- 2b. Prepend docker:// to container_image if missing -------------------
+    if (!is.null(container_image) && !grepl("^docker://", container_image)) {
+        container_image <- paste0("docker://", container_image)
     }
 
     # -- 3. Validate mode ------------------------------------------------------
@@ -457,6 +460,9 @@ htc_gen_submit <- function(output_file      = "job.sub",
             ),
             lines       = c(
                 "# Transfer section",
+                "should_transfer_files   = YES",
+                "when_to_transfer_output = ON_EXIT",
+                "",
                 if (!is.null(resolved_input_files)) {
                     glue::glue("transfer_input_files = {resolved_input_files}")
                 } else {

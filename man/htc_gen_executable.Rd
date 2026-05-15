@@ -60,9 +60,10 @@ Called for its side effects. Writes a bash script to
 }
 \description{
 \code{htc_gen_executable()} writes a ready-to-use bash script (\code{.sh}) that
-HTCondor runs inside the container for each job. The script creates a
-results folder, runs the R script via \code{Rscript}, and compresses the
-results into a tarball for transfer back to the submit node.
+HTCondor runs inside the container for each job. The script changes to
+the container's working directory, creates a results folder, runs the
+R script via \code{Rscript}, and compresses the results into a tarball for
+transfer back to the submit node.
 }
 \section{Relationship to htc_gen_submit()}{
 
@@ -82,6 +83,15 @@ input_file <- switch(context,
   rscript     = commandArgs(trailingOnly = TRUE)[1]
 )
 }\if{html}{\out{</div>}}
+}
+
+\section{Working directory inside the container}{
+
+HTCondor may start the executable from a scratch directory that differs
+from the container's \code{WORKDIR}. The generated script includes a \code{cd /home}
+line to ensure file paths resolve correctly against the container's
+layout. This matches the \code{home_dir = "/home"} default used by
+\code{containr::generate_dockerfile()}.
 }
 
 \examples{
