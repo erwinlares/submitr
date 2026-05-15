@@ -23,6 +23,9 @@ htc_gen_submit(
 )
 }
 \arguments{
+\item{output_file}{A character string. Name of the submit file to write.
+Must end in \code{".sub"}. Defaults to \code{"job.sub"}.}
+
 \item{container_image}{A character string. The container image to use,
 e.g. \code{"registry.doit.wisc.edu/netid/myimage"}. The \verb{docker://} prefix
 is added automatically if not already present. Defaults to \code{NULL},

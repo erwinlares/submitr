@@ -3,7 +3,9 @@
 #' `htc_gen_submit()` writes a ready-to-use HTCondor submit file (`.sub`)
 #' for running a containerized R job on an HTC cluster such as CHTC. It
 #' supports both single-job and multiple-job submission modes.
-#'
+#' @param output_file A character string. Name of the submit file to write.
+#'   Must end in `".sub"`. Defaults to `"job.sub"`.
+#' @param container_image A character string. The container image to use,
 #' @param container_image A character string. The container image to use,
 #'   e.g. `"registry.doit.wisc.edu/netid/myimage"`. The `docker://` prefix
 #'   is added automatically if not already present. Defaults to `NULL`,
