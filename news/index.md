@@ -4,6 +4,26 @@
 
 - Development version following initial release.
 
+#### Bug fixes
+
+- [`htc_gen_submit()`](https://erwinlares.github.io/submitr/reference/htc_gen_submit.md)
+  now prepends `docker://` to `container_image` if the prefix is
+  missing. Previously, omitting the prefix caused HTCondor to treat the
+  image path as a local file.
+- [`htc_gen_submit()`](https://erwinlares.github.io/submitr/reference/htc_gen_submit.md)
+  now includes `should_transfer_files = YES` and
+  `when_to_transfer_output = ON_EXIT` in the transfer section. These
+  directives are required by HTCondor for the file transfer mechanism to
+  work.
+- [`htc_gen_executable()`](https://erwinlares.github.io/submitr/reference/htc_gen_executable.md)
+  now includes `set -euo pipefail` after the shebang line, causing the
+  script to exit immediately on errors instead of silently continuing.
+- [`htc_gen_executable()`](https://erwinlares.github.io/submitr/reference/htc_gen_executable.md)
+  now includes `cd /home` before any file operations, ensuring the
+  script runs from the container’s working directory where
+  [`containr::generate_dockerfile()`](https://erwinlares.github.io/containr/reference/generate_dockerfile.html)
+  placed the baked-in files.
+
 ## submitr 0.1.0
 
 ### Initial release

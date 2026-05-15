@@ -38,7 +38,18 @@
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="0.1.0.9000" id="submitr-0109000">submitr 0.1.0.9000<a class="anchor" aria-label="anchor" href="#submitr-0109000"></a></h2>
 <ul><li>Development version following initial release.</li>
+</ul><div class="section level4">
+<h4 id="bug-fixes-0-1-0-9000">Bug fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-0-1-0-9000"></a></h4>
+<ul><li>
+<code><a href="../reference/htc_gen_submit.html">htc_gen_submit()</a></code> now prepends <code>docker://</code> to <code>container_image</code> if the prefix is missing. Previously, omitting the prefix caused HTCondor to treat the image path as a local file.</li>
+<li>
+<code><a href="../reference/htc_gen_submit.html">htc_gen_submit()</a></code> now includes <code>should_transfer_files = YES</code> and <code>when_to_transfer_output = ON_EXIT</code> in the transfer section. These directives are required by HTCondor for the file transfer mechanism to work.</li>
+<li>
+<code><a href="../reference/htc_gen_executable.html">htc_gen_executable()</a></code> now includes <code>set -euo pipefail</code> after the shebang line, causing the script to exit immediately on errors instead of silently continuing.</li>
+<li>
+<code><a href="../reference/htc_gen_executable.html">htc_gen_executable()</a></code> now includes <code>cd /home</code> before any file operations, ensuring the script runs from the container’s working directory where <code><a href="https://erwinlares.github.io/containr/reference/generate_dockerfile.html" class="external-link">containr::generate_dockerfile()</a></code> placed the baked-in files.</li>
 </ul></div>
+</div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="0.1.0" id="submitr-010">submitr 0.1.0<a class="anchor" aria-label="anchor" href="#submitr-010"></a></h2>
 <div class="section level3">

@@ -1,9 +1,10 @@
 # Generate an HTCondor executable shell script for an R job
 
 `htc_gen_executable()` writes a ready-to-use bash script (`.sh`) that
-HTCondor runs inside the container for each job. The script creates a
-results folder, runs the R script via `Rscript`, and compresses the
-results into a tarball for transfer back to the submit node.
+HTCondor runs inside the container for each job. The script changes to
+the container's working directory, creates a results folder, runs the R
+script via `Rscript`, and compresses the results into a tarball for
+transfer back to the submit node.
 
 ## Usage
 
@@ -100,6 +101,15 @@ approach is
       rscript     = commandArgs(trailingOnly = TRUE)[1]
     )
 
+## Working directory inside the container
+
+HTCondor may start the executable from a scratch directory that differs
+from the container's `WORKDIR`. The generated script includes a
+`cd /home` line to ensure file paths resolve correctly against the
+container's layout. This matches the `home_dir = "/home"` default used
+by
+[`containr::generate_dockerfile()`](https://erwinlares.github.io/containr/reference/generate_dockerfile.html).
+
 ## Examples
 
 ``` r
@@ -122,9 +132,10 @@ htc_gen_executable(
   output      = tempdir()
 )
 #> Writing shebang line
+#> Writing working directory change
 #> Writing results folder creation
 #> Writing Rscript execution line (mode: single)
 #> Writing compression line
-#> Set executable permissions on /tmp/RtmpvZ5QtO/run.sh
-#> ✔ Executable script written to /tmp/RtmpvZ5QtO/run.sh
+#> Set executable permissions on /tmp/RtmpdcyxD3/run.sh
+#> ✔ Executable script written to /tmp/RtmpdcyxD3/run.sh
 ```

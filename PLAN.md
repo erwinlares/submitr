@@ -104,6 +104,10 @@ runtime. A local `./htc-resources.yaml` takes precedence over the
 package default. Preset name validation happens against
 `names(resource_map)` from the YAML, not a hardcoded list.
 
+Prepends `docker://` to `container_image` automatically if the prefix is
+missing. Includes `should_transfer_files = YES` and
+`when_to_transfer_output = ON_EXIT` in the transfer section.
+
 Arguments: `output_file`, `container_image`, `executable`,
 `input_files`, `output_files`, `mode`, `queue`, `queue_from`,
 `resources`, `custom_resources`, `gpu`, `gpu_options`, `verbose`,
@@ -113,11 +117,11 @@ Arguments: `output_file`, `container_image`, `executable`,
 
 ### `htc_gen_executable()`
 
-Generates an HTCondor executable bash script (`.sh`). The shebang line
-(`#!/bin/bash`) is always the first line of the file — the permission
-comment block follows only when `comments = TRUE`. `r_script` is
-required with no default. `set_executable = TRUE` (default) sets
-executable permissions via
+Generates an HTCondor executable bash script (`.sh`). Emits
+`set -euo pipefail` after the shebang to exit on errors, and `cd /home`
+before any file operations to ensure paths resolve against the
+container’s working directory. `r_script` is required with no default.
+`set_executable = TRUE` (default) sets executable permissions via
 [`Sys.chmod()`](https://rdrr.io/r/base/files2.html).
 
 Arguments: `output_file`, `r_script`, `results_folder`, `mode`,
@@ -293,3 +297,10 @@ question: `scheduler` argument on existing functions, or separate
     eventually support uploading directly to `/staging` via a
     `destination` argument (`"home"` or `"staging"`), or should a
     separate function handle that case?
+
+3.  Should
+    [`htc_gen_submit()`](https://erwinlares.github.io/submitr/reference/htc_gen_submit.md)
+    distinguish between files baked into the container image and files
+    transferred at runtime via `transfer_input_files`? Currently all
+    files are listed regardless of whether they exist inside the
+    container.

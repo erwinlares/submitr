@@ -101,12 +101,13 @@ submitr     -- HTC job submission toolkit (dev v0.0.0.9000)</code></pre>
 <h3 id="htc_gen_submit"><code>htc_gen_submit()</code><a class="anchor" aria-label="anchor" href="#htc_gen_submit"></a></h3>
 <p>Generates an HTCondor <code>.sub</code> submit file. Supports single-job and multiple-job submission modes. Multiple mode reads a manifest produced by <code>toolero::write_by_group(manifest = TRUE)</code>, extracts bare filenames, writes <code>subdatasets.csv</code>, and emits <code>queue file from subdatasets.csv</code>.</p>
 <p>Resource presets loaded from <code>inst/extdata/htc-resources.yaml</code> at runtime. A local <code>./htc-resources.yaml</code> takes precedence over the package default. Preset name validation happens against <code>names(resource_map)</code> from the YAML, not a hardcoded list.</p>
+<p>Prepends <code>docker://</code> to <code>container_image</code> automatically if the prefix is missing. Includes <code>should_transfer_files = YES</code> and <code>when_to_transfer_output = ON_EXIT</code> in the transfer section.</p>
 <p>Arguments: <code>output_file</code>, <code>container_image</code>, <code>executable</code>, <code>input_files</code>, <code>output_files</code>, <code>mode</code>, <code>queue</code>, <code>queue_from</code>, <code>resources</code>, <code>custom_resources</code>, <code>gpu</code>, <code>gpu_options</code>, <code>verbose</code>, <code>comments</code>, <code>output</code>.</p>
 <p>44 passing tests in <code>test-htc-gen-submit.R</code>.</p>
 </div>
 <div class="section level3">
 <h3 id="htc_gen_executable"><code>htc_gen_executable()</code><a class="anchor" aria-label="anchor" href="#htc_gen_executable"></a></h3>
-<p>Generates an HTCondor executable bash script (<code>.sh</code>). The shebang line (<code>#!/bin/bash</code>) is always the first line of the file — the permission comment block follows only when <code>comments = TRUE</code>. <code>r_script</code> is required with no default. <code>set_executable = TRUE</code> (default) sets executable permissions via <code><a href="https://rdrr.io/r/base/files2.html" class="external-link">Sys.chmod()</a></code>.</p>
+<p>Generates an HTCondor executable bash script (<code>.sh</code>). Emits <code>set -euo pipefail</code> after the shebang to exit on errors, and <code>cd /home</code> before any file operations to ensure paths resolve against the container’s working directory. <code>r_script</code> is required with no default. <code>set_executable = TRUE</code> (default) sets executable permissions via <code><a href="https://rdrr.io/r/base/files2.html" class="external-link">Sys.chmod()</a></code>.</p>
 <p>Arguments: <code>output_file</code>, <code>r_script</code>, <code>results_folder</code>, <code>mode</code>, <code>set_executable</code>, <code>verbose</code>, <code>comments</code>, <code>output</code>.</p>
 <p>25 passing tests in <code>test-htc-gen-executable.R</code>.</p>
 </div>
@@ -238,6 +239,7 @@ submitr     -- HTC job submission toolkit (dev v0.0.0.9000)</code></pre>
 <h2 id="open-design-questions">Open design questions<a class="anchor" aria-label="anchor" href="#open-design-questions"></a></h2>
 <ol style="list-style-type: decimal"><li><p>When HPC support arrives, should the <code>htc_</code> functions gain a <code>scheduler</code> argument, or should parallel <code>hpc_*</code> functions be written separately and a top-level wrapper dispatch between them?</p></li>
 <li><p>Should <code><a href="reference/htc_upload.html">htc_upload()</a></code> eventually support uploading directly to <code>/staging</code> via a <code>destination</code> argument (<code>"home"</code> or <code>"staging"</code>), or should a separate function handle that case?</p></li>
+<li><p>Should <code><a href="reference/htc_gen_submit.html">htc_gen_submit()</a></code> distinguish between files baked into the container image and files transferred at runtime via <code>transfer_input_files</code>? Currently all files are listed regardless of whether they exist inside the container.</p></li>
 </ol></div>
 </div>
 

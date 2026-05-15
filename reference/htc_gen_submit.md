@@ -28,17 +28,12 @@ htc_gen_submit(
 
 ## Arguments
 
-- output_file:
-
-  A character string. Name of the submit file to write. Must end in
-  `".sub"`. Defaults to `"job.sub"`.
-
 - container_image:
 
-  A character string. The container image to use, including the registry
-  prefix, e.g. `"docker://registry.doit.wisc.edu/netid/myimage"`.
-  Defaults to `NULL`, which writes a placeholder comment in the submit
-  file.
+  A character string. The container image to use, e.g.
+  `"registry.doit.wisc.edu/netid/myimage"`. The `docker://` prefix is
+  added automatically if not already present. Defaults to `NULL`, which
+  writes a placeholder comment in the submit file.
 
 - executable:
 
@@ -211,7 +206,7 @@ htc_gen_submit(
 #> Writing logging section
 #> Writing resources section (small preset: 1 CPU / 4GB RAM / 4GB disk)
 #> Writing queue section (1 job)
-#> ✔ Submit file written to /tmp/RtmpvZ5QtO/annotated.sub
+#> ✔ Submit file written to /tmp/RtmpdcyxD3/annotated.sub
 
 # Custom resource request
 htc_gen_submit(
