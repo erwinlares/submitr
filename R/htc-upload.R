@@ -12,8 +12,9 @@
 #'   submit node. Defaults to `"~/"` (the user's home directory). This should
 #'   match the path used in the subsequent call to [htc_submit()].
 #' @param config A named list as returned by [htc_config()]. Must contain
-#'   `username` and `server`. If `NULL`, the function errors with instructions
-#'   to call [htc_config()] first.
+#'   `username` and `server`. If `NULL` (the default), uses the session
+#'   config set by [htc_start_session()]. If no session config is set,
+#'   the function errors with instructions.
 #' @param dry_run Logical. If `TRUE`, prints the `scp` command that would be
 #'   executed without running it. Useful for verifying the command before
 #'   transferring files. Defaults to `FALSE`.
@@ -86,21 +87,8 @@ htc_upload <- function(files,
                        dry_run     = FALSE,
                        verbose     = FALSE) {
 
-    # -- 1. Validate config ----------------------------------------------------
-    if (is.null(config)) {
-        cli::cli_abort(c(
-            "{.arg config} must be supplied.",
-            "i" = "Call {.fn htc_config} first to create or read your HTC",
-            " " = "  connection config, then pass the result to {.arg config}."
-        ))
-    }
-
-    if (is.null(config$username) || is.null(config$server)) {
-        cli::cli_abort(c(
-            "{.arg config} is missing {.val username} or {.val server}.",
-            "i" = "Call {.fn htc_config} to generate a valid config list."
-        ))
-    }
+    # -- 1. Resolve config (explicit argument or session option) ----------------
+    config <- .resolve_config(config)
 
     # -- 2. Validate files -----------------------------------------------------
     if (missing(files) || length(files) == 0) {

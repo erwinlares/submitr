@@ -12,8 +12,9 @@
 #'   where the submit file was uploaded. Defaults to `"~/"`. Must match the
 #'   `remote_path` used in the preceding call to [htc_upload()].
 #' @param config A named list as returned by [htc_config()]. Must contain
-#'   `username` and `server`. If `NULL`, the function errors with instructions
-#'   to call [htc_config()] first.
+#'   `username` and `server`. If `NULL` (the default), uses the session
+#'   config set by [htc_start_session()]. If no session config is set,
+#'   the function errors with instructions.
 #' @param dry_run Logical. If `TRUE`, prints the SSH command that would be
 #'   executed without running it. Useful for verifying the command before
 #'   submitting. Defaults to `FALSE`.
@@ -90,21 +91,8 @@ htc_submit <- function(submit_file = "job.sub",
                        dry_run     = FALSE,
                        verbose     = FALSE) {
 
-    # -- 1. Validate config ----------------------------------------------------
-    if (is.null(config)) {
-        cli::cli_abort(c(
-            "{.arg config} must be supplied.",
-            "i" = "Call {.fn htc_config} first to create or read your HTC",
-            " " = "  connection config, then pass the result to {.arg config}."
-        ))
-    }
-
-    if (is.null(config$username) || is.null(config$server)) {
-        cli::cli_abort(c(
-            "{.arg config} is missing {.val username} or {.val server}.",
-            "i" = "Call {.fn htc_config} to generate a valid config list."
-        ))
-    }
+    # -- 1. Resolve config (explicit argument or session option) ----------------
+    config <- .resolve_config(config)
 
     # -- 2. Validate submit_file -----------------------------------------------
     if (!grepl("\\.sub$", submit_file)) {
