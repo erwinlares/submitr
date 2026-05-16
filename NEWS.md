@@ -2,6 +2,24 @@
 
 * Development version following initial release.
 
+### New features
+
+* `htc_start()` -- start an HTC session by reading the project config and
+  storing it for the duration of the R session. Subsequent calls to
+  `htc_upload()`, `htc_submit()`, `htc_status()`, and `htc_download()` use
+  the stored config automatically when `config = NULL`, eliminating the need
+  to pass `config = cfg` on every call. Call `options(submitr.config = NULL)`
+  to clear the session manually, or let it expire when R restarts.
+
+* `.resolve_config()` -- internal helper that checks for an explicit `config`
+  argument, falls back to the session option set by `htc_start()`, and errors
+  with instructions if neither is available. Used by all four system-facing
+  functions.
+
+* `htc_upload()` and `htc_download()` now print a success confirmation
+  message unconditionally after a successful transfer, rather than only
+  when `verbose = TRUE`.
+
 ### Bug fixes
 
 * `htc_gen_submit()` now prepends `docker://` to `container_image` if the

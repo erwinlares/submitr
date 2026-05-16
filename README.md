@@ -113,17 +113,19 @@ pak::pak("erwinlares/submitr")
 ## A first workflow
 
 ```r
+## A first workflow
+
+```r
 library(submitr)
 
-# 1. Configure your CHTC connection
-cfg <- htc_config()
+# 1. Start the session (reads htc.cfg, stores config for all calls)
+htc_start()
 
 # 2. Generate the submit file
 htc_gen_submit(
   output_file     = "analysis.sub",
-  container_image = "docker://registry.doit.wisc.edu/your.netid/my-analysis:1.0.0",
+  container_image = "registry.doit.wisc.edu/your.netid/my-analysis:1.0.0",
   executable      = "analysis.sh",
-  input_files     = c("analysis.R", "data.csv"),
   output_files    = "results.tar.gz",
   resources       = "small",
   comments        = TRUE
@@ -138,36 +140,58 @@ htc_gen_executable(
 )
 
 # 4. Upload files to the submit node
-htc_upload(
-  files  = c("analysis.sub", "analysis.sh", "analysis.R", "data.csv"),
-  config = cfg
-)
+htc_upload(files = c("analysis.sub", "analysis.sh"))
 
 # 5. Submit the job
-cluster_id <- htc_submit(submit_file = "analysis.sub", config = cfg)
+cluster_id <- htc_submit(submit_file = "analysis.sub")
 
 # 6. Check progress
-htc_status(cluster_id = cluster_id, config = cfg)
+htc_status(cluster_id = cluster_id, watch = TRUE)
 
 # 7. Download results
-htc_download(files = "*.tar.gz", config = cfg, local_path = "results/")
+htc_download(files = "*.tar.gz", local_path = "results/")
+```
 ```
 
 ---
 
 ## Core workflow functions
 
+### `htc_start()`
+
+`htc_start()` reads your project's `htc.cfg` and stores the connection
+config for the rest of the R session. All subsequent `htc_*()` calls use
+it automatically -- no need to pass `config = cfg` on every call.
+
+```r
+htc_start()
+#> v Session started: "your.netid"@"ap2002.chtc.wisc.edu"
+```
+
+If this is your first time, `htc_start()` prompts for your NetID and submit
+node, writes `htc.cfg`, and displays ControlMaster setup instructions. On
+subsequent calls it reads the existing config and validates the connection.
+
+You can still pass `config` explicitly to any function to override the
+session config:
+
+```r
+other_cfg <- htc_config(path = "other-project/")
+htc_upload(files = "job.sub", config = other_cfg)
+```
+
 ### `htc_config()`
 
-On first use, `htc_config()` prompts for your NetID and submit node, writes
-`htc.cfg` to your project directory, and displays ControlMaster setup
-instructions. Subsequent calls read the existing config and validate the
-connection.
+`htc_config()` is the lower-level function that reads or creates `htc.cfg`.
+Most researchers should use `htc_start()` instead, which calls `htc_config()`
+and stores the result for the session. Use `htc_config()` directly when you
+need to manage multiple configs or pass a config to a single call without
+starting a session.
 
 ```r
 cfg <- htc_config()
 #> Reading HTC config from ./htc.cfg
-#> ✔ Connected to "ap2002.chtc.wisc.edu" as "your.netid".
+#> v Connected to "ap2002.chtc.wisc.edu" as "your.netid".
 ```
 
 ---
@@ -300,10 +324,10 @@ jobs in the cluster leave the queue.
 
 ```r
 # One-shot check
-htc_status(cluster_id = cluster_id, config = cfg)
+htc_status(cluster_id = cluster_id)
 
 # Watch until complete
-htc_status(cluster_id = cluster_id, config = cfg, watch = TRUE)
+htc_status(cluster_id = cluster_id, watch = TRUE)
 ```
 
 ---
@@ -314,10 +338,10 @@ Copies files back from the submit node via `scp`. Supports glob patterns.
 
 ```r
 # Download results
-htc_download(files = "*.tar.gz", config = cfg, local_path = "results/")
+htc_download(files = "*.tar.gz", local_path = "results/")
 
 # Download logs
-htc_download(files = c("job.log", "job.err"), config = cfg, local_path = "logs/")
+htc_download(files = c("job.log", "job.err"), local_path = "logs/")
 ```
 
 ---
@@ -365,6 +389,7 @@ data <- readr::read_csv(input_file)
 
 | Function | What it does |
 |---|---|
+| `htc_start()` | Start a session -- reads config and stores it for all calls |
 | `htc_config()` | Create or read `htc.cfg`, validate connection |
 | `htc_gen_submit()` | Generate the HTCondor `.sub` submit file |
 | `htc_gen_executable()` | Generate the `.sh` executable script |
