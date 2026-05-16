@@ -39,8 +39,9 @@ htc_upload(
   A named list as returned by
   [`htc_config()`](https://erwinlares.github.io/submitr/reference/htc_config.md).
   Must contain `username` and `server`. If `NULL` (the default), uses
-  the session config set by `htc_start_session()`. If no session config
-  is set, the function errors with instructions.
+  the session config set by
+  [`htc_start()`](https://erwinlares.github.io/submitr/reference/htc_start.md).
+  If no session config is set, the function errors with instructions.
 
 - dry_run:
 
@@ -95,7 +96,7 @@ tmp <- tempfile(fileext = ".sub")
 writeLines("queue 1", tmp)
 htc_upload(files = tmp, config = cfg, dry_run = TRUE)
 #> ✔ Dry run -- command that would be executed:
-#>   `scp /tmp/Rtmpomz6Ke/file49cf6c961152.sub netid@ap2002.chtc.wisc.edu:~/`
+#>   `scp /tmp/RtmpOc4DKU/file4a2fe49ac37.sub netid@ap2002.chtc.wisc.edu:~/`
 # }
 
 if (FALSE) { # \dontrun{
