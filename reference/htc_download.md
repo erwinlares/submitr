@@ -45,10 +45,9 @@ htc_download(
 
   A named list as returned by
   [`htc_config()`](https://erwinlares.github.io/submitr/reference/htc_config.md).
-  Must contain `username` and `server`. If `NULL`, the function errors
-  with instructions to call
-  [`htc_config()`](https://erwinlares.github.io/submitr/reference/htc_config.md)
-  first.
+  Must contain `username` and `server`. If `NULL` (the default), uses
+  the session config set by `htc_start_session()`. If no session config
+  is set, the function errors with instructions.
 
 - dry_run:
 

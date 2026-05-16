@@ -449,6 +449,8 @@ MIT © Erwin Lares
   : Generate an HTCondor executable shell script for an R job
 - [`htc_gen_submit()`](https://erwinlares.github.io/submitr/reference/htc_gen_submit.md)
   : Generate an HTCondor submit file for a containerized R job
+- [`htc_start()`](https://erwinlares.github.io/submitr/reference/htc_start.md)
+  : Start an HTC session
 - [`htc_status()`](https://erwinlares.github.io/submitr/reference/htc_status.md)
   : Check the status of submitted HTCondor jobs
 - [`htc_submit()`](https://erwinlares.github.io/submitr/reference/htc_submit.md)

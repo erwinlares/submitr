@@ -84,8 +84,9 @@ files will be saved. Defaults to <code>"."</code> (current working directory).</
 
 <dt id="arg-config">config<a class="anchor" aria-label="anchor" href="#arg-config"></a></dt>
 <dd><p>A named list as returned by <code><a href="htc_config.html">htc_config()</a></code>. Must contain
-<code>username</code> and <code>server</code>. If <code>NULL</code>, the function errors with instructions
-to call <code><a href="htc_config.html">htc_config()</a></code> first.</p></dd>
+<code>username</code> and <code>server</code>. If <code>NULL</code> (the default), uses the session
+config set by <code>htc_start_session()</code>. If no session config is set,
+the function errors with instructions.</p></dd>
 
 
 <dt id="arg-dry-run">dry_run<a class="anchor" aria-label="anchor" href="#arg-dry-run"></a></dt>

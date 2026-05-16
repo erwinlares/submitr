@@ -136,6 +136,6 @@ htc_gen_executable(
 #> Writing results folder creation
 #> Writing Rscript execution line (mode: single)
 #> Writing compression line
-#> Set executable permissions on /tmp/RtmpZmGxcg/run.sh
-#> ✔ Executable script written to /tmp/RtmpZmGxcg/run.sh
+#> Set executable permissions on /tmp/Rtmpomz6Ke/run.sh
+#> ✔ Executable script written to /tmp/Rtmpomz6Ke/run.sh
 ```
