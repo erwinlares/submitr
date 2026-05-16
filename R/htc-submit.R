@@ -13,7 +13,7 @@
 #'   `remote_path` used in the preceding call to [htc_upload()].
 #' @param config A named list as returned by [htc_config()]. Must contain
 #'   `username` and `server`. If `NULL` (the default), uses the session
-#'   config set by [htc_start_session()]. If no session config is set,
+#'   config set by [htc_start()]. If no session config is set,
 #'   the function errors with instructions.
 #' @param dry_run Logical. If `TRUE`, prints the SSH command that would be
 #'   executed without running it. Useful for verifying the command before

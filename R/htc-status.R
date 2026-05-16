@@ -14,7 +14,7 @@
 #'   of your jobs currently in the queue. Required when `watch = TRUE`.
 #' @param config A named list as returned by [htc_config()]. Must contain
 #'   `username` and `server`. If `NULL` (the default), uses the session
-#'   config set by [htc_start_session()]. If no session config is set,
+#'   config set by [htc_start()]. If no session config is set,
 #'   the function errors with instructions.
 #' @param watch Logical. If `TRUE`, polls the queue repeatedly at `interval`
 #'   seconds until all jobs in `cluster_id` have completed. Requires
