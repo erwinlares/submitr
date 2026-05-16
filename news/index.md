@@ -4,6 +4,34 @@
 
 - Development version following initial release.
 
+#### New features
+
+- [`htc_start()`](https://erwinlares.github.io/submitr/reference/htc_start.md)
+  – start an HTC session by reading the project config and storing it
+  for the duration of the R session. Subsequent calls to
+  [`htc_upload()`](https://erwinlares.github.io/submitr/reference/htc_upload.md),
+  [`htc_submit()`](https://erwinlares.github.io/submitr/reference/htc_submit.md),
+  [`htc_status()`](https://erwinlares.github.io/submitr/reference/htc_status.md),
+  and
+  [`htc_download()`](https://erwinlares.github.io/submitr/reference/htc_download.md)
+  use the stored config automatically when `config = NULL`, eliminating
+  the need to pass `config = cfg` on every call. Call
+  `options(submitr.config = NULL)` to clear the session manually, or let
+  it expire when R restarts.
+
+- [`.resolve_config()`](https://erwinlares.github.io/submitr/reference/dot-resolve_config.md)
+  – internal helper that checks for an explicit `config` argument, falls
+  back to the session option set by
+  [`htc_start()`](https://erwinlares.github.io/submitr/reference/htc_start.md),
+  and errors with instructions if neither is available. Used by all four
+  system-facing functions.
+
+- [`htc_upload()`](https://erwinlares.github.io/submitr/reference/htc_upload.md)
+  and
+  [`htc_download()`](https://erwinlares.github.io/submitr/reference/htc_download.md)
+  now print a success confirmation message unconditionally after a
+  successful transfer, rather than only when `verbose = TRUE`.
+
 #### Bug fixes
 
 - [`htc_gen_submit()`](https://erwinlares.github.io/submitr/reference/htc_gen_submit.md)
