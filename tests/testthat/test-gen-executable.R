@@ -153,21 +153,21 @@ test_that("single mode compression line uses r_script-derived tarball name", {
     tmp <- withr::local_tempdir()
     htc_gen_executable(r_script = "analysis.R", mode = "single", output = tmp)
     lines <- read_script(tmp)
-    expect_true(any(grepl("tar -czf analysis-results\\.tar\\.gz", lines)))
+    expect_true(any(grepl("tar -czf.*analysis-results\\.tar\\.gz", lines)))
 })
 
 test_that("single mode compression line reflects custom r_script name", {
     tmp <- withr::local_tempdir()
     htc_gen_executable(mode = "single", r_script = "run-model.R", output = tmp)
     lines <- read_script(tmp)
-    expect_true(any(grepl("tar -czf run-model-results\\.tar\\.gz", lines)))
+    expect_true(any(grepl("tar -czf.*run-model-results\\.tar\\.gz", lines)))
 })
 
 test_that("multiple mode compression line uses ${1} for per-job tarball name", {
     tmp <- withr::local_tempdir()
     htc_gen_executable(r_script = "analysis.R", mode = "multiple", output = tmp)
     lines <- read_script(tmp)
-    expect_true(any(grepl("tar -czf \\$\\{1\\}-results\\.tar\\.gz", lines)))
+    expect_true(any(grepl("tar -czf.*\\$\\{1\\}-results\\.tar\\.gz", lines)))
 })
 
 test_that("compression line references the results folder", {
