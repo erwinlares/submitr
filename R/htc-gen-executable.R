@@ -219,13 +219,20 @@ htc_gen_executable <- function(output_file    = "job.sh",
                     "# jobs do not overwrite each other on the submit node."
                 )
             },
-            lines       = if (mode == "single") {
-                glue::glue(
-                    "tar -czf {tools::file_path_sans_ext(r_script)}-results.tar.gz ",
-                    "{results_folder}"
+            lines = if (mode == "single") {
+                c(
+                    glue::glue(
+                        'tar -czf "${{_CONDOR_SCRATCH_DIR:-$PWD}}/{tools::file_path_sans_ext(r_script)}-results.tar.gz" ',
+                        '{results_folder}'
+                    )
                 )
             } else {
-                glue::glue("tar -czf ${{1}}-results.tar.gz {results_folder}")
+                c(
+                    glue::glue(
+                        'tar -czf "${{_CONDOR_SCRATCH_DIR:-$PWD}}/${{1}}-results.tar.gz" ',
+                        '{results_folder}'
+                    )
+                )
             }
         )
     )
