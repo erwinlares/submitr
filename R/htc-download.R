@@ -183,11 +183,9 @@ htc_download <- function(files,
         ))
     }
 
-    if (verbose) {
-        cli::cli_alert_success(
+    cli::cli_alert_success(
             "Downloaded files from {.val {config$server}}:{remote_path} to {.path {local_path}}"
-        )
-    }
+    )
 
     invisible(NULL)
 }

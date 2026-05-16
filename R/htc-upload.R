@@ -158,11 +158,9 @@ htc_upload <- function(files,
         ))
     }
 
-    if (verbose) {
-        cli::cli_alert_success(
-            "Uploaded {length(files)} file{?s} to {.val {config$server}}:{remote_path}"
-        )
-    }
+    cli::cli_alert_success(
+        "Uploaded {length(files)} file{?s} to {.val {config$server}}:{remote_path}"
+    )
 
     invisible(NULL)
 }
