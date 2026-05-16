@@ -23,7 +23,7 @@ where the submit file was uploaded. Defaults to \code{"~/"}. Must match the
 
 \item{config}{A named list as returned by \code{\link[=htc_config]{htc_config()}}. Must contain
 \code{username} and \code{server}. If \code{NULL} (the default), uses the session
-config set by \code{\link[=htc_start_session]{htc_start_session()}}. If no session config is set,
+config set by \code{\link[=htc_start]{htc_start()}}. If no session config is set,
 the function errors with instructions.}
 
 \item{dry_run}{Logical. If \code{TRUE}, prints the SSH command that would be

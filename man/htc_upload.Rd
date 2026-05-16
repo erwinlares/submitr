@@ -23,7 +23,7 @@ match the path used in the subsequent call to \code{\link[=htc_submit]{htc_submi
 
 \item{config}{A named list as returned by \code{\link[=htc_config]{htc_config()}}. Must contain
 \code{username} and \code{server}. If \code{NULL} (the default), uses the session
-config set by \code{\link[=htc_start_session]{htc_start_session()}}. If no session config is set,
+config set by \code{\link[=htc_start]{htc_start()}}. If no session config is set,
 the function errors with instructions.}
 
 \item{dry_run}{Logical. If \code{TRUE}, prints the \code{scp} command that would be

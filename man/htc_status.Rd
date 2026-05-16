@@ -20,7 +20,7 @@ of your jobs currently in the queue. Required when \code{watch = TRUE}.}
 
 \item{config}{A named list as returned by \code{\link[=htc_config]{htc_config()}}. Must contain
 \code{username} and \code{server}. If \code{NULL} (the default), uses the session
-config set by \code{\link[=htc_start_session]{htc_start_session()}}. If no session config is set,
+config set by \code{\link[=htc_start]{htc_start()}}. If no session config is set,
 the function errors with instructions.}
 
 \item{watch}{Logical. If \code{TRUE}, polls the queue repeatedly at \code{interval}
