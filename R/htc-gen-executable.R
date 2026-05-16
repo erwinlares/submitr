@@ -162,7 +162,7 @@ htc_gen_executable <- function(output_file    = "job.sh",
                 "# from the container's WORKDIR. This ensures Rscript and file paths\n",
                 "# resolve correctly against the container's /home layout."
             ),
-            lines       = c("cd /home", "")
+            lines       = c("cd '${_CONDOR_SCRATCH_DIR:-$PWD}'' ", "")
         ),
 
         results_dir = list(
