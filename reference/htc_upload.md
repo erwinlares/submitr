@@ -96,7 +96,7 @@ tmp <- tempfile(fileext = ".sub")
 writeLines("queue 1", tmp)
 htc_upload(files = tmp, config = cfg, dry_run = TRUE)
 #> ✔ Dry run -- command that would be executed:
-#>   `scp /tmp/Rtmp4thATm/file498e6562de93.sub netid@ap2002.chtc.wisc.edu:~/`
+#>   `scp /tmp/RtmpTdxxR9/file4a294448861c.sub netid@ap2002.chtc.wisc.edu:~/`
 # }
 
 if (FALSE) { # \dontrun{
