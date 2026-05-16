@@ -22,8 +22,9 @@ submit node. Defaults to \code{"~/"} (the user's home directory). This should
 match the path used in the subsequent call to \code{\link[=htc_submit]{htc_submit()}}.}
 
 \item{config}{A named list as returned by \code{\link[=htc_config]{htc_config()}}. Must contain
-\code{username} and \code{server}. If \code{NULL}, the function errors with instructions
-to call \code{\link[=htc_config]{htc_config()}} first.}
+\code{username} and \code{server}. If \code{NULL} (the default), uses the session
+config set by \code{\link[=htc_start_session]{htc_start_session()}}. If no session config is set,
+the function errors with instructions.}
 
 \item{dry_run}{Logical. If \code{TRUE}, prints the \code{scp} command that would be
 executed without running it. Useful for verifying the command before

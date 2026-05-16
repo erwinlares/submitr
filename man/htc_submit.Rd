@@ -22,8 +22,9 @@ where the submit file was uploaded. Defaults to \code{"~/"}. Must match the
 \code{remote_path} used in the preceding call to \code{\link[=htc_upload]{htc_upload()}}.}
 
 \item{config}{A named list as returned by \code{\link[=htc_config]{htc_config()}}. Must contain
-\code{username} and \code{server}. If \code{NULL}, the function errors with instructions
-to call \code{\link[=htc_config]{htc_config()}} first.}
+\code{username} and \code{server}. If \code{NULL} (the default), uses the session
+config set by \code{\link[=htc_start_session]{htc_start_session()}}. If no session config is set,
+the function errors with instructions.}
 
 \item{dry_run}{Logical. If \code{TRUE}, prints the SSH command that would be
 executed without running it. Useful for verifying the command before
