@@ -2,10 +2,12 @@
 
 <!-- badges: start -->
 [![R-CMD-check](https://github.com/erwinlares/submitr/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/erwinlares/submitr/actions/workflows/R-CMD-check.yaml)
-[![Lifecycle: experimental](https://img.shields.io/badge/lifecycle-experimental-orange.svg)](https://lifecycle.r-lib.org/articles/stages.html#experimental)
-[![R-universe](https://erwinlares.r-universe.dev/badges/submitr)](https://erwinlares.r-universe.dev/submitr)
-[![Codecov test coverage](https://codecov.io/gh/erwinlares/submitr/graph/badge.svg)](https://app.codecov.io/gh/erwinlares/submitr)
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.20145713.svg)](https://doi.org/10.5281/zenodo.20145713)
+[![CRAN status](https://www.r-pkg.org/badges/version/submitr)](https://CRAN.R-project.org/package=submitr)
+[![CRAN downloads](https://cranlogs.r-pkg.org/badges/submitr)](https://cran.r-project.org/package=submitr)
+[![Lifecycle: experimental](https://img.shields.io/badge/lifecycle-experimental-orange.svg)](https://lifecycle.r-lib.org/articles/stages.html#experimental)
+[![Codecov test coverage](https://codecov.io/gh/erwinlares/submitr/graph/badge.svg)](https://app.codecov.io/gh/erwinlares/submitr)
+[![r-universe](https://erwinlares.r-universe.dev/badges/submitr)](https://erwinlares.r-universe.dev/submitr)
 <!-- badges: end -->
 
 ## The problem with the handoff
