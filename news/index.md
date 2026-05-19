@@ -1,5 +1,7 @@
 # Changelog
 
+## submitr (development version)
+
 ## submitr 0.1.0.9000
 
 - Development version following initial release.
@@ -53,6 +55,8 @@
   placed the baked-in files.
 
 ## submitr 0.1.0
+
+CRAN release: 2026-05-19
 
 ### Initial release
 

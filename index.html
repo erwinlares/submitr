@@ -12,8 +12,8 @@
 <link rel="icon" sizes="any" href="favicon.ico">
 <link rel="manifest" href="site.webmanifest">
 <script src="deps/jquery-3.6.0/jquery-3.6.0.min.js"></script><meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-<link href="deps/bootstrap-5.3.1/bootstrap.min.css" rel="stylesheet">
-<script src="deps/bootstrap-5.3.1/bootstrap.bundle.min.js"></script><link href="deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet">
+<link href="deps/bootstrap-5.3.8/bootstrap.min.css" rel="stylesheet">
+<script src="deps/bootstrap-5.3.8/bootstrap.bundle.min.js"></script><link href="deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet">
 <link href="deps/font-awesome-6.5.2/css/v4-shims.min.css" rel="stylesheet">
 <script src="deps/headroom-0.11.0/headroom.min.js"></script><script src="deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="deps/search-1.0.0/fuse.min.js"></script><script src="deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="pkgdown.js"></script><meta property="og:title" content="Scaffold and Submit Computational Jobs to HTC Schedulers">
 <meta name="description" content="Provides scaffolding tools to help researchers prepare and submit computational jobs to high-throughput computing (HTC) schedulers. Generates the files required to run containerized R analyses on HTCondor, including submit files and executable scripts, and wraps the system commands needed to stage files, submit jobs, monitor status, and retrieve results from a CHTC submit node. Provides htc_config() for managing connection details and SSH connection reuse guidance. Works naturally alongside containr for container image management and toolero for dataset splitting and project scaffolding.">
@@ -28,7 +28,7 @@
 
     <a class="navbar-brand me-2" href="index.html">submitr</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.0.9000</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -478,6 +478,7 @@ htc_start()
   </main><aside class="col-md-3"><div class="links">
 <h2 data-toc-skip>Links</h2>
 <ul class="list-unstyled">
+<li><a href="https://cloud.r-project.org/package=submitr" class="external-link">View on CRAN</a></li>
 <li><a href="https://github.com/erwinlares/submitr/" class="external-link">Browse source code</a></li>
 <li><a href="https://github.com/erwinlares/submitr/issues" class="external-link">Report a bug</a></li>
 </ul>
@@ -516,10 +517,12 @@ htc_start()
 <h2 data-toc-skip>Dev status</h2>
 <ul class="list-unstyled">
 <li><a href="https://github.com/erwinlares/submitr/actions/workflows/R-CMD-check.yaml" class="external-link"><img src="https://github.com/erwinlares/submitr/actions/workflows/R-CMD-check.yaml/badge.svg" alt="R-CMD-check"></a></li>
-<li><a href="https://lifecycle.r-lib.org/articles/stages.html#experimental" class="external-link"><img src="https://img.shields.io/badge/lifecycle-experimental-orange.svg" alt="Lifecycle: experimental"></a></li>
-<li><a href="https://erwinlares.r-universe.dev/submitr" class="external-link"><img src="https://erwinlares.r-universe.dev/badges/submitr" alt="R-universe"></a></li>
-<li><a href="https://app.codecov.io/gh/erwinlares/submitr" class="external-link"><img src="https://codecov.io/gh/erwinlares/submitr/graph/badge.svg" alt="Codecov test coverage"></a></li>
 <li><a href="https://doi.org/10.5281/zenodo.20145713" class="external-link"><img src="https://zenodo.org/badge/DOI/10.5281/zenodo.20145713.svg" alt="DOI"></a></li>
+<li><a href="https://CRAN.R-project.org/package=submitr" class="external-link"><img src="https://www.r-pkg.org/badges/version/submitr" alt="CRAN status"></a></li>
+<li><a href="https://cran.r-project.org/package=submitr" class="external-link"><img src="https://cranlogs.r-pkg.org/badges/submitr" alt="CRAN downloads"></a></li>
+<li><a href="https://lifecycle.r-lib.org/articles/stages.html#experimental" class="external-link"><img src="https://img.shields.io/badge/lifecycle-experimental-orange.svg" alt="Lifecycle: experimental"></a></li>
+<li><a href="https://app.codecov.io/gh/erwinlares/submitr" class="external-link"><img src="https://codecov.io/gh/erwinlares/submitr/graph/badge.svg" alt="Codecov test coverage"></a></li>
+<li><a href="https://erwinlares.r-universe.dev/submitr" class="external-link"><img src="https://erwinlares.r-universe.dev/badges/submitr" alt="r-universe"></a></li>
 </ul>
 </div>
 
