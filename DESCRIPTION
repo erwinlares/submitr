@@ -1,6 +1,6 @@
 Package: submitr
 Title: Scaffold and Submit Computational Jobs to HTC Schedulers
-Version: 0.1.0
+Version: 0.1.0.9000
 Authors@R: 
     person("Erwin", "Lares", , "erwin.lares@wisc.edu", role = c("aut", "cre"),
            comment = c(ORCID = "0000-0002-3284-828X"))
