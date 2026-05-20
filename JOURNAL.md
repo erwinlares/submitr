@@ -142,3 +142,23 @@ edits.
 - GitHub Actions workflow for building and pushing `linux/amd64` images
   from Apple Silicon without QEMU emulation (scoped in `containr`
   PLAN.md).
+
+## Session 2026-05-20
+
+### Job manifest and smart downloads
+
+Added a session-level job manifest that accumulates metadata as the
+researcher works through the pipeline.
+[`htc_gen_submit()`](https://erwinlares.github.io/submitr/reference/htc_gen_submit.md)
+records mode, output file patterns, and subset names.
+[`htc_gen_executable()`](https://erwinlares.github.io/submitr/reference/htc_gen_executable.md)
+records the script and results folder.
+[`htc_submit()`](https://erwinlares.github.io/submitr/reference/htc_submit.md)
+records the cluster ID.
+
+[`htc_download()`](https://erwinlares.github.io/submitr/reference/htc_download.md)
+reads this manifest when called without `files`, resolving the correct
+tarballs and log files for both single and multiple mode. The
+researcher’s workflow simplifies to
+[`htc_download()`](https://erwinlares.github.io/submitr/reference/htc_download.md)
+with no arguments after a full pipeline run.

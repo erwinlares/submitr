@@ -52,7 +52,8 @@ have completed.</p>
     <div class="section level2">
     <h2 id="ref-usage">Usage<a class="anchor" aria-label="anchor" href="#ref-usage"></a></h2>
     <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">htc_download</span><span class="op">(</span></span>
-<span>  <span class="va">files</span>,</span>
+<span>  files <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  cluster_id <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  remote_path <span class="op">=</span> <span class="st">"~/"</span>,</span>
 <span>  local_path <span class="op">=</span> <span class="st">"."</span>,</span>
 <span>  config <span class="op">=</span> <span class="cn">NULL</span>,</span>
@@ -66,9 +67,19 @@ have completed.</p>
 
 
 <dl><dt id="arg-files">files<a class="anchor" aria-label="anchor" href="#arg-files"></a></dt>
-<dd><p>A character vector. One or more filenames or glob patterns
-to download from <code>remote_path</code> on the submit node. Examples:
-<code>"results.tar.gz"</code>, <code>c("job.log", "job.err")</code>, <code>"*.tar.gz"</code>. Required.</p></dd>
+<dd><p>A character vector or <code>NULL</code>. One or more filenames or glob
+patterns to download from <code>remote_path</code> on the submit node. Examples:
+<code>"results.tar.gz"</code>, <code>c("job.log", "job.err")</code>, <code>"*.tar.gz"</code>. When
+<code>NULL</code>, the function uses <code>cluster_id</code> and the job manifest to
+determine which files to download. Defaults to <code>NULL</code>.</p></dd>
+
+
+<dt id="arg-cluster-id">cluster_id<a class="anchor" aria-label="anchor" href="#arg-cluster-id"></a></dt>
+<dd><p>A character string or <code>NULL</code>. The cluster ID returned
+by <code><a href="htc_submit.html">htc_submit()</a></code>. When supplied without <code>files</code>, the function
+constructs the file list from the job manifest. When <code>NULL</code>, falls
+back to the most recently submitted cluster ID stored in the manifest.
+Defaults to <code>NULL</code>.</p></dd>
 
 
 <dt id="arg-remote-path">remote_path<a class="anchor" aria-label="anchor" href="#arg-remote-path"></a></dt>
@@ -105,39 +116,53 @@ executed without running it. Defaults to <code>FALSE</code>.</p></dd>
     </div>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
-    <p>Glob patterns such as <code>"*.tar.gz"</code> are supported and are evaluated on the
-remote server, not locally, so they match files that exist on the submit
-node regardless of what is present on your local machine.</p>
+    <p>When <code>cluster_id</code> is supplied without <code>files</code>, the function uses the
+job manifest built up by <code><a href="htc_gen_submit.html">htc_gen_submit()</a></code>, <code><a href="htc_gen_executable.html">htc_gen_executable()</a></code>,
+and <code><a href="htc_submit.html">htc_submit()</a></code> to determine which files to download. For single-mode
+jobs, this includes the results tarball and the log, error, and output
+files. For multiple-mode jobs, the function reads the subset names from
+the manifest and constructs per-job tarball names and per-process log
+file patterns.</p>
+<p>Glob patterns such as <code>"*.tar.gz"</code> are supported when using the <code>files</code>
+argument and are evaluated on the remote server, not locally.</p>
     </div>
+    <div class="section level2">
+    <h2 id="automatic-file-resolution">Automatic file resolution<a class="anchor" aria-label="anchor" href="#automatic-file-resolution"></a></h2>
+
+
+<p>When <code>files</code> is <code>NULL</code>, the function resolves the file list from the
+job manifest. The manifest is built automatically as you call
+<code><a href="htc_gen_submit.html">htc_gen_submit()</a></code>, <code><a href="htc_gen_executable.html">htc_gen_executable()</a></code>, and <code><a href="htc_submit.html">htc_submit()</a></code> during
+the normal workflow. No extra steps are needed.</p>
+<p>For a single-mode job:</p><ul><li><p>The results tarball (e.g. <code>"analysis-results.tar.gz"</code>)</p></li>
+<li><p>Log files: <code>"{cluster_id}-0-job.log"</code>, <code>".err"</code>, <code>".out"</code></p></li>
+</ul><p>For a multiple-mode job:</p><ul><li><p>Per-subset tarballs (e.g. <code>"adelie.csv-results.tar.gz"</code>)</p></li>
+<li><p>Log files for each process: <code>"{cluster_id}-{0,1,...}-job.log"</code>, etc.</p></li>
+</ul></div>
     <div class="section level2">
     <h2 id="workflow">Workflow<a class="anchor" aria-label="anchor" href="#workflow"></a></h2>
 
 
 <p><code>htc_download()</code> is the final system-facing step in the submitr workflow.
 Call it after <code><a href="htc_status.html">htc_status()</a></code> confirms all jobs have completed.</p>
-<p></p><div class="sourceCode r"><pre><code><span><span class="va">cfg</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/htc_config.html">htc_config</a></span><span class="op">(</span><span class="op">)</span></span>
-<span></span>
-<span><span class="fu"><a href="../reference/htc_status.html">htc_status</a></span><span class="op">(</span>cluster_id <span class="op">=</span> <span class="fl">6302877</span>, config <span class="op">=</span> <span class="va">cfg</span>, watch <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
-<span></span>
-<span><span class="co"># Download all result tarballs</span></span>
-<span><span class="fu"><a href="../reference/htc_download.html">htc_download</a></span><span class="op">(</span></span>
-<span>  files      <span class="op">=</span> <span class="st">"*.tar.gz"</span>,</span>
-<span>  config     <span class="op">=</span> <span class="va">cfg</span>,</span>
-<span>  local_path <span class="op">=</span> <span class="st">"results/"</span></span>
-<span><span class="op">)</span></span></code></pre><p></p></div>
+<p></p><div class="sourceCode r"><pre><code><span><span class="co"># Automatic: uses the job manifest to determine what to download</span></span>
+<span><span class="fu"><a href="../reference/htc_start.html">htc_start</a></span><span class="op">(</span><span class="op">)</span></span>
+<span><span class="fu"><a href="../reference/htc_gen_submit.html">htc_gen_submit</a></span><span class="op">(</span><span class="va">...</span><span class="op">)</span></span>
+<span><span class="fu"><a href="../reference/htc_gen_executable.html">htc_gen_executable</a></span><span class="op">(</span><span class="va">...</span><span class="op">)</span></span>
+<span><span class="fu"><a href="../reference/htc_upload.html">htc_upload</a></span><span class="op">(</span><span class="va">...</span><span class="op">)</span></span>
+<span><span class="va">job</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/htc_submit.html">htc_submit</a></span><span class="op">(</span><span class="st">"analysis.sub"</span><span class="op">)</span></span>
+<span><span class="fu"><a href="../reference/htc_status.html">htc_status</a></span><span class="op">(</span>cluster_id <span class="op">=</span> <span class="va">job</span>, watch <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
+<span><span class="fu"><a href="../reference/htc_download.html">htc_download</a></span><span class="op">(</span><span class="op">)</span></span></code></pre><p></p></div>
     </div>
     <div class="section level2">
     <h2 id="glob-patterns">Glob patterns<a class="anchor" aria-label="anchor" href="#glob-patterns"></a></h2>
 
 
-<p>Glob patterns are passed to the remote shell for evaluation so they
-match files on the submit node, not on your local machine. The pattern
-is single-quoted in the <code>scp</code> command to prevent local shell expansion.</p>
-<p>Common patterns:</p><ul><li><p><code>"*.tar.gz"</code> – all result tarballs</p></li>
-<li><p><code>"*.log"</code> – all log files</p></li>
-<li><p><code>"*.out"</code> – all output files</p></li>
-<li><p><code>"*.err"</code> – all error files</p></li>
-</ul></div>
+<p>When using <code>files</code> directly, glob patterns are passed to the remote
+shell for evaluation so they match files on the submit node, not on
+your local machine. The pattern is single-quoted in the <code>scp</code> command
+to prevent local shell expansion.</p>
+    </div>
     <div class="section level2">
     <h2 id="ssh-connection-reuse">SSH connection reuse<a class="anchor" aria-label="anchor" href="#ssh-connection-reuse"></a></h2>
 
@@ -159,31 +184,24 @@ a Duo MFA prompt. Run <code><a href="htc_config.html">htc_config()</a></code> fo
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="kw">if</span> <span class="op">(</span><span class="cn">FALSE</span><span class="op">)</span> <span class="op">{</span> <span class="co"># \dontrun{</span></span></span>
 <span class="r-in"><span><span class="co"># All remaining examples require a live CHTC connection</span></span></span>
-<span class="r-in"><span><span class="va">cfg</span> <span class="op">&lt;-</span> <span class="fu"><a href="htc_config.html">htc_config</a></span><span class="op">(</span><span class="op">)</span></span></span>
 <span class="r-in"><span></span></span>
-<span class="r-in"><span><span class="co"># Download a single file</span></span></span>
-<span class="r-in"><span><span class="fu">htc_download</span><span class="op">(</span>files <span class="op">=</span> <span class="st">"r &lt;- esults.tar.gz"</span>, config <span class="op">=</span> <span class="va">cfg</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="co"># Automatic download after a workflow</span></span></span>
+<span class="r-in"><span><span class="fu"><a href="htc_start.html">htc_start</a></span><span class="op">(</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="fu"><a href="htc_gen_submit.html">htc_gen_submit</a></span><span class="op">(</span><span class="va">...</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="fu"><a href="htc_gen_executable.html">htc_gen_executable</a></span><span class="op">(</span><span class="va">...</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="fu"><a href="htc_upload.html">htc_upload</a></span><span class="op">(</span><span class="va">...</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="va">job</span> <span class="op">&lt;-</span> <span class="fu"><a href="htc_submit.html">htc_submit</a></span><span class="op">(</span><span class="st">"job.sub"</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="fu"><a href="htc_status.html">htc_status</a></span><span class="op">(</span>cluster_id <span class="op">=</span> <span class="va">job</span>, watch <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="fu">htc_download</span><span class="op">(</span><span class="op">)</span></span></span>
 <span class="r-in"><span></span></span>
-<span class="r-in"><span><span class="co"># Download multiple specific files</span></span></span>
-<span class="r-in"><span><span class="fu">htc_download</span><span class="op">(</span></span></span>
-<span class="r-in"><span>  files  <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"job.log"</span>, <span class="st">"job.err"</span>, <span class="st">"results.tar.gz"</span><span class="op">)</span>,</span></span>
-<span class="r-in"><span>  config <span class="op">=</span> <span class="va">cfg</span></span></span>
-<span class="r-in"><span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="co"># Download by cluster ID</span></span></span>
+<span class="r-in"><span><span class="fu">htc_download</span><span class="op">(</span>cluster_id <span class="op">=</span> <span class="st">"6590895"</span><span class="op">)</span></span></span>
 <span class="r-in"><span></span></span>
-<span class="r-in"><span><span class="co"># Download all result tarballs using a glob pattern</span></span></span>
-<span class="r-in"><span><span class="fu">htc_download</span><span class="op">(</span></span></span>
-<span class="r-in"><span>  files      <span class="op">=</span> <span class="st">"*.tar.gz"</span>,</span></span>
-<span class="r-in"><span>  config     <span class="op">=</span> <span class="va">cfg</span>,</span></span>
-<span class="r-in"><span>  local_path <span class="op">=</span> <span class="st">"results/"</span></span></span>
-<span class="r-in"><span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="co"># Download specific files using globs</span></span></span>
+<span class="r-in"><span><span class="fu">htc_download</span><span class="op">(</span>files <span class="op">=</span> <span class="st">"*.tar.gz"</span>, local_path <span class="op">=</span> <span class="st">"results/"</span><span class="op">)</span></span></span>
 <span class="r-in"><span></span></span>
-<span class="r-in"><span><span class="co"># Download all log files from a specific remote directory</span></span></span>
-<span class="r-in"><span><span class="fu">htc_download</span><span class="op">(</span></span></span>
-<span class="r-in"><span>  files       <span class="op">=</span> <span class="st">"*.log"</span>,</span></span>
-<span class="r-in"><span>  remote_path <span class="op">=</span> <span class="st">"~/projects/penguins/"</span>,</span></span>
-<span class="r-in"><span>  local_path  <span class="op">=</span> <span class="st">"logs/"</span>,</span></span>
-<span class="r-in"><span>  config      <span class="op">=</span> <span class="va">cfg</span></span></span>
-<span class="r-in"><span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="co"># Download logs only</span></span></span>
+<span class="r-in"><span><span class="fu">htc_download</span><span class="op">(</span>files <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"*.log"</span>, <span class="st">"*.err"</span>, <span class="st">"*.out"</span><span class="op">)</span>, local_path <span class="op">=</span> <span class="st">"logs/"</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="op">}</span> <span class="co"># }</span></span></span>
 </code></pre></div>
     </div>

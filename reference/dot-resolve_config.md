@@ -7,8 +7,9 @@ Internal helper used by
 and
 [`htc_status()`](https://erwinlares.github.io/submitr/reference/htc_status.md)
 to resolve the config list. Checks the explicit argument first, then
-falls back to the session option set by `htc_start_session()`, then
-errors if neither is available.
+falls back to the session option set by
+[`htc_start()`](https://erwinlares.github.io/submitr/reference/htc_start.md),
+then errors if neither is available.
 
 ## Usage
 

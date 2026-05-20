@@ -34,6 +34,29 @@
   now print a success confirmation message unconditionally after a
   successful transfer, rather than only when `verbose = TRUE`.
 
+- [`htc_download()`](https://erwinlares.github.io/submitr/reference/htc_download.md)
+  gains a `cluster_id` parameter and can now resolve files automatically
+  from the job manifest. When called without `files`, it constructs the
+  download list from metadata recorded by
+  [`htc_gen_submit()`](https://erwinlares.github.io/submitr/reference/htc_gen_submit.md),
+  [`htc_gen_executable()`](https://erwinlares.github.io/submitr/reference/htc_gen_executable.md),
+  and
+  [`htc_submit()`](https://erwinlares.github.io/submitr/reference/htc_submit.md)
+  during the normal workflow. Works for both single and multiple mode
+  jobs.
+
+- Job manifest system:
+  [`htc_gen_submit()`](https://erwinlares.github.io/submitr/reference/htc_gen_submit.md),
+  [`htc_gen_executable()`](https://erwinlares.github.io/submitr/reference/htc_gen_executable.md),
+  and
+  [`htc_submit()`](https://erwinlares.github.io/submitr/reference/htc_submit.md)
+  now record job metadata (mode, output files, subset names, cluster ID)
+  in a session-level option.
+  [`htc_download()`](https://erwinlares.github.io/submitr/reference/htc_download.md)
+  reads this manifest to determine which files to retrieve.
+  [`htc_start()`](https://erwinlares.github.io/submitr/reference/htc_start.md)
+  clears stale manifests on session init.
+
 #### Bug fixes
 
 - [`htc_gen_submit()`](https://erwinlares.github.io/submitr/reference/htc_gen_submit.md)

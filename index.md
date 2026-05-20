@@ -147,7 +147,7 @@ cluster_id <- htc_submit(submit_file = "analysis.sub")
 htc_status(cluster_id = cluster_id, watch = TRUE)
 
 # 7. Download results
-htc_download(files = "*.tar.gz", local_path = "results/")
+htc_download()
 ```
 
 
@@ -347,16 +347,22 @@ htc_status(cluster_id = cluster_id, watch = TRUE)
 
 ### `htc_download()`
 
-Copies files back from the submit node via `scp`. Supports glob
-patterns.
+### `htc_download()`
+
+Copies files back from the submit node via `scp`. After a full workflow,
+[`htc_download()`](https://erwinlares.github.io/submitr/reference/htc_download.md)
+knows which files to retrieve automatically:
 
 ``` r
 
-# Download results
-htc_download(files = "*.tar.gz", local_path = "results/")
+# Automatic -- uses the job manifest built during the workflow
+htc_download()
 
-# Download logs
-htc_download(files = c("job.log", "job.err"), local_path = "logs/")
+# Or specify the cluster ID explicitly
+htc_download(cluster_id = "6590895")
+
+# Or specify files directly with glob patterns
+htc_download(files = "*.tar.gz", local_path = "results/")
 ```
 
 ------------------------------------------------------------------------

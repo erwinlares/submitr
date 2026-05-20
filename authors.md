@@ -10,12 +10,12 @@
 Source:
 [`DESCRIPTION`](https://github.com/erwinlares/submitr/blob/main/DESCRIPTION)
 
-Lares E (2026). *submitr: Scaffold and Submit Computational Jobs to HTC
+Lares E (2026). *submitr: Scaffold and Submit Computational Jobs to CHTC
 Schedulers*. R package version 0.1.0.9000,
 <https://erwinlares.github.io/submitr/>.
 
     @Manual{,
-      title = {submitr: Scaffold and Submit Computational Jobs to HTC Schedulers},
+      title = {submitr: Scaffold and Submit Computational Jobs to CHTC Schedulers},
       author = {Erwin Lares},
       year = {2026},
       note = {R package version 0.1.0.9000},

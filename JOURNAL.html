@@ -35,6 +35,7 @@
       <small class="dont-index">Source: <a href="https://github.com/erwinlares/submitr/blob/main/JOURNAL.md" class="external-link"><code>JOURNAL.md</code></a></small>
     </div>
 
+
 <div class="section level2">
 <h2 id="session--2026-05-14">Session — 2026-05-14<a class="anchor" aria-label="anchor" href="#session--2026-05-14"></a></h2>
 <div class="section level3">
@@ -85,6 +86,15 @@
 <li>GitHub Actions workflow for building and pushing <code>linux/amd64</code> images from Apple Silicon without QEMU emulation (scoped in <code>containr</code> PLAN.md).</li>
 </ul></div>
 </div>
+<div class="section level2">
+<h2 id="session-2026-05-20">Session 2026-05-20<a class="anchor" aria-label="anchor" href="#session-2026-05-20"></a></h2>
+<div class="section level3">
+<h3 id="job-manifest-and-smart-downloads">Job manifest and smart downloads<a class="anchor" aria-label="anchor" href="#job-manifest-and-smart-downloads"></a></h3>
+<p>Added a session-level job manifest that accumulates metadata as the researcher works through the pipeline. <code><a href="reference/htc_gen_submit.html">htc_gen_submit()</a></code> records mode, output file patterns, and subset names. <code><a href="reference/htc_gen_executable.html">htc_gen_executable()</a></code> records the script and results folder. <code><a href="reference/htc_submit.html">htc_submit()</a></code> records the cluster ID.</p>
+<p><code><a href="reference/htc_download.html">htc_download()</a></code> reads this manifest when called without <code>files</code>, resolving the correct tarballs and log files for both single and multiple mode. The researcher’s workflow simplifies to <code><a href="reference/htc_download.html">htc_download()</a></code> with no arguments after a full pipeline run.</p>
+</div>
+</div>
+
 
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
     </nav></aside></div>

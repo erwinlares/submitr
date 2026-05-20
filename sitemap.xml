@@ -10,7 +10,10 @@
 <url><loc>https://erwinlares.github.io/submitr/authors.html</loc></url>
 <url><loc>https://erwinlares.github.io/submitr/index.html</loc></url>
 <url><loc>https://erwinlares.github.io/submitr/news/index.html</loc></url>
+<url><loc>https://erwinlares.github.io/submitr/reference/dot-get_manifest.html</loc></url>
 <url><loc>https://erwinlares.github.io/submitr/reference/dot-resolve_config.html</loc></url>
+<url><loc>https://erwinlares.github.io/submitr/reference/dot-resolve_download_files.html</loc></url>
+<url><loc>https://erwinlares.github.io/submitr/reference/dot-update_manifest.html</loc></url>
 <url><loc>https://erwinlares.github.io/submitr/reference/htc_config.html</loc></url>
 <url><loc>https://erwinlares.github.io/submitr/reference/htc_download.html</loc></url>
 <url><loc>https://erwinlares.github.io/submitr/reference/htc_gen_executable.html</loc></url>

@@ -10,7 +10,8 @@ confirms all jobs have completed.
 
 ``` r
 htc_download(
-  files,
+  files = NULL,
+  cluster_id = NULL,
   remote_path = "~/",
   local_path = ".",
   config = NULL,
@@ -23,9 +24,19 @@ htc_download(
 
 - files:
 
-  A character vector. One or more filenames or glob patterns to download
-  from `remote_path` on the submit node. Examples: `"results.tar.gz"`,
-  `c("job.log", "job.err")`, `"*.tar.gz"`. Required.
+  A character vector or `NULL`. One or more filenames or glob patterns
+  to download from `remote_path` on the submit node. Examples:
+  `"results.tar.gz"`, `c("job.log", "job.err")`, `"*.tar.gz"`. When
+  `NULL`, the function uses `cluster_id` and the job manifest to
+  determine which files to download. Defaults to `NULL`.
+
+- cluster_id:
+
+  A character string or `NULL`. The cluster ID returned by
+  [`htc_submit()`](https://erwinlares.github.io/submitr/reference/htc_submit.md).
+  When supplied without `files`, the function constructs the file list
+  from the job manifest. When `NULL`, falls back to the most recently
+  submitted cluster ID stored in the manifest. Defaults to `NULL`.
 
 - remote_path:
 
@@ -65,9 +76,42 @@ Called for its side effects. Returns `invisible(NULL)`.
 
 ## Details
 
-Glob patterns such as `"*.tar.gz"` are supported and are evaluated on
-the remote server, not locally, so they match files that exist on the
-submit node regardless of what is present on your local machine.
+When `cluster_id` is supplied without `files`, the function uses the job
+manifest built up by
+[`htc_gen_submit()`](https://erwinlares.github.io/submitr/reference/htc_gen_submit.md),
+[`htc_gen_executable()`](https://erwinlares.github.io/submitr/reference/htc_gen_executable.md),
+and
+[`htc_submit()`](https://erwinlares.github.io/submitr/reference/htc_submit.md)
+to determine which files to download. For single-mode jobs, this
+includes the results tarball and the log, error, and output files. For
+multiple-mode jobs, the function reads the subset names from the
+manifest and constructs per-job tarball names and per-process log file
+patterns.
+
+Glob patterns such as `"*.tar.gz"` are supported when using the `files`
+argument and are evaluated on the remote server, not locally.
+
+## Automatic file resolution
+
+When `files` is `NULL`, the function resolves the file list from the job
+manifest. The manifest is built automatically as you call
+[`htc_gen_submit()`](https://erwinlares.github.io/submitr/reference/htc_gen_submit.md),
+[`htc_gen_executable()`](https://erwinlares.github.io/submitr/reference/htc_gen_executable.md),
+and
+[`htc_submit()`](https://erwinlares.github.io/submitr/reference/htc_submit.md)
+during the normal workflow. No extra steps are needed.
+
+For a single-mode job:
+
+- The results tarball (e.g. `"analysis-results.tar.gz"`)
+
+- Log files: `"{cluster_id}-0-job.log"`, `".err"`, `".out"`
+
+For a multiple-mode job:
+
+- Per-subset tarballs (e.g. `"adelie.csv-results.tar.gz"`)
+
+- Log files for each process: `"{cluster_id}-{0,1,...}-job.log"`, etc.
 
 ## Workflow
 
@@ -76,32 +120,21 @@ workflow. Call it after
 [`htc_status()`](https://erwinlares.github.io/submitr/reference/htc_status.md)
 confirms all jobs have completed.
 
-    cfg <- htc_config()
-
-    htc_status(cluster_id = 6302877, config = cfg, watch = TRUE)
-
-    # Download all result tarballs
-    htc_download(
-      files      = "*.tar.gz",
-      config     = cfg,
-      local_path = "results/"
-    )
+    # Automatic: uses the job manifest to determine what to download
+    htc_start()
+    htc_gen_submit(...)
+    htc_gen_executable(...)
+    htc_upload(...)
+    job <- htc_submit("analysis.sub")
+    htc_status(cluster_id = job, watch = TRUE)
+    htc_download()
 
 ## Glob patterns
 
-Glob patterns are passed to the remote shell for evaluation so they
-match files on the submit node, not on your local machine. The pattern
-is single-quoted in the `scp` command to prevent local shell expansion.
-
-Common patterns:
-
-- `"*.tar.gz"` – all result tarballs
-
-- `"*.log"` – all log files
-
-- `"*.out"` – all output files
-
-- `"*.err"` – all error files
+When using `files` directly, glob patterns are passed to the remote
+shell for evaluation so they match files on the submit node, not on your
+local machine. The pattern is single-quoted in the `scp` command to
+prevent local shell expansion.
 
 ## SSH connection reuse
 
@@ -124,30 +157,23 @@ htc_download(files = "*.tar.gz", config = cfg, dry_run = TRUE)
 
 if (FALSE) { # \dontrun{
 # All remaining examples require a live CHTC connection
-cfg <- htc_config()
 
-# Download a single file
-htc_download(files = "r <- esults.tar.gz", config = cfg)
+# Automatic download after a workflow
+htc_start()
+htc_gen_submit(...)
+htc_gen_executable(...)
+htc_upload(...)
+job <- htc_submit("job.sub")
+htc_status(cluster_id = job, watch = TRUE)
+htc_download()
 
-# Download multiple specific files
-htc_download(
-  files  = c("job.log", "job.err", "results.tar.gz"),
-  config = cfg
-)
+# Download by cluster ID
+htc_download(cluster_id = "6590895")
 
-# Download all result tarballs using a glob pattern
-htc_download(
-  files      = "*.tar.gz",
-  config     = cfg,
-  local_path = "results/"
-)
+# Download specific files using globs
+htc_download(files = "*.tar.gz", local_path = "results/")
 
-# Download all log files from a specific remote directory
-htc_download(
-  files       = "*.log",
-  remote_path = "~/projects/penguins/",
-  local_path  = "logs/",
-  config      = cfg
-)
+# Download logs only
+htc_download(files = c("*.log", "*.err", "*.out"), local_path = "logs/")
 } # }
 ```
