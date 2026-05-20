@@ -1,0 +1,509 @@
+---
+title: "Single Jobs vs Multiple Jobs on HTCondor"
+output:
+  rmarkdown::html_vignette:
+    toc: true
+vignette: >
+  %\VignetteIndexEntry{Single Jobs vs Multiple Jobs on HTCondor}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+date: "Created 2026-05-20 | Last updated `r Sys.Date()`"
+---
+
+## Why two modes?
+
+Not every analysis scales the same way. Sometimes you have one dataset and one
+script and you want to run it once on hardware you don't have locally. Other
+times you have the same analysis but need to run it independently across many
+subsets of the data -- once per species, once per site, once per simulation
+parameter, once per experimental condition.
+
+HTCondor handles both cases, but the job setup is different. The container
+image, the submit file, the executable script, and the file transfer strategy
+all change depending on whether you are submitting one job or many. Getting
+the setup wrong is the most common source of job failures, and the errors are
+not always obvious.
+
+This vignette walks through both modes side by side using the same analysis --
+a summary and visualization of the Palmer Penguins dataset. In single mode,
+the analysis runs once over the full dataset. In multiple mode, it runs once
+per species, producing independent results for Adelie, Chinstrap, and Gentoo
+penguins.
+
+The R script is identical in both cases. What changes is how the data gets to
+the script and how the surrounding infrastructure is configured.
+
+## The analysis
+
+The analysis is simple by design so the focus stays on the infrastructure. The
+R script loads a CSV file, computes a grouped summary of body mass and flipper
+length, produces a scatterplot, and writes both outputs to a `results/` folder.
+
+The script uses `toolero::detect_execution_context()` to resolve the input
+file path. In an interactive RStudio session, the path is hardcoded for
+convenience. When rendered via Quarto, it comes from the YAML `params` block.
+When run via `Rscript` on HTCondor, it comes from the first command-line
+argument:
+
+```r
+context <- toolero::detect_execution_context()
+
+input_file <- switch(context,
+  interactive = "data-raw/sample.csv",
+  quarto      = params$input_file,
+  rscript     = commandArgs(trailingOnly = TRUE)[1]
+)
+
+penguins <- toolero::read_clean_csv(input_file)
+```
+
+The output section writes results to a relative path:
+
+```r
+results_dir <- "results"
+dir.create(results_dir, showWarnings = FALSE, recursive = TRUE)
+
+toolero::write_clean_csv(p_stats, file.path(results_dir, "results.csv"),
+                         overwrite = TRUE)
+ggplot2::ggsave(filename = file.path(results_dir, "plot.png"), plot = p_plot)
+```
+
+This is portable. `"results/"` resolves correctly in RStudio, in
+`quarto render`, and on HTCondor -- because the executable script sets the
+working directory to HTCondor's writable scratch space before calling
+`Rscript`.
+
+## Two kinds of manifest
+
+The word "manifest" appears in two different contexts in the submitr workflow.
+They serve different purposes and should not be confused.
+
+The **data manifest** is a CSV file on disk. It is produced by
+`toolero::write_by_group(manifest = TRUE)` and lists the subset data files
+created when splitting a dataset by a grouping column. `htc_gen_submit()` reads
+this file via the `queue_from` argument to produce the `subdatasets.csv` that
+HTCondor uses to dispatch one job per subset. The data manifest is only relevant
+in multiple mode.
+
+The **job manifest** is a session-level R option that accumulates metadata as
+you work through the submitr pipeline. It is not a file. It lives in memory
+and is cleared when you call `htc_start()` or restart R. Each function in the
+workflow contributes a piece: `htc_gen_submit()` records the mode, the output
+file pattern, and the subset names. `htc_gen_executable()` records the script
+name and results folder. `htc_submit()` records the cluster ID assigned by
+HTCondor. At the end of the workflow, `htc_download()` reads the job manifest
+to determine which files to retrieve -- no glob patterns or manual file lists
+required.
+
+| | Data manifest | Job manifest |
+|---|---|---|
+| What is it | A CSV file (`manifest.csv`) | Session-level R option |
+| Created by | `toolero::write_by_group()` | `htc_gen_submit()`, `htc_gen_executable()`, `htc_submit()` |
+| Contains | Subset filenames and row counts | Mode, output pattern, subset names, cluster ID |
+| Used by | `htc_gen_submit(queue_from = ...)` | `htc_download()` |
+| Lives | On disk in the project directory | In memory for the R session |
+| Relevant in | Multiple mode only | Both modes |
+
+## Single mode: one dataset, one job
+
+In single mode, the full dataset and the R script are baked into the container
+image at build time. Nothing is transferred at runtime -- the container has
+everything it needs. HTCondor runs the job, the script writes results to
+`results/`, the executable script tars them up, and HTCondor transfers the
+tarball back to the submit node.
+
+### Building the container
+
+The Dockerfile includes the R script and the data file via the `code_file` and
+`data_file` arguments:
+
+```r
+containr::generate_dockerfile(
+  r_version = "4.5.0",
+  code_file = "R/analysis.R",
+  data_file = "data-raw/sample.csv",
+  comments  = TRUE,
+  verbose   = TRUE
+)
+```
+
+This produces `COPY` instructions that preserve the local directory structure
+inside the container:
+
+```dockerfile
+COPY R/analysis.R /home/R/analysis.R
+COPY data-raw/sample.csv /home/data-raw/sample.csv
+```
+
+Build and push the image:
+
+```r
+containr::build_image(
+  tag  = "registry.doit.wisc.edu/your.netid/penguins-analysis:1.0.0",
+  tool = "docker"
+)
+containr::push_image(
+  image_id    = "abc123",
+  netid       = "your.netid",
+  project     = "penguins-analysis",
+  tag         = "1.0.0",
+  tool        = "docker",
+  check_login = FALSE
+)
+```
+
+### Generating the submit file and executable
+
+```r
+submitr::htc_gen_submit(
+  output_file     = "analysis.sub",
+  container_image = "registry.doit.wisc.edu/your.netid/penguins-analysis:1.0.0",
+  executable      = "analysis.sh",
+  output_files    = "analysis-results.tar.gz"
+)
+
+submitr::htc_gen_executable(
+  r_script       = "R/analysis.R",
+  output_file    = "analysis.sh",
+  data_files     = "data-raw/sample.csv",
+  results_folder = "results"
+)
+```
+
+The generated `.sh` file:
+
+```bash
+#!/bin/bash
+set -euo pipefail
+
+cd "${_CONDOR_SCRATCH_DIR:-$PWD}"
+
+mkdir -p results
+Rscript /home/R/analysis.R /home/data-raw/sample.csv
+tar -czf analysis-results.tar.gz results
+```
+
+The script changes to the scratch directory (writable), creates the results
+folder, runs the R script using absolute paths to the baked-in files, and
+tars the results. The tarball lands in the scratch directory where HTCondor
+expects to find it.
+
+The generated `.sub` file:
+
+```
+container_image = docker://registry.doit.wisc.edu/your.netid/penguins-analysis:1.0.0
+universe = container
+
+executable = analysis.sh
+
+should_transfer_files   = YES
+when_to_transfer_output = ON_EXIT
+transfer_output_files = analysis-results.tar.gz
+
+request_cpus   = 1
+request_memory = 4GB
+request_disk   = 4GB
+
+queue 1
+```
+
+No `transfer_input_files` -- everything is inside the container.
+
+### Submitting and downloading
+
+```r
+submitr::htc_start()
+submitr::htc_upload(files = c("analysis.sub", "analysis.sh"))
+job <- submitr::htc_submit("analysis.sub")
+submitr::htc_status(cluster_id = job, watch = TRUE)
+submitr::htc_download()
+```
+
+`htc_download()` takes no arguments here because the job manifest has
+everything it needs. `htc_gen_submit()` recorded that this is a single-mode
+job with `analysis-results.tar.gz` as the output. `htc_submit()` recorded
+the cluster ID. From those two pieces, `htc_download()` constructs the file
+list: one tarball plus three log files (`{cluster_id}-0-job.log`, `.err`,
+`.out`).
+
+You can also be explicit if you prefer:
+
+```r
+submitr::htc_download(cluster_id = job)
+submitr::htc_download(files = "*.tar.gz", local_path = "results/")
+```
+
+## Multiple mode: one analysis, three species
+
+In multiple mode, the same R script runs independently on each subset of the
+data. The container holds the R script and the software environment, but not
+the data -- each subset file is transferred at runtime by HTCondor.
+
+The motivation is straightforward: rather than analyzing all three penguin
+species together, you want to analyze each one independently. Maybe the
+analysis is computationally expensive, or maybe the subsets come from
+different sources and should be processed in isolation. HTCondor runs one
+job per subset, in parallel, across available compute resources.
+
+### Splitting the data
+
+Use `toolero::write_by_group()` to split the dataset by species and produce a
+data manifest:
+
+```r
+penguins <- toolero::read_clean_csv("data-raw/sample.csv")
+
+toolero::write_by_group(
+  penguins,
+  group_col  = "species",
+  output_dir = "data/jobs",
+  manifest   = TRUE
+)
+```
+
+This produces three CSV files (`adelie.csv`, `chinstrap.csv`, `gentoo.csv`)
+and a data manifest (`manifest.csv`) listing them. This data manifest is a
+file on disk -- not to be confused with the job manifest that `submitr` builds
+in memory during the submission workflow.
+
+### Building the container
+
+The container needs the R script but not the data. The data files are
+transferred at runtime:
+
+```r
+containr::generate_dockerfile(
+  r_version = "4.5.0",
+  code_file = "R/analysis.R",
+  comments  = TRUE,
+  verbose   = TRUE
+)
+```
+
+No `data_file` argument. The Dockerfile copies only the script:
+
+```dockerfile
+COPY R/analysis.R /home/R/analysis.R
+```
+
+Build and push as before.
+
+### Generating the submit file and executable
+
+```r
+submitr::htc_gen_submit(
+  output_file = "analysis.sub",
+  container_image = "registry.doit.wisc.edu/your.netid/penguins-analysis:2.0.0",
+  executable  = "analysis.sh",
+  mode        = "multiple",
+  queue_from  = "data/jobs/manifest.csv"
+)
+
+submitr::htc_gen_executable(
+  r_script       = "R/analysis.R",
+  output_file    = "analysis.sh",
+  mode           = "multiple",
+  results_folder = "results"
+)
+```
+
+`htc_gen_submit()` reads the data manifest via `queue_from`, extracts the
+subset filenames, and writes `subdatasets.csv` alongside the submit file.
+It also records the mode, subset names, and output file pattern in the job
+manifest for `htc_download()` to use later.
+
+The generated `.sh` file:
+
+```bash
+#!/bin/bash
+set -euo pipefail
+
+cd "${_CONDOR_SCRATCH_DIR:-$PWD}"
+
+mkdir -p results
+Rscript /home/R/analysis.R ${1}
+tar -czf ${1}-results.tar.gz results
+```
+
+`${1}` is the subset filename passed by HTCondor -- e.g. `adelie.csv`. The
+R script receives it as `commandArgs(trailingOnly = TRUE)[1]`. The tarball
+is named per-subset so jobs don't overwrite each other.
+
+The generated `.sub` file:
+
+```
+container_image = docker://registry.doit.wisc.edu/your.netid/penguins-analysis:2.0.0
+universe = container
+
+executable = analysis.sh
+arguments = $(file)
+
+should_transfer_files   = YES
+when_to_transfer_output = ON_EXIT
+transfer_input_files = $(file)
+transfer_output_files = $(file)-results.tar.gz
+
+request_cpus   = 1
+request_memory = 4GB
+request_disk   = 4GB
+
+queue file from subdatasets.csv
+```
+
+Key differences from single mode: `arguments = $(file)` passes the subset
+filename to the executable, `transfer_input_files = $(file)` sends each
+subset to the execute node at runtime, and `queue file from subdatasets.csv`
+submits one job per line in the file.
+
+### Submitting and downloading
+
+```r
+submitr::htc_start()
+submitr::htc_upload(
+  files = c("analysis.sub", "analysis.sh", "subdatasets.csv",
+            "data/jobs/adelie.csv", "data/jobs/chinstrap.csv",
+            "data/jobs/gentoo.csv")
+)
+job <- submitr::htc_submit("analysis.sub")
+submitr::htc_status(cluster_id = job, watch = TRUE)
+submitr::htc_download()
+```
+
+This is where the job manifest pays off. With three species and three log
+file types per job, there are 12 files to retrieve. `htc_download()` constructs
+the full list automatically: it reads the subset names from the job manifest,
+expands the output pattern into `adelie.csv-results.tar.gz`,
+`chinstrap.csv-results.tar.gz`, and `gentoo.csv-results.tar.gz`, and generates
+the nine log file names from the cluster ID and process count.
+
+One call, no globs, no guessing:
+
+```r
+# These are all equivalent
+submitr::htc_download()
+submitr::htc_download(cluster_id = job)
+```
+
+## Side-by-side comparison
+
+### What lives in the container
+
+| | Single mode | Multiple mode |
+|---|---|---|
+| R + packages + system libs | Yes | Yes |
+| R script | Yes | Yes |
+| Data files | Yes | No |
+
+### The `.sub` file
+
+| Directive | Single mode | Multiple mode |
+|---|---|---|
+| `container_image` | `docker://...` | `docker://...` |
+| `universe` | `container` | `container` |
+| `executable` | `analysis.sh` | `analysis.sh` |
+| `arguments` | *(absent)* | `$(file)` |
+| `transfer_input_files` | *(absent)* | `$(file)` |
+| `transfer_output_files` | `analysis-results.tar.gz` | `$(file)-results.tar.gz` |
+| `queue` | `queue 1` | `queue file from subdatasets.csv` |
+
+### The `.sh` file
+
+| Line | Single mode | Multiple mode |
+|---|---|---|
+| Working directory | `cd "${_CONDOR_SCRATCH_DIR:-$PWD}"` | `cd "${_CONDOR_SCRATCH_DIR:-$PWD}"` |
+| Results folder | `mkdir -p results` | `mkdir -p results` |
+| Run script | `Rscript /home/R/analysis.R /home/data-raw/sample.csv` | `Rscript /home/R/analysis.R ${1}` |
+| Package results | `tar -czf analysis-results.tar.gz results` | `tar -czf ${1}-results.tar.gz results` |
+
+### The R script
+
+The R script is identical in both modes. The only difference is where the
+input file path comes from:
+
+| Context | Single mode | Multiple mode |
+|---|---|---|
+| Interactive (RStudio) | Hardcoded path | Hardcoded path |
+| Quarto render | `params$input_file` | `params$input_file` |
+| Rscript (HTCondor) | Absolute path from `.sh` | `${1}` from HTCondor |
+
+In both cases, `detect_execution_context()` resolves the right source and
+`commandArgs(trailingOnly = TRUE)[1]` picks up whatever the `.sh` script
+passes. The R script doesn't know whether it's running in single or multiple
+mode.
+
+### Files uploaded to the submit node
+
+| | Single mode | Multiple mode |
+|---|---|---|
+| `.sub` file | Yes | Yes |
+| `.sh` file | Yes | Yes |
+| `subdatasets.csv` | No | Yes |
+| Subset data files | No | Yes |
+| R script | No | No |
+| Full dataset | No | No |
+
+### Files downloaded after the job
+
+| | Single mode | Multiple mode |
+|---|---|---|
+| Result tarballs | 1 (`analysis-results.tar.gz`) | 1 per subset (3 total) |
+| Log files | 3 (`{cluster}-0-job.{log,err,out}`) | 3 per subset (9 total) |
+| Total files | 4 | 12 |
+
+### How `htc_download()` resolves files
+
+In both modes, `htc_download()` reads the job manifest that was built
+automatically during the workflow. No file lists or glob patterns are needed.
+
+| | Single mode | Multiple mode |
+|---|---|---|
+| Job manifest knows | 1 tarball name, cluster ID | Subset names, tarball pattern, cluster ID |
+| Files resolved | 1 tarball + 3 logs = 4 files | 3 tarballs + 9 logs = 12 files |
+| Researcher types | `htc_download()` | `htc_download()` |
+
+The same zero-argument call works for both modes because the job manifest
+captures the difference.
+
+### How the two manifests relate
+
+The data manifest and the job manifest are connected but distinct. The data
+manifest feeds into the job manifest -- when `htc_gen_submit()` reads the
+data manifest via `queue_from`, it extracts the subset filenames and stores
+them in the job manifest. From that point on, the job manifest carries the
+subset names forward so that `htc_download()` can reconstruct the tarball
+names without re-reading any files from disk.
+
+```
+toolero::write_by_group()
+  |
+  v
+manifest.csv  (data manifest -- file on disk)
+  |
+  v
+htc_gen_submit(queue_from = "manifest.csv")
+  |
+  +---> subdatasets.csv  (sent to HTCondor)
+  +---> job manifest     (subset names stored in session)
+          |
+          v
+        htc_submit()
+          +---> job manifest  (cluster ID added)
+                  |
+                  v
+                htc_download()  (resolves all files automatically)
+```
+
+## When to use which mode
+
+Use **single mode** when your analysis processes one dataset as a unit. The
+container has everything baked in. Nothing is transferred at runtime. This is
+the simplest path and the right starting point for a first CHTC job.
+
+Use **multiple mode** when you need to run the same analysis independently
+across subsets of the data. The data files are transferred at runtime, one per
+job. This scales naturally -- adding more subsets means more jobs, not more
+configuration.
+
+Start with single mode to confirm the analysis runs correctly on CHTC.
+Switch to multiple mode when you are confident the container, script, and
+results pipeline are working.
