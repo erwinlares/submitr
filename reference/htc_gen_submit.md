@@ -211,7 +211,7 @@ htc_gen_submit(
 #> Writing logging section
 #> Writing resources section (small preset: 1 CPU / 4GB RAM / 4GB disk)
 #> Writing queue section (1 job)
-#> ✔ Submit file written to /tmp/Rtmp6ny7A8/annotated.sub
+#> ✔ Submit file written to /tmp/RtmpBbDmL6/annotated.sub
 
 # Custom resource request
 htc_gen_submit(
