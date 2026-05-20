@@ -44,6 +44,7 @@ htc_start <- function(...) {
 
     cfg <- htc_config(...)
     options(submitr.config = cfg)
+    options(submitr.job_manifest = NULL) #clear stale manifest
 
     cli::cli_alert_success(
         "Session started: {.val {cfg$username}}@{.val {cfg$server}}"

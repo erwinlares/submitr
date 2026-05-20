@@ -121,3 +121,18 @@ without manual edits.
   whether they exist inside the container image.
 - GitHub Actions workflow for building and pushing `linux/amd64` images from
   Apple Silicon without QEMU emulation (scoped in `containr` PLAN.md).
+
+
+## Session 2026-05-20
+
+### Job manifest and smart downloads
+
+Added a session-level job manifest that accumulates metadata as the
+researcher works through the pipeline. `htc_gen_submit()` records mode,
+output file patterns, and subset names. `htc_gen_executable()` records the
+script and results folder. `htc_submit()` records the cluster ID.
+
+`htc_download()` reads this manifest when called without `files`, resolving
+the correct tarballs and log files for both single and multiple mode. The
+researcher's workflow simplifies to `htc_download()` with no arguments after
+a full pipeline run.

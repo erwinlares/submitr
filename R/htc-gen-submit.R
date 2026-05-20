@@ -637,6 +637,11 @@ htc_gen_submit <- function(output_file      = "job.sub",
             "Submit file written to {.path {file.path(output, output_file)}}"
         )
     }
-
+    # record mode, output files, and subsets
+    .update_manifest(
+        mode         = mode,
+        output_files = resolved_output_files,
+        subsets      = subset_filenames
+    )
     invisible(NULL)
 }

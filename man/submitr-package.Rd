@@ -4,11 +4,11 @@
 \name{submitr-package}
 \alias{submitr}
 \alias{submitr-package}
-\title{submitr: Scaffold and Submit Computational Jobs to HTC Schedulers}
+\title{submitr: Scaffold and Submit Computational Jobs to CHTC Schedulers}
 \description{
 \if{html}{\figure{logo.png}{options: style='float: right' alt='logo' width='120'}}
 
-Provides scaffolding tools to help researchers prepare and submit computational jobs to high-throughput computing (HTC) schedulers. Generates the files required to run containerized R analyses on 'HTCondor', including submit files and executable scripts, and wraps the system commands needed to stage files, submit jobs, monitor status, and retrieve results from a CHTC submit node. Provides 'htc_config()' for managing connection details and SSH connection reuse guidance. Works naturally alongside 'containr' for container image management and 'toolero' for dataset splitting and project scaffolding.
+Provides scaffolding tools to help researchers prepare and submit computational jobs to high-throughput computing (HTC) schedulers. Generates the files required to run containerized R analyses on 'HTCondor', including submit files and executable scripts, and wraps the system commands needed to stage files, submit jobs, monitor status, and retrieve results from a CHTC submit node. A session-level job manifest tracks metadata across the workflow so that result files can be downloaded automatically without constructing file lists by hand. Provides 'htc_start()' for session management and 'htc_config()' for connection details and SSH connection reuse guidance. Works naturally alongside 'containr' for container image management and 'toolero' for dataset splitting and project scaffolding.
 }
 \seealso{
 Useful links:

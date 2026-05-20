@@ -16,6 +16,6 @@ A validated config list with \code{username} and \code{server}.
 Internal helper used by \code{htc_upload()}, \code{htc_download()}, \code{htc_submit()},
 and \code{htc_status()} to resolve the config list. Checks the explicit
 argument first, then falls back to the session option set by
-\code{htc_start_session()}, then errors if neither is available.
+\code{htc_start()}, then errors if neither is available.
 }
 \keyword{internal}

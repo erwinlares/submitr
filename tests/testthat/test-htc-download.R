@@ -31,11 +31,12 @@ test_that("htc_download() errors when config is missing server", {
     )
 })
 
-test_that("htc_download() errors when files is missing", {
-    cfg <- list(username = "lares", server = "ap2002.chtc.wisc.edu")
+test_that("htc_download() errors when no files and no manifest", {
+    cfg <- list(username = "netid", server = "ap2002.chtc.wisc.edu")
+    withr::local_options(submitr.job_manifest = NULL)
     expect_error(
         htc_download(config = cfg),
-        regexp = "files"
+        regexp = "No files specified|No.*cluster_id"
     )
 })
 

@@ -311,6 +311,11 @@ htc_gen_executable <- function(output_file    = "job.sh",
             "Executable script written to {.path {file.path(output, output_file)}}"
         )
     }
+    # record script and results folder
+    .update_manifest(
+        r_script       = r_script,
+        results_folder = results_folder
+    )
 
     invisible(NULL)
 }

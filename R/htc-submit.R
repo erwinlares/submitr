@@ -167,6 +167,11 @@ htc_submit <- function(submit_file = "job.sub",
         NULL
     }
 
+    # record cluster ID
+    if (!is.null(cluster_id)) {
+        .update_manifest(cluster_id = cluster_id)
+    }
+
     cli::cli_alert_success(
         "Job submitted from {.val {remote_path}{submit_file}} on {.val {config$server}}."
     )

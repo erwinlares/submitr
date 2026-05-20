@@ -21,6 +21,18 @@
 * `htc_upload()` and `htc_download()` now print a success confirmation
   message unconditionally after a successful transfer, rather than only
   when `verbose = TRUE`.
+  
+* `htc_download()` gains a `cluster_id` parameter and can now resolve
+  files automatically from the job manifest. When called without `files`,
+  it constructs the download list from metadata recorded by
+  `htc_gen_submit()`, `htc_gen_executable()`, and `htc_submit()` during
+  the normal workflow. Works for both single and multiple mode jobs.
+
+* Job manifest system: `htc_gen_submit()`, `htc_gen_executable()`, and
+  `htc_submit()` now record job metadata (mode, output files, subset
+  names, cluster ID) in a session-level option. `htc_download()` reads
+  this manifest to determine which files to retrieve.
+  `htc_start()` clears stale manifests on session init.
 
 ### Bug fixes
 

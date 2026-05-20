@@ -5,7 +5,8 @@
 \title{Download files from an HTC submit node}
 \usage{
 htc_download(
-  files,
+  files = NULL,
+  cluster_id = NULL,
   remote_path = "~/",
   local_path = ".",
   config = NULL,
@@ -14,9 +15,17 @@ htc_download(
 )
 }
 \arguments{
-\item{files}{A character vector. One or more filenames or glob patterns
-to download from \code{remote_path} on the submit node. Examples:
-\code{"results.tar.gz"}, \code{c("job.log", "job.err")}, \code{"*.tar.gz"}. Required.}
+\item{files}{A character vector or \code{NULL}. One or more filenames or glob
+patterns to download from \code{remote_path} on the submit node. Examples:
+\code{"results.tar.gz"}, \code{c("job.log", "job.err")}, \code{"*.tar.gz"}. When
+\code{NULL}, the function uses \code{cluster_id} and the job manifest to
+determine which files to download. Defaults to \code{NULL}.}
+
+\item{cluster_id}{A character string or \code{NULL}. The cluster ID returned
+by \code{\link[=htc_submit]{htc_submit()}}. When supplied without \code{files}, the function
+constructs the file list from the job manifest. When \code{NULL}, falls
+back to the most recently submitted cluster ID stored in the manifest.
+Defaults to \code{NULL}.}
 
 \item{remote_path}{A character string. The directory on the submit node
 where the files are located. Defaults to \code{"~/"}. Should match the
@@ -46,41 +55,59 @@ job submission workflow -- called after \code{\link[=htc_status]{htc_status()}} 
 have completed.
 }
 \details{
-Glob patterns such as \code{"*.tar.gz"} are supported and are evaluated on the
-remote server, not locally, so they match files that exist on the submit
-node regardless of what is present on your local machine.
+When \code{cluster_id} is supplied without \code{files}, the function uses the
+job manifest built up by \code{\link[=htc_gen_submit]{htc_gen_submit()}}, \code{\link[=htc_gen_executable]{htc_gen_executable()}},
+and \code{\link[=htc_submit]{htc_submit()}} to determine which files to download. For single-mode
+jobs, this includes the results tarball and the log, error, and output
+files. For multiple-mode jobs, the function reads the subset names from
+the manifest and constructs per-job tarball names and per-process log
+file patterns.
+
+Glob patterns such as \code{"*.tar.gz"} are supported when using the \code{files}
+argument and are evaluated on the remote server, not locally.
 }
+\section{Automatic file resolution}{
+
+When \code{files} is \code{NULL}, the function resolves the file list from the
+job manifest. The manifest is built automatically as you call
+\code{\link[=htc_gen_submit]{htc_gen_submit()}}, \code{\link[=htc_gen_executable]{htc_gen_executable()}}, and \code{\link[=htc_submit]{htc_submit()}} during
+the normal workflow. No extra steps are needed.
+
+For a single-mode job:
+\itemize{
+\item The results tarball (e.g. \code{"analysis-results.tar.gz"})
+\item Log files: \code{"{cluster_id}-0-job.log"}, \code{".err"}, \code{".out"}
+}
+
+For a multiple-mode job:
+\itemize{
+\item Per-subset tarballs (e.g. \code{"adelie.csv-results.tar.gz"})
+\item Log files for each process: \code{"{cluster_id}-{0,1,...}-job.log"}, etc.
+}
+}
+
 \section{Workflow}{
 
 \code{htc_download()} is the final system-facing step in the submitr workflow.
 Call it after \code{\link[=htc_status]{htc_status()}} confirms all jobs have completed.
 
-\if{html}{\out{<div class="sourceCode r">}}\preformatted{cfg <- htc_config()
-
-htc_status(cluster_id = 6302877, config = cfg, watch = TRUE)
-
-# Download all result tarballs
-htc_download(
-  files      = "*.tar.gz",
-  config     = cfg,
-  local_path = "results/"
-)
+\if{html}{\out{<div class="sourceCode r">}}\preformatted{# Automatic: uses the job manifest to determine what to download
+htc_start()
+htc_gen_submit(...)
+htc_gen_executable(...)
+htc_upload(...)
+job <- htc_submit("analysis.sub")
+htc_status(cluster_id = job, watch = TRUE)
+htc_download()
 }\if{html}{\out{</div>}}
 }
 
 \section{Glob patterns}{
 
-Glob patterns are passed to the remote shell for evaluation so they
-match files on the submit node, not on your local machine. The pattern
-is single-quoted in the \code{scp} command to prevent local shell expansion.
-
-Common patterns:
-\itemize{
-\item \code{"*.tar.gz"} -- all result tarballs
-\item \code{"*.log"} -- all log files
-\item \code{"*.out"} -- all output files
-\item \code{"*.err"} -- all error files
-}
+When using \code{files} directly, glob patterns are passed to the remote
+shell for evaluation so they match files on the submit node, not on
+your local machine. The pattern is single-quoted in the \code{scp} command
+to prevent local shell expansion.
 }
 
 \section{SSH connection reuse}{
@@ -99,30 +126,23 @@ htc_download(files = "*.tar.gz", config = cfg, dry_run = TRUE)
 
 \dontrun{
 # All remaining examples require a live CHTC connection
-cfg <- htc_config()
 
-# Download a single file
-htc_download(files = "r <- esults.tar.gz", config = cfg)
+# Automatic download after a workflow
+htc_start()
+htc_gen_submit(...)
+htc_gen_executable(...)
+htc_upload(...)
+job <- htc_submit("job.sub")
+htc_status(cluster_id = job, watch = TRUE)
+htc_download()
 
-# Download multiple specific files
-htc_download(
-  files  = c("job.log", "job.err", "results.tar.gz"),
-  config = cfg
-)
+# Download by cluster ID
+htc_download(cluster_id = "6590895")
 
-# Download all result tarballs using a glob pattern
-htc_download(
-  files      = "*.tar.gz",
-  config     = cfg,
-  local_path = "results/"
-)
+# Download specific files using globs
+htc_download(files = "*.tar.gz", local_path = "results/")
 
-# Download all log files from a specific remote directory
-htc_download(
-  files       = "*.log",
-  remote_path = "~/projects/penguins/",
-  local_path  = "logs/",
-  config      = cfg
-)
+# Download logs only
+htc_download(files = c("*.log", "*.err", "*.out"), local_path = "logs/")
 }
 }

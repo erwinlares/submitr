@@ -245,6 +245,29 @@ All test files complete.
 
 ---
 
+
+## v0.1.0.9000
+
+### `htc_download()`
+
+Copies files from the CHTC submit node back to the local machine via `scp`.
+Supports single filenames, vectors of filenames, and glob patterns. New
+`cluster_id` parameter enables manifest-driven downloads: when called
+without `files`, reads the job manifest built by `htc_gen_submit()`,
+`htc_gen_executable()`, and `htc_submit()` to resolve tarballs and log
+files automatically for both single and multiple mode jobs.
+
+### Job manifest system
+
+Session-level metadata store (`submitr.job_manifest` option) that
+accumulates job information across the pipeline. `htc_gen_submit()` records
+mode, output files, and subset names. `htc_gen_executable()` records the
+script and results folder. `htc_submit()` records the cluster ID.
+`htc_start()` clears stale manifests. Read by `htc_download()` via
+`.get_manifest()`. Internal helpers: `.update_manifest()`,
+`.get_manifest()`, `.resolve_download_files()`.
+
+
 ## v0.2.0 roadmap
 
 ### `htc_compress()`
