@@ -336,8 +336,6 @@ htc_status(cluster_id = cluster_id, watch = TRUE)
 
 ### `htc_download()`
 
-### `htc_download()`
-
 Copies files back from the submit node via `scp`. After a full workflow,
 `htc_download()` knows which files to retrieve automatically:
 
