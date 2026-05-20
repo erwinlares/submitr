@@ -1,8 +1,8 @@
 ---
 title: "Single Jobs vs Multiple Jobs on HTCondor"
-output:
+output: 
   rmarkdown::html_vignette:
-    toc: true
+    css: styles.css
 vignette: >
   %\VignetteIndexEntry{Single Jobs vs Multiple Jobs on HTCondor}
   %\VignetteEngine{knitr::rmarkdown}
