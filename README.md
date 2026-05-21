@@ -287,7 +287,6 @@ preview the command before running it.
 # Preview first
 htc_upload(
   files   = c("analysis.sub", "analysis.sh", "analysis.R", "data.csv"),
-  config  = cfg,
   dry_run = TRUE
 )
 #> ✔ Dry run -- command that would be executed:
@@ -295,8 +294,7 @@ htc_upload(
 
 # Then upload
 htc_upload(
-  files  = c("analysis.sub", "analysis.sh", "analysis.R", "data.csv"),
-  config = cfg
+  files  = c("analysis.sub", "analysis.sh", "analysis.R", "data.csv")
 )
 ```
 
@@ -309,7 +307,6 @@ Runs `condor_submit` on the remote server via SSH and returns the cluster ID.
 ```r
 cluster_id <- htc_submit(
   submit_file = "analysis.sub",
-  config      = cfg,
   verbose     = TRUE
 )
 #> Submitting "analysis.sub" on "ap2002.chtc.wisc.edu"...
