@@ -296,7 +296,6 @@ htc_start()
 <code class="sourceCode R"><span><span class="co"># Preview first</span></span>
 <span><span class="fu"><a href="reference/htc_upload.html">htc_upload</a></span><span class="op">(</span></span>
 <span>  files   <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"analysis.sub"</span>, <span class="st">"analysis.sh"</span>, <span class="st">"analysis.R"</span>, <span class="st">"data.csv"</span><span class="op">)</span>,</span>
-<span>  config  <span class="op">=</span> <span class="va">cfg</span>,</span>
 <span>  dry_run <span class="op">=</span> <span class="cn">TRUE</span></span>
 <span><span class="op">)</span></span>
 <span><span class="co">#&gt; ✔ Dry run -- command that would be executed:</span></span>
@@ -304,8 +303,7 @@ htc_start()
 <span></span>
 <span><span class="co"># Then upload</span></span>
 <span><span class="fu"><a href="reference/htc_upload.html">htc_upload</a></span><span class="op">(</span></span>
-<span>  files  <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"analysis.sub"</span>, <span class="st">"analysis.sh"</span>, <span class="st">"analysis.R"</span>, <span class="st">"data.csv"</span><span class="op">)</span>,</span>
-<span>  config <span class="op">=</span> <span class="va">cfg</span></span>
+<span>  files  <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"analysis.sub"</span>, <span class="st">"analysis.sh"</span>, <span class="st">"analysis.R"</span>, <span class="st">"data.csv"</span><span class="op">)</span></span>
 <span><span class="op">)</span></span></code></pre></div>
 <hr>
 </div>
@@ -317,7 +315,6 @@ htc_start()
 <div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">cluster_id</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/htc_submit.html">htc_submit</a></span><span class="op">(</span></span>
 <span>  submit_file <span class="op">=</span> <span class="st">"analysis.sub"</span>,</span>
-<span>  config      <span class="op">=</span> <span class="va">cfg</span>,</span>
 <span>  verbose     <span class="op">=</span> <span class="cn">TRUE</span></span>
 <span><span class="op">)</span></span>
 <span><span class="co">#&gt; Submitting "analysis.sub" on "ap2002.chtc.wisc.edu"...</span></span>
