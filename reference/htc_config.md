@@ -1,12 +1,15 @@
 # Configure a connection to an HTC submit server
 
 `htc_config()` creates or reads an `htc.cfg` file that stores the
-connection details needed by `htc_stage()`,
+connection details needed by
+[`htc_upload()`](https://erwinlares.github.io/submitr/reference/htc_upload.md),
 [`htc_submit()`](https://erwinlares.github.io/submitr/reference/htc_submit.md),
 [`htc_status()`](https://erwinlares.github.io/submitr/reference/htc_status.md),
-and `htc_fetch_results()`. On first use it prompts interactively for
-your username and server address, writes `htc.cfg` to `path`, and adds
-it to `.gitignore`. Subsequent calls read the existing file.
+and
+[`htc_download()`](https://erwinlares.github.io/submitr/reference/htc_download.md).
+On first use it prompts interactively for your username and server
+address, writes `htc.cfg` to `path`, and adds it to `.gitignore`.
+Subsequent calls read the existing file.
 
 ## Usage
 
@@ -43,13 +46,16 @@ A named list with elements `username` and `server`, returned invisibly.
 
 ## SSH connection reuse
 
-Each call to `htc_stage()`,
+Each call to
+[`htc_upload()`](https://erwinlares.github.io/submitr/reference/htc_upload.md),
 [`htc_submit()`](https://erwinlares.github.io/submitr/reference/htc_submit.md),
 [`htc_status()`](https://erwinlares.github.io/submitr/reference/htc_status.md),
-or `htc_fetch_results()` opens a new SSH connection to the submit
-server, which triggers a Duo MFA prompt each time. You can avoid this by
-configuring SSH connection reuse (ControlMaster) in your `~/.ssh/config`
-file. Add the following block:
+or
+[`htc_download()`](https://erwinlares.github.io/submitr/reference/htc_download.md)
+opens a new SSH connection to the submit server, which triggers a Duo
+MFA prompt each time. You can avoid this by configuring SSH connection
+reuse (ControlMaster) in your `~/.ssh/config` file. Add the following
+block:
 
     Host *.chtc.wisc.edu
       ControlMaster auto
