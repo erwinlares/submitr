@@ -28,16 +28,16 @@ invisibly.
 }
 \description{
 \code{htc_config()} creates or reads an \code{htc.cfg} file that stores the
-connection details needed by \code{htc_stage()}, \code{htc_submit()},
-\code{htc_status()}, and \code{htc_fetch_results()}. On first use it prompts
+connection details needed by \code{htc_upload()}, \code{htc_submit()},
+\code{htc_status()}, and \code{htc_download()}. On first use it prompts
 interactively for your username and server address, writes \code{htc.cfg}
 to \code{path}, and adds it to \code{.gitignore}. Subsequent calls read the
 existing file.
 }
 \section{SSH connection reuse}{
 
-Each call to \code{htc_stage()}, \code{htc_submit()}, \code{htc_status()}, or
-\code{htc_fetch_results()} opens a new SSH connection to the submit server,
+Each call to \code{htc_upload()}, \code{htc_submit()}, \code{htc_status()}, or
+\code{htc_download()} opens a new SSH connection to the submit server,
 which triggers a Duo MFA prompt each time. You can avoid this by
 configuring SSH connection reuse (ControlMaster) in your
 \verb{~/.ssh/config} file. Add the following block:

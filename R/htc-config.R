@@ -1,8 +1,8 @@
 #' Configure a connection to an HTC submit server
 #'
 #' `htc_config()` creates or reads an `htc.cfg` file that stores the
-#' connection details needed by `htc_stage()`, `htc_submit()`,
-#' `htc_status()`, and `htc_fetch_results()`. On first use it prompts
+#' connection details needed by `htc_upload()`, `htc_submit()`,
+#' `htc_status()`, and `htc_download()`. On first use it prompts
 #' interactively for your username and server address, writes `htc.cfg`
 #' to `path`, and adds it to `.gitignore`. Subsequent calls read the
 #' existing file.
@@ -23,8 +23,8 @@
 #'   invisibly.
 #'
 #' @section SSH connection reuse:
-#' Each call to `htc_stage()`, `htc_submit()`, `htc_status()`, or
-#' `htc_fetch_results()` opens a new SSH connection to the submit server,
+#' Each call to `htc_upload()`, `htc_submit()`, `htc_status()`, or
+#' `htc_download()` opens a new SSH connection to the submit server,
 #' which triggers a Duo MFA prompt each time. You can avoid this by
 #' configuring SSH connection reuse (ControlMaster) in your
 #' `~/.ssh/config` file. Add the following block:
