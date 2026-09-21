@@ -34,7 +34,11 @@ test_that("htc_upload() errors when config is missing server", {
     )
 })
 
-test_that("htc_upload() errors when files is missing", {
+test_that("htc_upload() errors when files is omitted and no manifest is available", {
+    # files now defaults to NULL and falls back to the job manifest, so this
+    # case only errors when there is no manifest to fall back to. The
+    # temporary working directory guarantees that.
+    withr::local_dir(withr::local_tempdir())
     cfg <- list(username = "lares", server = "ap2002.chtc.wisc.edu")
     expect_error(
         htc_upload(config = cfg),
@@ -43,6 +47,7 @@ test_that("htc_upload() errors when files is missing", {
 })
 
 test_that("htc_upload() errors when files is empty", {
+    withr::local_dir(withr::local_tempdir())
     cfg <- list(username = "lares", server = "ap2002.chtc.wisc.edu")
     expect_error(
         htc_upload(files = character(0), config = cfg),

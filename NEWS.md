@@ -30,9 +30,33 @@
 
 * Job manifest system: `htc_gen_submit()`, `htc_gen_executable()`, and
   `htc_submit()` now record job metadata (mode, output files, subset
-  names, cluster ID) in a session-level option. `htc_download()` reads
-  this manifest to determine which files to retrieve.
-  `htc_start()` clears stale manifests on session init.
+  names, cluster ID, remote path) in `htc-manifest.yaml`, written to the
+  `path` directory alongside `htc.cfg`. `htc_upload()` and `htc_download()`
+  read this manifest to determine which files to transfer.
+
+* The job manifest is stored on disk rather than in a session option, so it
+  survives an R restart. This matters for the case it was built for: a long
+  job submitted in one session and collected in another. `htc_start()` no
+  longer clears the manifest, since doing so destroyed exactly the state a
+  restart needs.
+
+* `htc_upload()` gains a `files = NULL` default. When `files` is omitted,
+  the upload list is resolved from the job manifest -- the submit file, the
+  executable script, any shared input files, and, in `"multiple"` mode,
+  `subdatasets.csv` together with the individual subset data files. This
+  closes the asymmetry with `htc_download()`, which already resolved its
+  own file list.
+
+* `htc_download()` gains a `remote_path = NULL` default, resolving in order
+  of explicit argument, the `remote_path` recorded by `htc_submit()`, then
+  `"~/"`. Previously the automatic mode assumed `"~/"` even when the job had
+  been submitted from somewhere else.
+
+* `htc_gen_submit()`, `htc_gen_executable()`, `htc_upload()`, `htc_submit()`,
+  and `htc_download()` all gain a `path` argument naming the directory that
+  holds `htc-manifest.yaml`. The generators default it to their `output`
+  directory; the rest default to `"."`. Non-default directories must match
+  across the five.
 
 ### Bug fixes
 
@@ -46,9 +70,12 @@
 * `htc_gen_executable()` now includes `set -euo pipefail` after the shebang
   line, causing the script to exit immediately on errors instead of
   silently continuing.
-* `htc_gen_executable()` now includes `cd /home` before any file operations,
-  ensuring the script runs from the container's working directory where
-  `containr::generate_dockerfile()` placed the baked-in files.
+* `htc_gen_executable()` now changes to HTCondor's scratch directory
+  (`cd "${_CONDOR_SCRATCH_DIR:-$PWD}"`) before any file operations, and reads
+  the R script and data files by absolute path under `home_dir` (default
+  `/home`), where `containr::generate_dockerfile()` baked them in. Outputs
+  are therefore written where HTCondor looks for `transfer_output_files`,
+  while inputs are read from where the image actually holds them.
 
 # submitr 0.1.0
 

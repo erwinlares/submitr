@@ -29,6 +29,11 @@ function to override the session config.
 The session config is stored via \code{options(submitr.config = ...)} and
 is cleared automatically when the R session ends. To clear it
 manually, call \code{options(submitr.config = NULL)}.
+
+The job manifest built up by \code{\link[=htc_gen_submit]{htc_gen_submit()}}, \code{\link[=htc_gen_executable]{htc_gen_executable()}},
+and \code{\link[=htc_submit]{htc_submit()}} is persisted to disk separately (see
+\code{\link[=htc_upload]{htc_upload()}}/\code{\link[=htc_download]{htc_download()}}), so calling \code{htc_start()} again --
+for example, in a new R session -- does not discard it.
 }
 \examples{
 \dontrun{

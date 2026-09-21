@@ -6,7 +6,6 @@
 #' @param output_file A character string. Name of the submit file to write.
 #'   Must end in `".sub"`. Defaults to `"job.sub"`.
 #' @param container_image A character string. The container image to use,
-#' @param container_image A character string. The container image to use,
 #'   e.g. `"registry.doit.wisc.edu/netid/myimage"`. The `docker://` prefix
 #'   is added automatically if not already present. Defaults to `NULL`,
 #'   which writes a placeholder comment in the submit file.
@@ -60,6 +59,13 @@
 #' @param output A character string. Directory where the submit file (and,
 #'   in `"multiple"` mode, `subdatasets.csv`) will be written. Defaults to
 #'   `"."` (current working directory).
+#' @param path A character string. Directory where the job manifest
+#'   (`htc-manifest.yaml`) is read from and written to. Defaults to whatever
+#'   `output` is set to, so the manifest travels with the files it describes.
+#'   Pass `path = "."` to keep the manifest in the project root while writing
+#'   generated files elsewhere. Whatever you choose, [htc_upload()],
+#'   [htc_submit()], and [htc_download()] must be given the same directory,
+#'   since that is where they look for the manifest.
 #'
 #' @return Called for its side effects. Writes an HTCondor submit file to
 #'   `file.path(output, output_file)`. In `"multiple"` mode also writes
@@ -162,7 +168,8 @@ htc_gen_submit <- function(output_file      = "job.sub",
                            gpu_options      = NULL,
                            verbose          = FALSE,
                            comments         = FALSE,
-                           output           = ".") {
+                           output           = ".",
+                           path             = output) {
 
     # -- 1. Validate output_file -----------------------------------------------
     if (!grepl("\\.sub$", output_file)) {
@@ -203,7 +210,9 @@ htc_gen_submit <- function(output_file      = "job.sub",
     }
 
     # -- 4. Validate and process queue_from ------------------------------------
-    subset_filenames <- NULL
+    subset_filenames  <- NULL
+    subset_full_paths <- NULL
+    subdatasets_path  <- NULL
 
     if (!is.null(queue_from)) {
         if (!file.exists(queue_from)) {
@@ -211,18 +220,24 @@ htc_gen_submit <- function(output_file      = "job.sub",
                 "Manifest file {.path {queue_from}} does not exist."
             )
         }
-        manifest <- readr::read_csv(queue_from, show_col_types = FALSE)
-        if (!"file_path" %in% names(manifest)) {
+        # queue_manifest is the dataset-splitting manifest produced by
+        # toolero::write_by_group(), not submitr's own job manifest. The two
+        # are distinct: this one is read once, here, and never written to.
+        queue_manifest <- readr::read_csv(queue_from, show_col_types = FALSE)
+        if (!"file_path" %in% names(queue_manifest)) {
             cli::cli_abort(c(
                 "Manifest file {.path {queue_from}} must contain a {.val file_path} column.",
                 "i" = "Use {.fn toolero::write_by_group} with {.code manifest = TRUE} to produce a compatible manifest."
             ))
         }
-        # Extract bare filenames from full paths
-        subset_filenames <- basename(manifest[["file_path"]])
+        # Keep the full local paths (for htc_upload() to resolve later) as
+        # well as the bare filenames (for subdatasets.csv, which HTCondor
+        # reads relative to the remote working directory).
+        subset_full_paths <- queue_manifest[["file_path"]]
+        subset_filenames  <- basename(subset_full_paths)
 
         # Write subdatasets.csv alongside the submit file
-        subdatasets_path <- file.path(output, "subdatasets.csv")
+        subdatasets_path <- .join_output_path(output, "subdatasets.csv")
         readr::write_csv(
             data.frame(file = subset_filenames),
             subdatasets_path,
@@ -637,11 +652,20 @@ htc_gen_submit <- function(output_file      = "job.sub",
             "Submit file written to {.path {file.path(output, output_file)}}"
         )
     }
-    # record mode, output files, and subsets
+    # Record everything htc_upload() and htc_download() need to resolve files
+    # automatically later in the workflow. Bare names (submit_file, subsets)
+    # are what HTCondor sees on the submit node; the *_path fields are where
+    # the same files live on this machine, which is what htc_upload() needs.
     .update_manifest(
-        mode         = mode,
-        output_files = resolved_output_files,
-        subsets      = subset_filenames
+        submit_file      = output_file,
+        submit_path      = .join_output_path(output, output_file),
+        input_files      = input_files,
+        mode             = mode,
+        output_files     = resolved_output_files,
+        subsets          = subset_filenames,
+        subdatasets_path = subdatasets_path,
+        subset_files     = subset_full_paths,
+        path             = path
     )
     invisible(NULL)
 }

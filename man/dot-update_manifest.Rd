@@ -4,10 +4,21 @@
 \alias{.update_manifest}
 \title{Update the job manifest with new information}
 \usage{
-.update_manifest(...)
+.update_manifest(..., path = ".")
 }
 \arguments{
-\item{...}{Named key-value pairs to add or update in the manifest.}
+\item{...}{Named key-value pairs to add or update in the manifest. Because
+\code{path} below sits after the dots, it is matched exactly by name and can
+never be stored as a manifest field. Nothing in the package needs a
+field called \code{path}, but any future one would have to be named
+differently.}
+
+\item{path}{A character string. Directory where \code{htc-manifest.yaml}
+is read from and written to. Defaults to \code{"."} (current working
+directory). Functions that write to a caller-supplied \code{output}
+directory (e.g. \code{\link[=htc_gen_submit]{htc_gen_submit()}}, \code{\link[=htc_gen_executable]{htc_gen_executable()}}) pass
+that directory through so the manifest travels with the generated
+files, and so package examples never write outside \code{tempdir()}.}
 }
 \value{
 Called for its side effects. Returns \code{invisible(NULL)}.
@@ -15,7 +26,18 @@ Called for its side effects. Returns \code{invisible(NULL)}.
 \description{
 Internal helper that accumulates job metadata across the submitr
 pipeline. Each function in the workflow calls \code{.update_manifest()}
-with the information it knows. \code{htc_download()} reads the accumulated
-manifest to construct the list of files to retrieve.
+with the information it knows. \code{htc_download()} and \code{htc_upload()}
+read the accumulated manifest to resolve files automatically.
+}
+\details{
+The manifest is persisted to \code{htc-manifest.yaml} in \code{path}, not to
+session options. Persisting it to disk means the manifest survives
+across R sessions: restarting a session with \code{\link[=htc_start]{htc_start()}} no longer
+discards job metadata recorded by an earlier call to
+\code{\link[=htc_gen_submit]{htc_gen_submit()}}, \code{\link[=htc_gen_executable]{htc_gen_executable()}}, or \code{\link[=htc_submit]{htc_submit()}}.
+
+Passing \code{NULL} for a key removes it, which is what makes a single-mode
+run clear the \code{subsets} and \code{subdatasets_path} left behind by an earlier
+multiple-mode run in the same directory.
 }
 \keyword{internal}

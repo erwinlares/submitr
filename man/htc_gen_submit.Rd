@@ -19,7 +19,8 @@ htc_gen_submit(
   gpu_options = NULL,
   verbose = FALSE,
   comments = FALSE,
-  output = "."
+  output = ".",
+  path = output
 )
 }
 \arguments{
@@ -93,6 +94,14 @@ Defaults to \code{FALSE}.}
 \item{output}{A character string. Directory where the submit file (and,
 in \code{"multiple"} mode, \code{subdatasets.csv}) will be written. Defaults to
 \code{"."} (current working directory).}
+
+\item{path}{A character string. Directory where the job manifest
+(\code{htc-manifest.yaml}) is read from and written to. Defaults to whatever
+\code{output} is set to, so the manifest travels with the files it describes.
+Pass \code{path = "."} to keep the manifest in the project root while writing
+generated files elsewhere. Whatever you choose, \code{\link[=htc_upload]{htc_upload()}},
+\code{\link[=htc_submit]{htc_submit()}}, and \code{\link[=htc_download]{htc_download()}} must be given the same directory,
+since that is where they look for the manifest.}
 }
 \value{
 Called for its side effects. Writes an HTCondor submit file to

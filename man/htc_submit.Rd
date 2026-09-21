@@ -9,7 +9,8 @@ htc_submit(
   remote_path = "~/",
   config = NULL,
   dry_run = FALSE,
-  verbose = FALSE
+  verbose = FALSE,
+  path = "."
 )
 }
 \arguments{
@@ -32,6 +33,14 @@ submitting. Defaults to \code{FALSE}.}
 
 \item{verbose}{Logical. If \code{TRUE}, prints progress messages and the
 \code{condor_submit} output. Defaults to \code{FALSE}.}
+
+\item{path}{A character string. Directory holding the job manifest
+(\code{htc-manifest.yaml}), where the cluster ID and \code{remote_path} are
+recorded on a successful submission. Defaults to \code{"."}. If you passed a
+non-default \code{output} or \code{path} to \code{\link[=htc_gen_submit]{htc_gen_submit()}}, pass that same
+directory here, or the cluster ID will be written to a second, separate
+manifest and \code{\link[=htc_download]{htc_download()}} will not find it alongside the job
+metadata it needs.}
 }
 \value{
 The cluster ID assigned by HTCondor as a character string,

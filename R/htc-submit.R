@@ -20,6 +20,13 @@
 #'   submitting. Defaults to `FALSE`.
 #' @param verbose Logical. If `TRUE`, prints progress messages and the
 #'   `condor_submit` output. Defaults to `FALSE`.
+#' @param path A character string. Directory holding the job manifest
+#'   (`htc-manifest.yaml`), where the cluster ID and `remote_path` are
+#'   recorded on a successful submission. Defaults to `"."`. If you passed a
+#'   non-default `output` or `path` to [htc_gen_submit()], pass that same
+#'   directory here, or the cluster ID will be written to a second, separate
+#'   manifest and [htc_download()] will not find it alongside the job
+#'   metadata it needs.
 #'
 #' @return The cluster ID assigned by HTCondor as a character string,
 #'   returned invisibly. Pass it directly to [htc_status()] to monitor
@@ -89,7 +96,8 @@ htc_submit <- function(submit_file = "job.sub",
                        remote_path = "~/",
                        config      = NULL,
                        dry_run     = FALSE,
-                       verbose     = FALSE) {
+                       verbose     = FALSE,
+                       path        = ".") {
 
     # -- 1. Resolve config (explicit argument or session option) ----------------
     config <- .resolve_config(config)
@@ -167,9 +175,14 @@ htc_submit <- function(submit_file = "job.sub",
         NULL
     }
 
-    # record cluster ID
+    # record cluster ID and the remote directory jobs were submitted from,
+    # so htc_download() can find results without remote_path being repeated
     if (!is.null(cluster_id)) {
-        .update_manifest(cluster_id = cluster_id)
+        .update_manifest(
+            cluster_id  = cluster_id,
+            remote_path = remote_path,
+            path        = path
+        )
     }
 
     cli::cli_alert_success(

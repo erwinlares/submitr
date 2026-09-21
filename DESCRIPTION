@@ -9,9 +9,11 @@ Description: Provides scaffolding tools to help researchers prepare and submit
     the files required to run containerized R analyses on 'HTCondor', including
     submit files and executable scripts, and wraps the system commands needed to
     stage files, submit jobs, monitor status, and retrieve results from a CHTC
-    submit node. A session-level job manifest tracks metadata across the
-    workflow so that result files can be downloaded automatically without
-    constructing file lists by hand. Provides 'htc_start()' for session
+    submit node. A job manifest stored alongside the project configuration
+    tracks metadata across the workflow, so that input files can be uploaded
+    and result files downloaded automatically, without constructing file
+    lists by hand and without losing the job when the R session ends.
+    Provides 'htc_start()' for session
     management and 'htc_config()' for connection details and SSH connection
     reuse guidance. Works naturally alongside 'containr' for container image
     management and 'toolero' for dataset splitting and project scaffolding.

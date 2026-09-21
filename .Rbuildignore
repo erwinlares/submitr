@@ -19,3 +19,4 @@ on-testing.md
 ^CRAN-SUBMISSION$
 ^doc$
 ^Meta$
+submitr-audit.qmd

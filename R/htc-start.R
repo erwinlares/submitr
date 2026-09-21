@@ -15,6 +15,11 @@
 #' is cleared automatically when the R session ends. To clear it
 #' manually, call `options(submitr.config = NULL)`.
 #'
+#' The job manifest built up by [htc_gen_submit()], [htc_gen_executable()],
+#' and [htc_submit()] is persisted to disk separately (see
+#' [htc_upload()]/[htc_download()]), so calling `htc_start()` again --
+#' for example, in a new R session -- does not discard it.
+#'
 #' @param ... Arguments passed to [htc_config()]. Common arguments
 #'   include `username`, `server`, `path`, and `overwrite`.
 #'
@@ -44,7 +49,6 @@ htc_start <- function(...) {
 
     cfg <- htc_config(...)
     options(submitr.config = cfg)
-    options(submitr.job_manifest = NULL) #clear stale manifest
 
     cli::cli_alert_success(
         "Session started: {.val {cfg$username}}@{.val {cfg$server}}"

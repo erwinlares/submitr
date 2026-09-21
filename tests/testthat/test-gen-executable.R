@@ -438,3 +438,44 @@ test_that("set_executable = TRUE is the default", {
 
     expect_true(bitwAnd(mode, 64L) != 0L)
 })
+
+# ---------------------------------------------------------------------------
+# Job manifest recording
+# ---------------------------------------------------------------------------
+
+test_that("htc_gen_executable() writes the job manifest to the output directory", {
+    tmp <- withr::local_tempdir()
+    htc_gen_executable(r_script = "analysis.R", output = tmp)
+    expect_true(file.exists(file.path(tmp, "htc-manifest.yaml")))
+})
+
+test_that("htc_gen_executable() records the executable file in the manifest", {
+    tmp <- withr::local_tempdir()
+    htc_gen_executable(
+        r_script    = "analysis.R",
+        output_file = "run.sh",
+        output      = tmp
+    )
+    m <- .get_manifest(path = tmp)
+    expect_equal(m$executable_file, "run.sh")
+})
+
+test_that("htc_gen_executable() records executable_path pointing at the written file", {
+    tmp <- withr::local_tempdir()
+    htc_gen_executable(
+        r_script    = "analysis.R",
+        output_file = "run.sh",
+        output      = tmp
+    )
+    m <- .get_manifest(path = tmp)
+    expect_equal(m$executable_path, file.path(tmp, "run.sh"))
+    expect_true(file.exists(m$executable_path))
+})
+
+test_that("htc_gen_executable() writes the manifest to path when it differs from output", {
+    out  <- withr::local_tempdir()
+    proj <- withr::local_tempdir()
+    htc_gen_executable(r_script = "analysis.R", output = out, path = proj)
+    expect_true(file.exists(file.path(proj, "htc-manifest.yaml")))
+    expect_false(file.exists(file.path(out, "htc-manifest.yaml")))
+})

@@ -5,17 +5,23 @@
 \title{Upload files to an HTC submit node}
 \usage{
 htc_upload(
-  files,
+  files = NULL,
   remote_path = "~/",
   config = NULL,
   dry_run = FALSE,
-  verbose = FALSE
+  verbose = FALSE,
+  path = "."
 )
 }
 \arguments{
-\item{files}{A character vector. One or more local file paths or directory
-paths to copy to the submit node. A single file, a vector of files, and
-a directory path are all accepted. Directories are copied recursively.}
+\item{files}{A character vector or \code{NULL}. One or more local file paths or
+directory paths to copy to the submit node. A single file, a vector of
+files, and a directory path are all accepted. Directories are copied
+recursively. When \code{NULL} (the default), the function resolves the files
+to upload from the job manifest built up by \code{\link[=htc_gen_submit]{htc_gen_submit()}} and
+\code{\link[=htc_gen_executable]{htc_gen_executable()}}: the submit file, the executable script, any
+shared input files, and -- in \code{"multiple"} mode -- the subdatasets
+manifest and the individual subset data files.}
 
 \item{remote_path}{A character string. The destination directory on the
 submit node. Defaults to \code{"~/"} (the user's home directory). This should
@@ -32,6 +38,12 @@ transferring files. Defaults to \code{FALSE}.}
 
 \item{verbose}{Logical. If \code{TRUE}, prints progress messages. Defaults to
 \code{FALSE}.}
+
+\item{path}{A character string. Directory holding the job manifest
+(\code{htc-manifest.yaml}), consulted only when \code{files} is \code{NULL}. Defaults
+to \code{"."}, which matches the generator functions' own default. If you
+passed a non-default \code{output} or \code{path} to \code{\link[=htc_gen_submit]{htc_gen_submit()}} and
+\code{\link[=htc_gen_executable]{htc_gen_executable()}}, pass that same directory here.}
 }
 \value{
 Called for its side effects. Returns \code{invisible(NULL)}.
@@ -49,16 +61,25 @@ Call it after generating your submit file and executable script with
 \code{\link[=htc_gen_submit]{htc_gen_submit()}} and \code{\link[=htc_gen_executable]{htc_gen_executable()}}, and before calling
 \code{\link[=htc_submit]{htc_submit()}}.
 
-The typical sequence is:
+The typical sequence relies on automatic resolution from the job
+manifest, so \code{files} can usually be omitted:
 
 \if{html}{\out{<div class="sourceCode r">}}\preformatted{cfg <- htc_config()
 
-htc_upload(
+htc_gen_submit(executable = "job.sh", input_files = "analysis.R")
+htc_gen_executable(r_script = "analysis.R")
+
+htc_upload(config = cfg)
+
+htc_submit(submit_file = "job.sub", config = cfg)
+}\if{html}{\out{</div>}}
+
+Pass \code{files} explicitly to upload a specific set of files instead:
+
+\if{html}{\out{<div class="sourceCode r">}}\preformatted{htc_upload(
   files  = c("job.sub", "job.sh", "analysis.R", "data.csv"),
   config = cfg
 )
-
-htc_submit(submit_file = "job.sub", config = cfg)
 }\if{html}{\out{</div>}}
 }
 
@@ -81,6 +102,11 @@ htc_upload(files = tmp, config = cfg, dry_run = TRUE)
 \dontrun{
 # All remaining examples require a live CHTC connection
 cfg <- htc_config()
+
+# Resolve files automatically from the job manifest
+htc_gen_submit(executable = "job.sh", input_files = "analysis.R")
+htc_gen_executable(r_script = "analysis.R")
+htc_upload(config = cfg)
 
 # Upload a single file
 htc_upload(files = "job.sub", config = cfg)

@@ -153,8 +153,8 @@ htc_config <- function(username  = NULL,
     cli::cli_inform(c(
         "",
         "!" = "SSH connection reuse (ControlMaster) is strongly recommended.",
-        "i" = "Without it, each call to {.fn htc_stage}, {.fn htc_submit},",
-        " " = "  {.fn htc_status}, or {.fn htc_fetch_results} will trigger a",
+        "i" = "Without it, each call to {.fn htc_upload}, {.fn htc_submit},",
+        " " = "  {.fn htc_status}, or {.fn htc_download} will trigger a",
         " " = "  separate Duo MFA prompt.",
         "i" = "Add the following to {.file ~/.ssh/config}:",
         " " = "",
@@ -219,7 +219,7 @@ htc_config <- function(username  = NULL,
             "i" = "Connected to {.val {cfg$server}} but authentication",
             " " = "  may be required.",
             "i" = "Run {.code ssh {cfg$username}@{cfg$server}} in your terminal",
-            " " = "  to authenticate before calling {.fn htc_stage} or",
+            " " = "  to authenticate before calling {.fn htc_upload} or",
             " " = "  {.fn htc_submit}."
         ))
     } else {

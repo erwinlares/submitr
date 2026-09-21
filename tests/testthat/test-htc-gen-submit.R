@@ -415,3 +415,62 @@ test_that("verbose = FALSE produces no messages", {
     tmp <- withr::local_tempdir()
     expect_no_message(htc_gen_submit(verbose = FALSE, output = tmp))
 })
+
+# ---------------------------------------------------------------------------
+# Job manifest recording
+# ---------------------------------------------------------------------------
+
+test_that("htc_gen_submit() writes the job manifest to the output directory", {
+    tmp <- withr::local_tempdir()
+    htc_gen_submit(output = tmp)
+    expect_true(file.exists(file.path(tmp, "htc-manifest.yaml")))
+})
+
+test_that("htc_gen_submit() records the submit file and input files in the manifest", {
+    tmp <- withr::local_tempdir()
+    htc_gen_submit(
+        output_file = "analysis.sub",
+        input_files = "analysis.R",
+        output      = tmp
+    )
+    m <- .get_manifest(path = tmp)
+    expect_equal(m$submit_file, "analysis.sub")
+    expect_equal(m$input_files, "analysis.R")
+})
+
+test_that("htc_gen_submit() records submit_path pointing at the written file", {
+    tmp <- withr::local_tempdir()
+    htc_gen_submit(output_file = "analysis.sub", output = tmp)
+    m <- .get_manifest(path = tmp)
+    # submit_file is the bare name HTCondor sees; submit_path is where the
+    # file actually is on this machine, which is what htc_upload() needs.
+    expect_equal(m$submit_path, file.path(tmp, "analysis.sub"))
+    expect_true(file.exists(m$submit_path))
+})
+
+test_that("htc_gen_submit() writes the manifest to path when it differs from output", {
+    out  <- withr::local_tempdir()
+    proj <- withr::local_tempdir()
+    htc_gen_submit(output = out, path = proj)
+    expect_true(file.exists(file.path(proj, "htc-manifest.yaml")))
+    expect_false(file.exists(file.path(out, "htc-manifest.yaml")))
+    expect_equal(.get_manifest(path = proj)$submit_path,
+                 file.path(out, "job.sub"))
+})
+
+test_that("htc_gen_submit() records subdatasets_path and subset_files in multiple mode", {
+    tmp      <- withr::local_tempdir()
+    manifest <- .write_manifest(tmp, filenames = c("adelie.csv", "gentoo.csv"))
+    htc_gen_submit(mode = "multiple", queue_from = manifest, output = tmp)
+    m <- .get_manifest(path = tmp)
+    expect_equal(m$subdatasets_path, file.path(tmp, "subdatasets.csv"))
+    expect_equal(m$subset_files, file.path(tmp, c("adelie.csv", "gentoo.csv")))
+})
+
+test_that("htc_gen_submit() does not record subdatasets_path or subset_files in single mode", {
+    tmp <- withr::local_tempdir()
+    htc_gen_submit(output = tmp)
+    m <- .get_manifest(path = tmp)
+    expect_null(m$subdatasets_path)
+    expect_null(m$subset_files)
+})

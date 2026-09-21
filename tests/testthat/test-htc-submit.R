@@ -111,6 +111,72 @@ test_that("htc_submit() dry_run returns invisible NULL", {
 })
 
 # ---------------------------------------------------------------------------
+# Layer 2b -- job manifest recording
+# ---------------------------------------------------------------------------
+
+.mock_condor_submit <- function(cluster = "42") {
+    function(...) {
+        result <- paste0("1 job(s) submitted to cluster ", cluster, ".")
+        attr(result, "status") <- 0L
+        result
+    }
+}
+
+test_that("htc_submit() records cluster_id and remote_path in the job manifest", {
+    tmp <- withr::local_tempdir()
+    withr::local_dir(tmp)
+    local_mocked_bindings(system2 = .mock_condor_submit("42"), .package = "base")
+
+    cfg <- list(username = "lares", server = "ap2002.chtc.wisc.edu")
+    cluster_id <- suppressMessages(htc_submit(
+        submit_file = "job.sub",
+        remote_path = "~/projects/",
+        config      = cfg
+    ))
+    expect_equal(cluster_id, "42")
+
+    m <- .get_manifest()
+    expect_equal(m$cluster_id, "42")
+    expect_equal(m$remote_path, "~/projects/")
+})
+
+test_that("htc_submit() writes the cluster ID to the manifest at path", {
+    project <- withr::local_tempdir()
+    jobs    <- withr::local_tempdir()
+    withr::local_dir(project)
+    local_mocked_bindings(system2 = .mock_condor_submit("99"), .package = "base")
+
+    # The manifest the generators wrote lives in `jobs`, so that is where the
+    # cluster ID has to land. Writing it to the working directory instead
+    # would leave htc_download() reading a manifest with a cluster ID but no
+    # job metadata, or vice versa.
+    cfg <- list(username = "lares", server = "ap2002.chtc.wisc.edu")
+    suppressMessages(htc_submit(
+        submit_file = "job.sub",
+        config      = cfg,
+        path        = jobs
+    ))
+
+    expect_equal(.get_manifest(path = jobs)$cluster_id, "99")
+    expect_null(.get_manifest(path = project))
+})
+
+test_that("htc_submit() appends to the manifest without disturbing job metadata", {
+    tmp <- withr::local_tempdir()
+    withr::local_dir(tmp)
+    .update_manifest(mode = "multiple", subsets = c("a.csv", "b.csv"))
+    local_mocked_bindings(system2 = .mock_condor_submit("7"), .package = "base")
+
+    cfg <- list(username = "lares", server = "ap2002.chtc.wisc.edu")
+    suppressMessages(htc_submit(submit_file = "job.sub", config = cfg))
+
+    m <- .get_manifest()
+    expect_equal(m$cluster_id, "7")
+    expect_equal(m$mode, "multiple")
+    expect_equal(m$subsets, c("a.csv", "b.csv"))
+})
+
+# ---------------------------------------------------------------------------
 # Layer 3 — Integration (requires live CHTC connection)
 # ---------------------------------------------------------------------------
 

@@ -46,6 +46,11 @@
 #'   case you must run `chmod +x` on the script before submitting your job.
 #' @param output A character string. Directory where the shell script will
 #'   be written. Defaults to `"."` (current working directory).
+#' @param path A character string. Directory where the job manifest
+#'   (`htc-manifest.yaml`) is read from and written to. Defaults to whatever
+#'   `output` is set to, so the manifest travels with the files it describes.
+#'   Must match the `path` given to [htc_gen_submit()], [htc_upload()],
+#'   [htc_submit()], and [htc_download()].
 #'
 #' @return Called for its side effects. Writes a bash script to
 #'   `file.path(output, output_file)` and sets executable permissions when
@@ -124,7 +129,8 @@ htc_gen_executable <- function(output_file    = "job.sh",
                                set_executable = TRUE,
                                verbose        = FALSE,
                                comments       = FALSE,
-                               output         = ".") {
+                               output         = ".",
+                               path           = output) {
 
     # -- 1. Validate r_script --------------------------------------------------
     if (is.null(r_script)) {
@@ -311,10 +317,15 @@ htc_gen_executable <- function(output_file    = "job.sh",
             "Executable script written to {.path {file.path(output, output_file)}}"
         )
     }
-    # record script and results folder
+    # Record the script and results folder, plus both views of the executable
+    # itself: the bare name HTCondor will see, and the local path
+    # htc_upload() needs in order to find it on this machine.
     .update_manifest(
-        r_script       = r_script,
-        results_folder = results_folder
+        r_script        = r_script,
+        results_folder  = results_folder,
+        executable_file = output_file,
+        executable_path = .join_output_path(output, output_file),
+        path            = path
     )
 
     invisible(NULL)

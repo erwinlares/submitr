@@ -26,9 +26,12 @@
 #'   constructs the file list from the job manifest. When `NULL`, falls
 #'   back to the most recently submitted cluster ID stored in the manifest.
 #'   Defaults to `NULL`.
-#' @param remote_path A character string. The directory on the submit node
-#'   where the files are located. Defaults to `"~/"`. Should match the
-#'   `remote_path` used in [htc_upload()] and [htc_submit()].
+#' @param remote_path A character string or `NULL`. The directory on the
+#'   submit node where the files are located. When `NULL` (the default),
+#'   resolves to the `remote_path` recorded in the job manifest by the
+#'   preceding call to [htc_submit()], falling back to `"~/"` if no manifest
+#'   value is available. Should match the `remote_path` used in
+#'   [htc_upload()] and [htc_submit()].
 #' @param local_path A character string. The local directory where downloaded
 #'   files will be saved. Defaults to `"."` (current working directory).
 #' @param config A named list as returned by [htc_config()]. Must contain
@@ -39,6 +42,12 @@
 #'   executed without running it. Defaults to `FALSE`.
 #' @param verbose Logical. If `TRUE`, prints progress messages. Defaults to
 #'   `FALSE`.
+#' @param path A character string. Directory holding the job manifest
+#'   (`htc-manifest.yaml`). This is where the function looks for job
+#'   metadata; it is not where downloaded files are written, which is
+#'   `local_path`. Defaults to `"."`. If you passed a non-default `output`
+#'   or `path` to [htc_gen_submit()] and [htc_gen_executable()], pass that
+#'   same directory here.
 #'
 #' @return Called for its side effects. Returns `invisible(NULL)`.
 #'
@@ -114,18 +123,24 @@
 #' }
 htc_download <- function(files       = NULL,
                          cluster_id  = NULL,
-                         remote_path = "~/",
+                         remote_path = NULL,
                          local_path  = ".",
                          config      = NULL,
                          dry_run     = FALSE,
-                         verbose     = FALSE) {
+                         verbose     = FALSE,
+                         path        = ".") {
 
     # -- 1. Resolve config (explicit argument or session option) ----------------
     config <- .resolve_config(config)
 
-    # -- 2. Resolve files from manifest if not supplied -------------------------
+    # -- 2. Read the job manifest ----------------------------------------------
+    # Read once, up front: it feeds both the file list (step 3) and the
+    # remote_path fallback (step 6), and the second of those applies whether
+    # or not the caller supplied files explicitly.
+    manifest <- .get_manifest(path = path)
+
+    # -- 3. Resolve files from manifest if not supplied -------------------------
     if (is.null(files)) {
-        manifest <- .get_manifest()
 
         # Resolve cluster_id: explicit > manifest > error
         if (is.null(cluster_id)) {
@@ -158,14 +173,14 @@ htc_download <- function(files       = NULL,
         }
     }
 
-    # -- 3. Validate files -----------------------------------------------------
+    # -- 4. Validate files -----------------------------------------------------
     if (length(files) == 0) {
         cli::cli_abort(
             "{.arg files} must be supplied and cannot be empty."
         )
     }
 
-    # -- 4. Validate local_path ------------------------------------------------
+    # -- 5. Validate local_path ------------------------------------------------
     if (!dir.exists(local_path)) {
         cli::cli_abort(c(
             "Local directory {.path {local_path}} does not exist.",
@@ -173,12 +188,20 @@ htc_download <- function(files       = NULL,
         ))
     }
 
-    # -- 5. Validate remote_path -----------------------------------------------
+    # -- 6. Resolve and validate remote_path ------------------------------------
+    # Explicit argument > the remote_path htc_submit() recorded in the job
+    # manifest > the "~/" default.
+    if (is.null(remote_path)) {
+        remote_path <- manifest$remote_path
+    }
+    if (is.null(remote_path)) {
+        remote_path <- "~/"
+    }
     if (!grepl("/$", remote_path)) {
         remote_path <- paste0(remote_path, "/")
     }
 
-    # -- 6. Build scp arguments ------------------------------------------------
+    # -- 7. Build scp arguments ------------------------------------------------
     remote_sources <- vapply(files, \(f) {
         has_glob <- grepl("[*?\\[]", f)
         remote   <- paste0(config$username, "@", config$server, ":", remote_path, f)
@@ -187,7 +210,7 @@ htc_download <- function(files       = NULL,
 
     scp_args <- c(remote_sources, local_path)
 
-    # -- 7. dry_run or execute -------------------------------------------------
+    # -- 8. dry_run or execute -------------------------------------------------
     if (dry_run) {
         cmd <- paste("scp", paste(scp_args, collapse = " "))
         cli::cli_inform(c(
@@ -243,9 +266,9 @@ htc_download <- function(files       = NULL,
     if (mode == "multiple" && !is.null(manifest$subsets)) {
         # Per-subset tarballs: adelie.csv-results.tar.gz, etc.
         tarball_pattern <- if (is.null(manifest$output_files))
-                                "$(file)-results.tar.gz"
-                            else
-                                manifest$output_files
+            "$(file)-results.tar.gz"
+        else
+            manifest$output_files
         for (subset in manifest$subsets) {
             tarball <- gsub("$(file)", subset, tarball_pattern, fixed = TRUE)
             files <- c(files, tarball)

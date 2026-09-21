@@ -14,7 +14,8 @@ htc_gen_executable(
   set_executable = TRUE,
   verbose = FALSE,
   comments = FALSE,
-  output = "."
+  output = ".",
+  path = output
 )
 }
 \arguments{
@@ -66,6 +67,12 @@ Defaults to \code{FALSE}.}
 
 \item{output}{A character string. Directory where the shell script will
 be written. Defaults to \code{"."} (current working directory).}
+
+\item{path}{A character string. Directory where the job manifest
+(\code{htc-manifest.yaml}) is read from and written to. Defaults to whatever
+\code{output} is set to, so the manifest travels with the files it describes.
+Must match the \code{path} given to \code{\link[=htc_gen_submit]{htc_gen_submit()}}, \code{\link[=htc_upload]{htc_upload()}},
+\code{\link[=htc_submit]{htc_submit()}}, and \code{\link[=htc_download]{htc_download()}}.}
 }
 \value{
 Called for its side effects. Writes a bash script to
