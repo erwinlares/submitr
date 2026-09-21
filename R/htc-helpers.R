@@ -12,31 +12,31 @@
 #' @keywords internal
 .resolve_config <- function(config) {
 
-    # 1. Use explicit argument if provided
-    if (is.null(config)) {
-        # 2. Fall back to session option
-        config <- getOption("submitr.config")
-    }
+  # 1. Use explicit argument if provided
+  if (is.null(config)) {
+    # 2. Fall back to session option
+    config <- getOption("submitr.config")
+  }
 
-    # 3. Error if still NULL
-    if (is.null(config)) {
-        cli::cli_abort(c(
-            "No HTC config found.",
-            "i" = "Call {.fn htc_start} to set up your connection,",
-            " " = "  or pass a config list from {.fn htc_config} directly."
-        ))
-    }
+  # 3. Error if still NULL
+  if (is.null(config)) {
+    cli::cli_abort(c(
+      "No HTC config found.",
+      "i" = "Call {.fn htc_start} to set up your connection,",
+      " " = "  or pass a config list from {.fn htc_config} directly."
+    ))
+  }
 
-    # 4. Validate required fields
-    if (is.null(config$username) || is.null(config$server)) {
-        cli::cli_abort(c(
-            "Config is missing {.val username} or {.val server}.",
-            "i" = "Call {.fn htc_start} or {.fn htc_config} to",
-            " " = "  generate a valid config."
-        ))
-    }
+  # 4. Validate required fields
+  if (is.null(config$username) || is.null(config$server)) {
+    cli::cli_abort(c(
+      "Config is missing {.val username} or {.val server}.",
+      "i" = "Call {.fn htc_start} or {.fn htc_config} to",
+      " " = "  generate a valid config."
+    ))
+  }
 
-    config
+  config
 }
 
 
@@ -74,31 +74,31 @@
 #' @keywords internal
 .update_manifest <- function(..., path = ".") {
 
-    if (!dir.exists(path)) {
-        cli::cli_abort(c(
-            "Cannot write the job manifest: {.path {path}} does not exist.",
-            "i" = "{.arg path} must name an existing directory."
-        ))
-    }
+  if (!dir.exists(path)) {
+    cli::cli_abort(c(
+      "Cannot write the job manifest: {.path {path}} does not exist.",
+      "i" = "{.arg path} must name an existing directory."
+    ))
+  }
 
-    manifest_file <- file.path(path, "htc-manifest.yaml")
+  manifest_file <- file.path(path, "htc-manifest.yaml")
 
-    current <- if (file.exists(manifest_file)) {
-        yaml::read_yaml(manifest_file)
-    } else {
-        list()
-    }
-    if (!is.list(current)) {
-        current <- list()
-    }
+  current <- if (file.exists(manifest_file)) {
+    yaml::read_yaml(manifest_file)
+  } else {
+    list()
+  }
+  if (!is.list(current)) {
+    current <- list()
+  }
 
-    updates <- list(...)
-    for (key in names(updates)) {
-        current[[key]] <- updates[[key]]
-    }
+  updates <- list(...)
+  for (key in names(updates)) {
+    current[[key]] <- updates[[key]]
+  }
 
-    yaml::write_yaml(current, manifest_file)
-    invisible(NULL)
+  yaml::write_yaml(current, manifest_file)
+  invisible(NULL)
 }
 
 
@@ -122,28 +122,28 @@
 #'
 #' @keywords internal
 .get_manifest <- function(path = ".") {
-    manifest_file <- file.path(path, "htc-manifest.yaml")
-    if (!file.exists(manifest_file)) {
-        return(NULL)
+  manifest_file <- file.path(path, "htc-manifest.yaml")
+  if (!file.exists(manifest_file)) {
+    return(NULL)
+  }
+
+  manifest <- yaml::read_yaml(manifest_file)
+
+  # An empty or unreadable manifest file is treated the same as no manifest
+  # at all, so callers only ever have to test for NULL.
+  if (!is.list(manifest) || length(manifest) == 0L) {
+    return(NULL)
+  }
+
+  lapply(manifest, function(x) {
+    if (is.list(x) &&
+        length(x) > 0L &&
+        all(vapply(x, function(e) is.atomic(e) && length(e) == 1L, logical(1)))) {
+      unlist(x)
+    } else {
+      x
     }
-
-    manifest <- yaml::read_yaml(manifest_file)
-
-    # An empty or unreadable manifest file is treated the same as no manifest
-    # at all, so callers only ever have to test for NULL.
-    if (!is.list(manifest) || length(manifest) == 0L) {
-        return(NULL)
-    }
-
-    lapply(manifest, function(x) {
-        if (is.list(x) &&
-            length(x) > 0L &&
-            all(vapply(x, function(e) is.atomic(e) && length(e) == 1L, logical(1)))) {
-            unlist(x)
-        } else {
-            x
-        }
-    })
+  })
 }
 
 
@@ -164,11 +164,11 @@
 #'
 #' @keywords internal
 .join_output_path <- function(output, file) {
-    if (is.null(output) || identical(output, ".") || identical(output, "./")) {
-        file
-    } else {
-        file.path(output, file)
-    }
+  if (is.null(output) || identical(output, ".") || identical(output, "./")) {
+    file
+  } else {
+    file.path(output, file)
+  }
 }
 
 
@@ -199,7 +199,7 @@
 #'
 #' @keywords internal
 .sh_word <- function(x) {
-    paste0("'", gsub("'", "'\"'\"'", x, fixed = TRUE), "'")
+  paste0("'", gsub("'", "'\"'\"'", x, fixed = TRUE), "'")
 }
 
 
@@ -219,7 +219,7 @@
 #'
 #' @keywords internal
 .shell_quote <- function(x) {
-    if (grepl("^[A-Za-z0-9._/@:+-]+$", x)) x else .sh_word(x)
+  if (grepl("^[A-Za-z0-9._/@:+-]+$", x)) x else .sh_word(x)
 }
 
 
@@ -244,14 +244,70 @@
 #'
 #' @keywords internal
 .quote_remote_path <- function(path) {
-    if (!grepl("^~", path)) {
-        return(.shell_quote(path))
-    }
+  if (!grepl("^~", path)) {
+    return(.shell_quote(path))
+  }
 
-    prefix <- sub("^(~[^/]*/?).*$", "\\1", path)
-    rest   <- substring(path, nchar(prefix) + 1L)
+  prefix <- sub("^(~[^/]*/?).*$", "\\1", path)
+  rest   <- substring(path, nchar(prefix) + 1L)
 
-    if (nchar(rest) == 0L) prefix else paste0(prefix, .shell_quote(rest))
+  if (nchar(rest) == 0L) prefix else paste0(prefix, .shell_quote(rest))
+}
+
+
+#' Derive the stem of an R script's name
+#'
+#' Internal helper. Strips both the directory and the extension, so that
+#' `"R/analysis.R"` and `"analysis.R"` both yield `"analysis"`.
+#'
+#' The directory half is not cosmetic. The family convention puts a derived
+#' script at `R/analysis.R`, and a tarball named from the path rather than
+#' the stem would be `R/analysis-results.tar.gz`, written into a directory
+#' that does not exist in HTCondor's scratch space. The job would do all of
+#' its work and then fail on the final `tar`.
+#'
+#' @param r_script A character string. The R script's name or path.
+#'
+#' @return A character string.
+#'
+#' @keywords internal
+.script_stem <- function(r_script) {
+  tools::file_path_sans_ext(basename(r_script))
+}
+
+
+#' Build the name of a results tarball
+#'
+#' Internal helper holding the family's tarball naming convention in one
+#' place: `<script stem>[-<subset stem>]-results.tar.gz`, with the subset
+#' half present only in multiple mode.
+#'
+#' The subset stem takes a different form depending on who resolves it, which
+#' is why this takes an expression rather than a value. The generated shell
+#' script writes `${1%.*}`, resolved on the execute node. The submit file
+#' writes `$Fn(file)`, resolved by `condor_submit`. [htc_download()] passes a
+#' literal stem it has already computed in R. All three have to agree on the
+#' same name for a job's results to survive the trip home, and sharing this
+#' function is what makes that structural rather than a matter of three
+#' places being edited together.
+#'
+#' @param script_stem A character string or `NULL`, from `.script_stem()`.
+#' @param subset_expr A character string or `NULL`. However the subset stem
+#'   is written in the context being generated.
+#'
+#' @return A character string. At least one of the two parts must be given.
+#'
+#' @keywords internal
+.tarball_name <- function(script_stem = NULL, subset_expr = NULL) {
+  parts <- c(script_stem, subset_expr)
+
+  if (length(parts) == 0L) {
+    cli::cli_abort(
+      "At least one of {.arg script_stem} or {.arg subset_expr} is needed."
+    )
+  }
+
+  paste0(paste(parts, collapse = "-"), "-results.tar.gz")
 }
 
 
@@ -271,5 +327,5 @@
 #'
 #' @keywords internal
 .cli_escape <- function(x) {
-    gsub("}", "}}", gsub("{", "{{", x, fixed = TRUE), fixed = TRUE)
+  gsub("}", "}}", gsub("{", "{{", x, fixed = TRUE), fixed = TRUE)
 }

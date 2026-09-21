@@ -8,7 +8,7 @@ htc_gen_executable(
   output_file = "job.sh",
   r_script = NULL,
   data_files = NULL,
-  results_folder = "results",
+  results_folder = "output",
   home_dir = "/home",
   mode = "single",
   set_executable = TRUE,
@@ -37,7 +37,10 @@ the container (e.g. \code{"data-raw/sample.csv"} becomes
 
 \item{results_folder}{A character string. Name of the folder created
 in the scratch directory to hold job outputs before compression.
-Defaults to \code{"results"}.}
+Defaults to \code{"output"}, the output folder used across the toolero
+family. Note that only this folder is created: if your analysis writes
+to \verb{output/figures/}, the R script must create that subfolder itself,
+which \code{toolero::save_output()} does and a bare \code{ggsave()} does not.}
 
 \item{home_dir}{A character string. The working directory inside the
 container where baked-in files live. Used to construct absolute paths

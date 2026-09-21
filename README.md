@@ -81,6 +81,15 @@ You can adopt these packages one at a time. `submitr` does not require
 `toolero`, and `toolero` does not require `submitr`. The family exists so that
 each step prepares cleanly for the next when your project is ready to scale.
 
+The folder names, path conventions, and shared vocabulary used consistently
+across all three packages are collected in one place --
+[CONVENTIONS.md](https://github.com/erwinlares/toolero/blob/main/CONVENTIONS.md),
+maintained in the `toolero` repository, since that is where those conventions
+are authored. Two of them show up throughout this README: analysis outputs go
+in `output/`, and a derived analysis script lives at `R/analysis.R`. Following
+them is what lets the same script run unchanged on your laptop and on an
+execute node.
+
 ---
 
 ## Before you start
@@ -115,34 +124,33 @@ pak::pak("erwinlares/submitr")
 ## A first workflow
 
 ```r
-## A first workflow
-
-```r
 library(submitr)
 
 # 1. Start the session (reads htc.cfg, stores config for all calls)
 htc_start()
 
 # 2. Generate the submit file
+#    r_script is how submitr derives the results tarball name; it never
+#    reads the executable script or the Dockerfile, so it cannot infer it
 htc_gen_submit(
   output_file     = "analysis.sub",
   container_image = "registry.doit.wisc.edu/your.netid/my-analysis:1.0.0",
   executable      = "analysis.sh",
-  output_files    = "results.tar.gz",
+  r_script        = "R/analysis.R",
   resources       = "small",
   comments        = TRUE
 )
 
 # 3. Generate the executable script
 htc_gen_executable(
-  r_script       = "analysis.R",
-  output_file    = "analysis.sh",
-  results_folder = "results",
-  comments       = TRUE
+  r_script    = "R/analysis.R",
+  output_file = "analysis.sh",
+  comments    = TRUE
 )
 
 # 4. Upload files to the submit node
-htc_upload(files = c("analysis.sub", "analysis.sh"))
+#    With no files argument, submitr uploads what the job manifest recorded
+htc_upload()
 
 # 5. Submit the job
 cluster_id <- htc_submit(submit_file = "analysis.sub")
@@ -152,7 +160,6 @@ htc_status(cluster_id = cluster_id, watch = TRUE)
 
 # 7. Download results
 htc_download()
-```
 ```
 
 ---
@@ -234,8 +241,8 @@ htc_gen_submit(
   output_file     = "analysis.sub",
   container_image = "docker://registry.doit.wisc.edu/your.netid/my-analysis:1.0.0",
   executable      = "analysis.sh",
-  input_files     = c("analysis.R", "data.csv"),
-  output_files    = "results.tar.gz",
+  r_script        = "R/analysis.R",
+  input_files     = c("R/analysis.R", "data.csv"),
   resources       = "small",
   comments        = TRUE
 )
@@ -264,15 +271,14 @@ match with available resources. The log is the ground truth.
 ### `htc_gen_executable()`
 
 Generates the `.sh` script that HTCondor runs inside the container. The
-generated script creates the results directory, runs your R script with
+generated script creates the `output/` directory, runs your R script with
 `Rscript`, and archives the results as a `.tar.gz` file.
 
 ```r
 htc_gen_executable(
-  r_script       = "analysis.R",
-  output_file    = "analysis.sh",
-  results_folder = "results",
-  comments       = TRUE
+  r_script    = "R/analysis.R",
+  output_file = "analysis.sh",
+  comments    = TRUE
 )
 ```
 
@@ -360,7 +366,8 @@ htc_gen_submit(
   output_file     = "analysis.sub",
   container_image = "docker://registry.doit.wisc.edu/your.netid/my-analysis:1.0.0",
   executable      = "analysis.sh",
-  input_files     = "analysis.R",
+  r_script        = "R/analysis.R",
+  input_files     = "R/analysis.R",
   mode            = "multiple",
   queue_from      = "data/jobs/manifest.csv",
   resources       = "medium",
@@ -368,11 +375,10 @@ htc_gen_submit(
 )
 
 htc_gen_executable(
-  r_script       = "analysis.R",
-  output_file    = "analysis.sh",
-  results_folder = "results",
-  mode           = "multiple",
-  comments       = TRUE
+  r_script    = "R/analysis.R",
+  output_file = "analysis.sh",
+  mode        = "multiple",
+  comments    = TRUE
 )
 ```
 
@@ -385,6 +391,46 @@ input_file <- args[[1]]
 
 data <- readr::read_csv(input_file)
 ```
+
+---
+
+## A note on the results naming change
+
+Two conventions changed in the development version, and they change the
+names of files your jobs produce. If you have results sitting on the submit
+node from an earlier version, download them before upgrading, because
+`htc_download()` will now look for names those jobs never created.
+
+The folder your job writes into is now `output/` rather than `results/`.
+This brings submitr in line with `toolero` and `containr`, which already use
+`output/`. One folder name across all three packages means an analysis
+script that runs on your laptop writes to the same place when it runs on an
+execute node, so `toolero::save_output()` behaves identically in both, and
+you do not have to remember which package is in charge of a given directory.
+
+Results tarballs are now named after the script and, in multiple-job mode,
+the subset the job handled:
+
+| | Before | Now |
+|---|---|---|
+| Single job | `analysis-results.tar.gz` | `analysis-results.tar.gz` |
+| One subset of many | `adelie.csv-results.tar.gz` | `analysis-adelie-results.tar.gz` |
+
+The single-job name is unchanged. The multiple-job name gains the script
+stem and loses the subset's file extension, and both halves are deliberate.
+Adding the script stem means two different analyses splitting the same
+dataset no longer overwrite each other's results in the flat namespace of
+your home directory on the access point. Dropping the extension avoids the
+awkward `adelie.csv-results.tar.gz`, in which `.csv` describes a file that
+is not a CSV and is not the file being named. Directories are stripped from
+both stems, which is what lets you follow the family convention of keeping a
+derived script at `R/analysis.R` without the job trying to write its tarball
+into a directory the execute node does not have.
+
+One consequence worth knowing: `htc_gen_submit()` now needs `r_script` in
+order to derive that name. It never opens the executable script and never
+reads the Dockerfile, so the name of your analysis script is genuinely not
+something it can work out for itself.
 
 ---
 

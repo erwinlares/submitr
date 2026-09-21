@@ -351,7 +351,8 @@ test_that("GPU section reflects custom gpu_options", {
 test_that("multiple mode writes queue file from subdatasets.csv", {
     tmp      <- withr::local_tempdir()
     manifest <- .write_manifest(tmp)
-    htc_gen_submit(mode = "multiple", queue_from = manifest, output = tmp)
+    htc_gen_submit(mode = "multiple", queue_from = manifest,
+                   r_script = "analysis.R", output = tmp)
     lines <- read_subfile(tmp)
     expect_true(any(grepl("queue file from subdatasets.csv", lines,
                           fixed = TRUE)))
@@ -360,7 +361,8 @@ test_that("multiple mode writes queue file from subdatasets.csv", {
 test_that("multiple mode writes subdatasets.csv with bare filenames", {
     tmp      <- withr::local_tempdir()
     manifest <- .write_manifest(tmp, filenames = c("adelie.csv", "gentoo.csv"))
-    htc_gen_submit(mode = "multiple", queue_from = manifest, output = tmp)
+    htc_gen_submit(mode = "multiple", queue_from = manifest,
+                   r_script = "analysis.R", output = tmp)
     expect_true(file.exists(file.path(tmp, "subdatasets.csv")))
     sub_df <- readr::read_csv(file.path(tmp, "subdatasets.csv"),
                               col_names      = FALSE,
@@ -371,7 +373,8 @@ test_that("multiple mode writes subdatasets.csv with bare filenames", {
 test_that("multiple mode includes arguments = $(file)", {
     tmp      <- withr::local_tempdir()
     manifest <- .write_manifest(tmp, filenames = "adelie.csv")
-    htc_gen_submit(mode = "multiple", queue_from = manifest, output = tmp)
+    htc_gen_submit(mode = "multiple", queue_from = manifest,
+                   r_script = "analysis.R", output = tmp)
     lines <- read_subfile(tmp)
     expect_true(any(grepl("arguments = $(file)", lines, fixed = TRUE)))
 })
@@ -382,17 +385,90 @@ test_that("multiple mode includes $(file) in transfer_input_files", {
     htc_gen_submit(mode        = "multiple",
                    queue_from  = manifest,
                    input_files = "analysis.R",
+                   r_script    = "analysis.R",
                    output      = tmp)
     lines <- read_subfile(tmp)
     expect_true(any(grepl("$(file)", lines, fixed = TRUE)))
 })
 
-test_that("multiple mode defaults transfer_output_files to $(file)-results.tar.gz", {
+# ---------------------------------------------------------------------------
+# transfer_output_files derivation from r_script
+#
+# htc_gen_submit() never reads the executable script or the Dockerfile, so
+# the script's name cannot be inferred and has to be supplied. The name it
+# derives must match the tarball htc_gen_executable() tells the job to build.
+# ---------------------------------------------------------------------------
+
+test_that("single mode derives transfer_output_files from r_script", {
+    tmp <- withr::local_tempdir()
+    htc_gen_submit(r_script = "analysis.R", output = tmp)
+    lines <- read_subfile(tmp)
+    expect_true(any(grepl("transfer_output_files = analysis-results.tar.gz",
+                          lines, fixed = TRUE)))
+})
+
+test_that("the script stem drops a leading directory", {
+    tmp <- withr::local_tempdir()
+    htc_gen_submit(r_script = "R/analysis.R", output = tmp)
+    lines <- read_subfile(tmp)
+    expect_true(any(grepl("transfer_output_files = analysis-results.tar.gz",
+                          lines, fixed = TRUE)))
+    expect_false(any(grepl("R/analysis-results", lines, fixed = TRUE)))
+})
+
+test_that("explicit output_files overrides the derivation", {
+    tmp <- withr::local_tempdir()
+    htc_gen_submit(
+        r_script     = "analysis.R",
+        output_files = "custom.tar.gz",
+        output       = tmp
+    )
+    lines <- read_subfile(tmp)
+    expect_true(any(grepl("transfer_output_files = custom.tar.gz",
+                          lines, fixed = TRUE)))
+    expect_false(any(grepl("analysis-results.tar.gz", lines, fixed = TRUE)))
+})
+
+test_that("single mode without r_script writes the placeholder, as before", {
+    tmp <- withr::local_tempdir()
+    htc_gen_submit(output = tmp)
+    lines <- read_subfile(tmp)
+    expect_true(any(grepl("# transfer_output_files", lines, fixed = TRUE)))
+})
+
+test_that("multiple mode without r_script warns that the names will disagree", {
+    tmp      <- withr::local_tempdir()
+    manifest <- .write_manifest(tmp)
+    expect_warning(
+        htc_gen_submit(mode = "multiple", queue_from = manifest, output = tmp),
+        regexp = "r_script"
+    )
+})
+
+test_that("htc_gen_submit() falls back to the r_script in the job manifest", {
+    tmp <- withr::local_tempdir()
+    # As htc_gen_executable() would have recorded it on an earlier call.
+    .update_manifest(r_script = "R/analysis.R", path = tmp)
+
+    htc_gen_submit(output = tmp)
+    lines <- read_subfile(tmp)
+    expect_true(any(grepl("transfer_output_files = analysis-results.tar.gz",
+                          lines, fixed = TRUE)))
+})
+
+test_that("htc_gen_submit() records the script stem in the manifest", {
+    tmp <- withr::local_tempdir()
+    htc_gen_submit(r_script = "R/run-model.R", output = tmp)
+    expect_equal(.get_manifest(path = tmp)$script_stem, "run-model")
+})
+
+test_that("multiple mode derives transfer_output_files from r_script", {
     tmp      <- withr::local_tempdir()
     manifest <- .write_manifest(tmp, filenames = "adelie.csv")
-    htc_gen_submit(mode = "multiple", queue_from = manifest, output = tmp)
+    htc_gen_submit(mode = "multiple", queue_from = manifest,
+                   r_script = "analysis.R", output = tmp)
     lines <- read_subfile(tmp)
-    expect_true(any(grepl("$(file)-results.tar.gz", lines, fixed = TRUE)))
+    expect_true(any(grepl("analysis-$Fn(file)-results.tar.gz", lines, fixed = TRUE)))
 })
 
 # ---------------------------------------------------------------------------
@@ -461,7 +537,8 @@ test_that("htc_gen_submit() writes the manifest to path when it differs from out
 test_that("htc_gen_submit() records subdatasets_path and subset_files in multiple mode", {
     tmp      <- withr::local_tempdir()
     manifest <- .write_manifest(tmp, filenames = c("adelie.csv", "gentoo.csv"))
-    htc_gen_submit(mode = "multiple", queue_from = manifest, output = tmp)
+    htc_gen_submit(mode = "multiple", queue_from = manifest,
+                   r_script = "analysis.R", output = tmp)
     m <- .get_manifest(path = tmp)
     expect_equal(m$subdatasets_path, file.path(tmp, "subdatasets.csv"))
     expect_equal(m$subset_files, file.path(tmp, c("adelie.csv", "gentoo.csv")))

@@ -264,17 +264,21 @@ htc_download <- function(files       = NULL,
 
     # -- Result tarballs -------------------------------------------------------
     if (mode == "multiple" && !is.null(manifest$subsets)) {
-        # Per-subset tarballs: adelie.csv-results.tar.gz, etc.
-        tarball_pattern <- if (is.null(manifest$output_files))
-            "$(file)-results.tar.gz"
-        else
-            manifest$output_files
+        # Per-subset tarballs, composed through the same helper the two
+        # generators use. The manifest's output_files is no help here: in
+        # multiple mode it holds the submit-language form, with $Fn(file)
+        # standing in for a value only condor_submit can resolve. Substituting
+        # into that string would be reimplementing the submit language in R,
+        # which is how the previous version of this code came to look for
+        # names that nothing had produced.
         for (subset in manifest$subsets) {
-            tarball <- gsub("$(file)", subset, tarball_pattern, fixed = TRUE)
-            files <- c(files, tarball)
+            files <- c(files, .tarball_name(
+                manifest$script_stem,
+                tools::file_path_sans_ext(subset)
+            ))
         }
     } else if (!is.null(manifest$output_files)) {
-        # Single mode: use the output_files directly
+        # Single mode: output_files is already the literal name.
         files <- c(files, manifest$output_files)
     }
 

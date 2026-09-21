@@ -12,14 +12,29 @@
 #' @param executable A character string. The shell script that HTCondor will
 #'   run inside the container, e.g. `"analysis.sh"`. Defaults to `NULL`,
 #'   which writes a placeholder comment in the submit file.
+#' @param r_script A character string. The R script the job runs, e.g.
+#'   `"R/analysis.R"`. Used only to derive the default `output_files` name,
+#'   which must match the tarball [htc_gen_executable()] tells the job to
+#'   build. This function never reads the executable script or the
+#'   Dockerfile, so the script's name cannot be inferred and has to be given
+#'   here. If omitted, the value recorded in the job manifest by a previous
+#'   [htc_gen_executable()] call is used; note that the documented workflow
+#'   calls this function first, in which case there is nothing recorded yet.
+#'   Ignored when `output_files` is supplied. Defaults to `NULL`.
 #' @param input_files A character vector. Files to transfer to the job's
 #'   working directory before execution, e.g. `c("analysis.R", "data.csv")`.
 #'   In `"multiple"` mode, the per-job subset file is added automatically
 #'   from the manifest; use this argument for files shared across all jobs
 #'   (e.g. the analysis script). Defaults to `NULL`.
 #' @param output_files A character vector. Files to transfer back from the
-#'   job's working directory after execution. In `"multiple"` mode, this
-#'   defaults to `"$(file)-results.tar.gz"` if not supplied. Defaults to
+#'   job's working directory after execution. When not supplied, it is
+#'   derived from `r_script` following the family convention
+#'   `<script stem>[-<subset stem>]-results.tar.gz`, giving for example
+#'   `analysis-results.tar.gz` in `"single"` mode and
+#'   `analysis-$Fn(file)-results.tar.gz` in `"multiple"` mode. `$Fn()` is an
+#'   HTCondor submit macro that strips a value's directory and extension, so
+#'   a subset named `adelie.csv` yields `analysis-adelie-results.tar.gz`.
+#'   Supplying this argument overrides the derivation entirely. Defaults to
 #'   `NULL`.
 #' @param mode A character string. Submission mode. `"single"` (the default)
 #'   submits one job. `"multiple"` submits one job per row in the manifest
@@ -157,6 +172,7 @@
 htc_gen_submit <- function(output_file      = "job.sub",
                            container_image  = NULL,
                            executable       = NULL,
+                           r_script         = NULL,
                            input_files      = NULL,
                            output_files     = NULL,
                            mode             = "single",
@@ -365,14 +381,35 @@ htc_gen_submit <- function(output_file      = "job.sub",
         if (!is.null(input_files)) paste(input_files, collapse = ", ") else NULL
     }
 
-    resolved_output_files <- if (mode == "multiple") {
-        if (!is.null(output_files)) {
-            paste(output_files, collapse = ", ")
-        } else {
-            "$(file)-results.tar.gz"
-        }
+    # -- 10b. Resolve the results tarball name ---------------------------------
+    # This must match the name htc_gen_executable() tells the job to build.
+    # The script stem comes from r_script, or failing that from whatever a
+    # previous htc_gen_executable() call recorded in the job manifest.
+    if (is.null(r_script)) {
+        r_script <- .get_manifest(path = path)$r_script
+    }
+    script_stem <- if (!is.null(r_script)) .script_stem(r_script) else NULL
+
+    if (is.null(output_files) && is.null(script_stem) && mode == "multiple") {
+        cli::cli_warn(c(
+            "No {.arg r_script} supplied, so {.arg output_files} cannot include the script stem.",
+            "i" = "{.fn htc_gen_executable} names each tarball after the script
+                   and its subset, so the two files will disagree and HTCondor
+                   will not find the results.",
+            "i" = "Pass {.arg r_script} here, or set {.arg output_files} explicitly."
+        ))
+    }
+
+    resolved_output_files <- if (!is.null(output_files)) {
+        paste(output_files, collapse = ", ")
+    } else if (mode == "multiple") {
+        # $Fn() is an HTCondor submit macro: it strips the directory and the
+        # extension from the queue variable, so adelie.csv becomes adelie.
+        .tarball_name(script_stem, "$Fn(file)")
+    } else if (!is.null(script_stem)) {
+        .tarball_name(script_stem)
     } else {
-        if (!is.null(output_files)) paste(output_files, collapse = ", ") else NULL
+        NULL
     }
 
     # -- 11. Assemble submit file sections -------------------------------------
@@ -662,6 +699,7 @@ htc_gen_submit <- function(output_file      = "job.sub",
         input_files      = input_files,
         mode             = mode,
         output_files     = resolved_output_files,
+        script_stem      = script_stem,
         subsets          = subset_filenames,
         subdatasets_path = subdatasets_path,
         subset_files     = subset_full_paths,

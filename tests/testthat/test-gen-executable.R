@@ -163,12 +163,12 @@ test_that("script no longer changes directory to /home", {
 # Script content -- results folder
 # ---------------------------------------------------------------------------
 
-test_that("script contains mkdir -p for default results folder", {
+test_that("script contains mkdir -p for the default output folder", {
     tmp <- withr::local_tempdir()
     htc_gen_executable(r_script = "analysis.R", output = tmp)
     lines <- read_script(tmp)
 
-    expect_true(any(grepl("mkdir -p results", lines, fixed = TRUE)))
+    expect_true(any(grepl("mkdir -p output", lines, fixed = TRUE)))
 })
 
 test_that("script reflects custom results_folder name", {
@@ -181,15 +181,41 @@ test_that("script reflects custom results_folder name", {
     lines <- read_script(tmp)
 
     expect_true(any(grepl("mkdir -p outputs", lines, fixed = TRUE)))
-    expect_false(any(grepl("mkdir -p results", lines, fixed = TRUE)))
+    expect_false(any(grepl("mkdir -p output$", lines)))
 })
 
-test_that("default results folder is results, not results-folder", {
+test_that("default output folder is output, not results or results-folder", {
     tmp <- withr::local_tempdir()
     htc_gen_executable(r_script = "analysis.R", output = tmp)
     lines <- read_script(tmp)
 
     expect_false(any(grepl("results-folder", lines, fixed = TRUE)))
+    expect_false(any(grepl("mkdir -p results", lines, fixed = TRUE)))
+})
+
+# ---------------------------------------------------------------------------
+# Script content -- the R/ script convention
+# ---------------------------------------------------------------------------
+
+test_that("an r_script under R/ is read by absolute path inside the container", {
+    tmp <- withr::local_tempdir()
+    htc_gen_executable(r_script = "R/analysis.R", output = tmp)
+    lines <- read_script(tmp)
+
+    expect_true(any(grepl("^Rscript /home/R/analysis\\.R$", lines)))
+})
+
+test_that("an r_script under R/ does not put a directory in the tarball name", {
+    # The regression this guards: naming the tarball from the path rather
+    # than the stem gives R/analysis-results.tar.gz, and R/ does not exist in
+    # HTCondor's scratch directory, so the job does all its work and then
+    # fails on the final tar.
+    tmp <- withr::local_tempdir()
+    htc_gen_executable(r_script = "R/analysis.R", output = tmp)
+    lines <- read_script(tmp)
+
+    expect_true(any(grepl("^tar -czf analysis-results\\.tar\\.gz output$", lines)))
+    expect_false(any(grepl("tar -czf R/", lines, fixed = TRUE)))
 })
 
 # ---------------------------------------------------------------------------
@@ -304,7 +330,7 @@ test_that("single mode compression line uses r_script-derived tarball name", {
     htc_gen_executable(r_script = "analysis.R", mode = "single", output = tmp)
     lines <- read_script(tmp)
 
-    expect_true(any(grepl("^tar -czf analysis-results\\.tar\\.gz results$", lines)))
+    expect_true(any(grepl("^tar -czf analysis-results\\.tar\\.gz output$", lines)))
 })
 
 test_that("single mode compression line reflects custom r_script name", {
@@ -312,24 +338,24 @@ test_that("single mode compression line reflects custom r_script name", {
     htc_gen_executable(mode = "single", r_script = "run-model.R", output = tmp)
     lines <- read_script(tmp)
 
-    expect_true(any(grepl("^tar -czf run-model-results\\.tar\\.gz results$", lines)))
+    expect_true(any(grepl("^tar -czf run-model-results\\.tar\\.gz output$", lines)))
 })
 
-test_that("multiple mode compression line uses ${1} for per-job tarball name", {
+test_that("multiple mode compression line strips the subset extension", {
     tmp <- withr::local_tempdir()
     htc_gen_executable(r_script = "analysis.R", mode = "multiple", output = tmp)
     lines <- read_script(tmp)
 
-    expect_true(any(grepl("^tar -czf \\$\\{1\\}-results\\.tar\\.gz results$", lines)))
+    expect_true(any(grepl("^tar -czf analysis-\\$\\{1%\\.\\*\\}-results\\.tar\\.gz output$", lines)))
 })
 
-test_that("compression line references the default results folder", {
+test_that("compression line references the default output folder", {
     tmp <- withr::local_tempdir()
     htc_gen_executable(r_script = "analysis.R", output = tmp)
     lines <- read_script(tmp)
     compress_line <- lines[grepl("^tar", lines)]
 
-    expect_true(any(grepl("results", compress_line, fixed = TRUE)))
+    expect_true(any(grepl("output", compress_line, fixed = TRUE)))
 })
 
 test_that("compression line reflects custom results_folder name", {

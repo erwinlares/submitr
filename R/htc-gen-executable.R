@@ -22,7 +22,10 @@
 #'   `commandArgs(trailingOnly = TRUE)`. Defaults to `NULL`.
 #' @param results_folder A character string. Name of the folder created
 #'   in the scratch directory to hold job outputs before compression.
-#'   Defaults to `"results"`.
+#'   Defaults to `"output"`, the output folder used across the toolero
+#'   family. Note that only this folder is created: if your analysis writes
+#'   to `output/figures/`, the R script must create that subfolder itself,
+#'   which `toolero::save_output()` does and a bare `ggsave()` does not.
 #' @param home_dir A character string. The working directory inside the
 #'   container where baked-in files live. Used to construct absolute paths
 #'   for `Rscript` and data file arguments. Must match the `home_dir`
@@ -123,7 +126,7 @@
 htc_gen_executable <- function(output_file    = "job.sh",
                                r_script       = NULL,
                                data_files     = NULL,
-                               results_folder = "results",
+                               results_folder = "output",
                                home_dir       = "/home",
                                mode           = "single",
                                set_executable = TRUE,
@@ -172,6 +175,18 @@ htc_gen_executable <- function(output_file    = "job.sh",
         file.path(home_dir, data_files)
     } else {
         NULL
+    }
+
+    # -- 5b. Resolve the results tarball name ----------------------------------
+    # Built outside the section list because ${1%.*} contains braces, which
+    # glue would try to interpolate. The submit file has to declare the same
+    # name in transfer_output_files, and builds it from the same helper with
+    # $Fn(file) in place of ${1%.*}.
+    script_stem <- .script_stem(r_script)
+    tarball     <- if (mode == "single") {
+        .tarball_name(script_stem)
+    } else {
+        .tarball_name(script_stem, "${1%.*}")
     }
 
     # -- 6. Assemble script sections -------------------------------------------
@@ -279,18 +294,15 @@ htc_gen_executable <- function(output_file    = "job.sh",
             } else {
                 paste0(
                     "# Compress the results folder into a per-job tarball.\n",
-                    "# ${1} is the subset filename, giving each job a unique archive\n",
-                    "# name (e.g. adelie.csv-results.tar.gz) so results from different\n",
-                    "# jobs do not overwrite each other on the submit node."
+                    "# ${1} is the subset filename and ${1%.*} strips its extension,\n",
+                    "# so each job gets a unique archive named after the script and\n",
+                    "# its subset (e.g. ", .tarball_name(script_stem, "adelie"), ")\n",
+                    "# and results from different jobs do not overwrite each other\n",
+                    "# on the submit node. The submit file must declare this same\n",
+                    "# name in transfer_output_files."
                 )
             },
-            lines       = if (mode == "single") {
-                glue::glue(
-                    "tar -czf {tools::file_path_sans_ext(r_script)}-results.tar.gz {results_folder}"
-                )
-            } else {
-                glue::glue("tar -czf ${{1}}-results.tar.gz {results_folder}")
-            }
+            lines       = paste("tar -czf", tarball, results_folder)
         )
     )
 

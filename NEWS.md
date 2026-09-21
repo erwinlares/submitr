@@ -4,6 +4,38 @@
 
 * Development version following initial release.
 
+### Breaking changes
+
+* The results folder written by `htc_gen_executable()` is now `output/`
+  rather than `results/`, matching the folder convention used across
+  `toolero` and `containr`. Analysis scripts that write to `results/` will
+  produce an empty tarball until they are updated; `toolero::save_output()`
+  handles this for you.
+
+* Results tarballs are named `<script stem>[-<subset stem>]-results.tar.gz`,
+  with directories and extensions stripped from both stems. A single job
+  running `analysis.R` now produces `analysis-results.tar.gz` as before, but
+  a multiple-mode job over `adelie.csv` produces
+  `analysis-adelie-results.tar.gz` where it previously produced
+  `adelie.csv-results.tar.gz`. This is a clean break: a job submitted with an
+  earlier version and collected with this one will have `htc_download()`
+  looking for names that do not exist on the submit node. Download those
+  results before upgrading, or pass `files` explicitly. See the README
+  section "A note on the results naming change" for the rationale.
+
+* `htc_gen_submit()` gains an `r_script` argument, positioned after
+  `executable`. It is used only to derive the default `output_files` name,
+  which has to match the tarball `htc_gen_executable()` tells the job to
+  build. The function never reads the executable script or the Dockerfile,
+  so the script's name cannot be inferred and has to be supplied. In
+  multiple mode, omitting it now warns. Code calling `htc_gen_submit()` with
+  positional arguments past `executable` will need updating.
+
+* Single-mode submit files now carry a `transfer_output_files` line derived
+  from `r_script`, where previously they carried only a placeholder comment
+  unless `output_files` was supplied. This is what makes `htc_download()`
+  bring back the results tarball in single mode rather than log files alone.
+
 ### New features
 
 * `htc_start()` -- start an HTC session by reading the project config and

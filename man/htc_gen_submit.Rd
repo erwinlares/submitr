@@ -8,6 +8,7 @@ htc_gen_submit(
   output_file = "job.sub",
   container_image = NULL,
   executable = NULL,
+  r_script = NULL,
   input_files = NULL,
   output_files = NULL,
   mode = "single",
@@ -36,6 +37,16 @@ which writes a placeholder comment in the submit file.}
 run inside the container, e.g. \code{"analysis.sh"}. Defaults to \code{NULL},
 which writes a placeholder comment in the submit file.}
 
+\item{r_script}{A character string. The R script the job runs, e.g.
+\code{"R/analysis.R"}. Used only to derive the default \code{output_files} name,
+which must match the tarball \code{\link[=htc_gen_executable]{htc_gen_executable()}} tells the job to
+build. This function never reads the executable script or the
+Dockerfile, so the script's name cannot be inferred and has to be given
+here. If omitted, the value recorded in the job manifest by a previous
+\code{\link[=htc_gen_executable]{htc_gen_executable()}} call is used; note that the documented workflow
+calls this function first, in which case there is nothing recorded yet.
+Ignored when \code{output_files} is supplied. Defaults to \code{NULL}.}
+
 \item{input_files}{A character vector. Files to transfer to the job's
 working directory before execution, e.g. \code{c("analysis.R", "data.csv")}.
 In \code{"multiple"} mode, the per-job subset file is added automatically
@@ -43,8 +54,14 @@ from the manifest; use this argument for files shared across all jobs
 (e.g. the analysis script). Defaults to \code{NULL}.}
 
 \item{output_files}{A character vector. Files to transfer back from the
-job's working directory after execution. In \code{"multiple"} mode, this
-defaults to \code{"$(file)-results.tar.gz"} if not supplied. Defaults to
+job's working directory after execution. When not supplied, it is
+derived from \code{r_script} following the family convention
+\verb{<script stem>[-<subset stem>]-results.tar.gz}, giving for example
+\code{analysis-results.tar.gz} in \code{"single"} mode and
+\verb{analysis-$Fn(file)-results.tar.gz} in \code{"multiple"} mode. \verb{$Fn()} is an
+HTCondor submit macro that strips a value's directory and extension, so
+a subset named \code{adelie.csv} yields \code{analysis-adelie-results.tar.gz}.
+Supplying this argument overrides the derivation entirely. Defaults to
 \code{NULL}.}
 
 \item{mode}{A character string. Submission mode. \code{"single"} (the default)

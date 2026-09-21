@@ -136,21 +136,21 @@ test_that("single mode resolves tarball and three log files", {
 
 test_that("multiple mode resolves per-subset tarballs", {
     manifest <- list(
-        mode         = "multiple",
-        output_files = "$(file)-results.tar.gz",
-        subsets      = c("adelie.csv", "chinstrap.csv", "gentoo.csv")
+        mode        = "multiple",
+        script_stem = "analysis",
+        subsets     = c("adelie.csv", "chinstrap.csv", "gentoo.csv")
     )
     files <- .resolve_download_files("456", manifest)
-    expect_true("adelie.csv-results.tar.gz" %in% files)
-    expect_true("chinstrap.csv-results.tar.gz" %in% files)
-    expect_true("gentoo.csv-results.tar.gz" %in% files)
+    expect_true("analysis-adelie-results.tar.gz" %in% files)
+    expect_true("analysis-chinstrap-results.tar.gz" %in% files)
+    expect_true("analysis-gentoo-results.tar.gz" %in% files)
 })
 
 test_that("multiple mode resolves per-process log files", {
     manifest <- list(
-        mode         = "multiple",
-        output_files = "$(file)-results.tar.gz",
-        subsets      = c("adelie.csv", "chinstrap.csv", "gentoo.csv")
+        mode        = "multiple",
+        script_stem = "analysis",
+        subsets     = c("adelie.csv", "chinstrap.csv", "gentoo.csv")
     )
     files <- .resolve_download_files("456", manifest)
     expect_true("456-0-job.log" %in% files)
@@ -166,23 +166,23 @@ test_that("multiple mode resolves per-process log files", {
 
 test_that("multiple mode total file count is correct", {
     manifest <- list(
-        mode         = "multiple",
-        output_files = "$(file)-results.tar.gz",
-        subsets      = c("adelie.csv", "chinstrap.csv", "gentoo.csv")
+        mode        = "multiple",
+        script_stem = "analysis",
+        subsets     = c("adelie.csv", "chinstrap.csv", "gentoo.csv")
     )
     files <- .resolve_download_files("456", manifest)
     # 3 tarballs + 9 log files (3 jobs x 3 extensions)
     expect_equal(length(files), 12L)
 })
 
-test_that("multiple mode uses default tarball pattern when output_files is NULL", {
+test_that("multiple mode falls back to the subset stem alone without a script stem", {
     manifest <- list(
         mode    = "multiple",
         subsets = c("a.csv", "b.csv")
     )
     files <- .resolve_download_files("789", manifest)
-    expect_true("a.csv-results.tar.gz" %in% files)
-    expect_true("b.csv-results.tar.gz" %in% files)
+    expect_true("a-results.tar.gz" %in% files)
+    expect_true("b-results.tar.gz" %in% files)
 })
 
 # ---------------------------------------------------------------------------
@@ -377,18 +377,18 @@ test_that("htc_download() dry_run shows correct files for multiple mode", {
         submitr.config = list(username = "test", server = "test.edu")
     )
     .update_manifest(
-        mode         = "multiple",
-        output_files = "$(file)-results.tar.gz",
-        subsets      = c("adelie.csv", "gentoo.csv"),
-        cluster_id   = "600"
+        mode        = "multiple",
+        script_stem = "analysis",
+        subsets     = c("adelie.csv", "gentoo.csv"),
+        cluster_id  = "600"
     )
     msg <- capture.output(
         htc_download(dry_run = TRUE),
         type = "message"
     )
     cmd <- paste(msg, collapse = " ")
-    expect_true(grepl("adelie.csv-results.tar.gz", cmd))
-    expect_true(grepl("gentoo.csv-results.tar.gz", cmd))
+    expect_true(grepl("analysis-adelie-results.tar.gz", cmd))
+    expect_true(grepl("analysis-gentoo-results.tar.gz", cmd))
     expect_true(grepl("600-0-job", cmd))
     expect_true(grepl("600-1-job", cmd))
 })
@@ -589,14 +589,15 @@ test_that("htc_upload() explicit files ignores the manifest", {
 test_that("manifest accumulates across htc_gen_submit and htc_gen_executable", {
     withr::local_dir(withr::local_tempdir())
 
-    .update_manifest(mode = "multiple", output_files = "$(file)-results.tar.gz",
+    .update_manifest(mode = "multiple",
+                     output_files = "analysis-$Fn(file)-results.tar.gz",
                      subsets = c("a.csv", "b.csv"))
     .update_manifest(r_script = "analysis.R", results_folder = "results")
     .update_manifest(cluster_id = "12345")
 
     m <- .get_manifest()
     expect_equal(m$mode, "multiple")
-    expect_equal(m$output_files, "$(file)-results.tar.gz")
+    expect_equal(m$output_files, "analysis-$Fn(file)-results.tar.gz")
     expect_equal(m$subsets, c("a.csv", "b.csv"))
     expect_equal(m$r_script, "analysis.R")
     expect_equal(m$results_folder, "results")
@@ -624,6 +625,47 @@ test_that("the two generators write to one shared manifest", {
     expect_equal(m$executable_file, "job.sh")
     expect_equal(m$r_script, "analysis.R")
     expect_equal(m$subsets, c("adelie.csv", "gentoo.csv"))
+})
+
+test_that("the tarball job.sh builds is the one htc_download() asks for", {
+    # The regression guard for the whole naming class. Three places express
+    # the same name in three different ways, because three different things
+    # resolve them: ${1%.*} on the execute node, $Fn(file) at condor_submit
+    # time, and file_path_sans_ext() in R. If they ever drift apart the job
+    # runs to completion and then the results quietly fail to come home.
+    tmp <- withr::local_tempdir()
+    manifest_csv <- file.path(tmp, "manifest.csv")
+    readr::write_csv(
+        data.frame(
+            group_value = c("adelie", "gentoo"),
+            n_rows      = c(100L, 100L),
+            file_path   = file.path(tmp, c("adelie.csv", "gentoo.csv"))
+        ),
+        manifest_csv
+    )
+
+    htc_gen_submit(
+        mode       = "multiple",
+        queue_from = manifest_csv,
+        r_script   = "R/analysis.R",
+        output     = tmp
+    )
+    htc_gen_executable(
+        r_script = "R/analysis.R",
+        mode     = "multiple",
+        output   = tmp
+    )
+
+    # What the shell script creates on the execute node for subset adelie.csv.
+    tar_line <- grep("^tar", readLines(file.path(tmp, "job.sh")), value = TRUE)
+    built    <- sub("^tar -czf ([^ ]+) .*$", "\\1", tar_line)
+    built    <- sub("${1%.*}", "adelie", built, fixed = TRUE)
+
+    # What htc_download() will ask the submit node to send back.
+    wanted <- .resolve_download_files("123", .get_manifest(path = tmp))
+
+    expect_equal(built, "analysis-adelie-results.tar.gz")
+    expect_true(built %in% wanted)
 })
 
 test_that("generated files are findable via the paths the manifest records", {
