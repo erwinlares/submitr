@@ -4,7 +4,13 @@
 \alias{htc_config}
 \title{Configure a connection to an HTC submit server}
 \usage{
-htc_config(username = NULL, server = NULL, path = ".", overwrite = FALSE)
+htc_config(
+  username = NULL,
+  server = NULL,
+  path = ".",
+  overwrite = FALSE,
+  check_server = getOption("submitr.check_server", default = TRUE)
+)
 }
 \arguments{
 \item{username}{A character string. Your HTC username (NetID), e.g.
@@ -21,6 +27,13 @@ directory).}
 
 \item{overwrite}{Logical. If \code{TRUE}, recreates \code{htc.cfg} even if one
 already exists. Defaults to \code{FALSE}.}
+
+\item{check_server}{Logical. If \code{TRUE}, opens a short SSH connection to
+\code{server} to report whether it is reachable before you rely on the
+config. Defaults to the \code{submitr.check_server} option, which is itself
+\code{TRUE} unless you set it otherwise. Set to \code{FALSE} in scripts, test
+suites, and anywhere else the probe has no audience -- reading a config
+file then costs nothing and touches no network.}
 }
 \value{
 A named list with elements \code{username} and \code{server}, returned
@@ -34,6 +47,21 @@ interactively for your username and server address, writes \code{htc.cfg}
 to \code{path}, and adds it to \code{.gitignore}. Subsequent calls read the
 existing file.
 }
+\section{Options}{
+
+Two options adjust how much \code{htc_config()} does on your behalf. Both
+default to \code{TRUE}, and both are most useful set once for a whole session
+or test suite rather than per call.
+
+\code{submitr.verbose} controls the progress messages ("Reading HTC config
+from ...", "Checking connectivity to ..."). Setting it to \code{FALSE} leaves
+warnings and errors intact.
+
+\code{submitr.check_server} controls the reachability probe described under
+\code{check_server} above. The argument takes precedence when supplied, so the
+option sets the default and a call can still override it.
+}
+
 \section{SSH connection reuse}{
 
 Each call to \code{htc_upload()}, \code{htc_submit()}, \code{htc_status()}, or
@@ -85,6 +113,12 @@ cfg <- htc_config(
 
 # Force recreation of htc.cfg
 cfg <- htc_config(overwrite = TRUE)
+
+# Read the config without probing the server, e.g. in a script or on CI
+cfg <- htc_config(check_server = FALSE)
+
+# Or turn the probe off for a whole session
+options(submitr.check_server = FALSE)
 
 # Use in other functions
 htc_upload(files = c("job.sub", "job.sh"), config = cfg)

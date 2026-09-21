@@ -89,6 +89,38 @@ test_that("script includes set -euo pipefail after shebang", {
     expect_equal(lines[[2]], "set -euo pipefail")
 })
 
+test_that("script starts with #!/bin/bash when comments = TRUE", {
+    # Regression test. The shebang section used to carry its own comment,
+    # and the write loop emits a section's comment before its lines, so
+    # #!/bin/bash landed on line two where the kernel never looks for it.
+    # comments = TRUE is the setting the docs recommend to first-time users,
+    # which made this the common path rather than the rare one.
+    tmp <- withr::local_tempdir()
+    htc_gen_executable(r_script = "analysis.R", comments = TRUE, output = tmp)
+    lines <- read_script(tmp)
+
+    expect_equal(lines[[1]], "#!/bin/bash")
+})
+
+test_that("shell options comment sits directly above the line it explains", {
+    tmp <- withr::local_tempdir()
+    htc_gen_executable(r_script = "analysis.R", comments = TRUE, output = tmp)
+    lines <- read_script(tmp)
+
+    pos_set <- which(lines == "set -euo pipefail")
+    expect_length(pos_set, 1L)
+    expect_match(lines[[pos_set - 1L]], "^# Exit immediately")
+})
+
+test_that("set -euo pipefail still follows the shebang when comments = TRUE", {
+    tmp <- withr::local_tempdir()
+    htc_gen_executable(r_script = "analysis.R", comments = TRUE, output = tmp)
+    lines <- read_script(tmp)
+
+    expect_true(which(lines == "set -euo pipefail") >
+                    which(lines == "#!/bin/bash"))
+})
+
 # ---------------------------------------------------------------------------
 # Script content -- working directory
 # ---------------------------------------------------------------------------

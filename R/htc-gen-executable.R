@@ -178,10 +178,25 @@ htc_gen_executable <- function(output_file    = "job.sh",
 
     sections <- list(
 
+        # The shebang carries no comment of its own, and that is deliberate
+        # rather than an oversight. The write loop below emits a section's
+        # comment before its lines, so any comment attached here would push
+        # #!/bin/bash onto line two, where the kernel never looks for it --
+        # the script would then run under whatever shell happened to invoke
+        # it. Keeping the section comment-free is what guarantees the shebang
+        # stays on line one under every combination of arguments.
         shebang = list(
             verbose_msg = "Writing shebang line",
+            comment     = NULL,
+            lines       = "#!/bin/bash"
+        ),
+
+        # The comment that used to sit on the shebang section belongs here
+        # anyway: it describes set -euo pipefail, not #!/bin/bash.
+        shell_options = list(
+            verbose_msg = "Writing shell options",
             comment     = "# Exit immediately on errors, undefined variables, or pipe failures.",
-            lines       = c("#!/bin/bash", "set -euo pipefail", "")
+            lines       = c("set -euo pipefail", "")
         ),
 
         permissions = list(

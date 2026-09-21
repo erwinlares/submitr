@@ -116,11 +116,21 @@ htc_submit <- function(submit_file = "job.sub",
     }
 
     # -- 4. Build SSH command --------------------------------------------------
-    # cd into remote_path first so condor_submit resolves relative paths
-    # in the submit file correctly.
-    # The remote command is single-quoted to prevent the local shell from
-    # expanding ~ before the command reaches the remote server.
-    remote_cmd <- paste0("'cd ", remote_path, " && condor_submit ", submit_file, "'")
+    # cd into remote_path first so condor_submit resolves relative paths in
+    # the submit file correctly.
+    #
+    # Two shells see this command: system2() runs the ssh invocation through
+    # a local shell, and sshd runs the command string through a shell on the
+    # submit node. The inner pieces are quoted for the remote shell, then the
+    # whole command is wrapped as one literal word for the local one, which
+    # is also what keeps the local shell from expanding ~ before the command
+    # is sent. Quoting the pieces rather than typing quotes around them means
+    # a path or filename containing a space, an apostrophe, a dollar sign or
+    # a backtick no longer truncates or alters the command.
+    remote_cmd <- .sh_word(paste0(
+        "cd ", .quote_remote_path(remote_path),
+        " && condor_submit ", .shell_quote(submit_file)
+    ))
 
     ssh_args <- c(
         "-q",
@@ -159,12 +169,15 @@ htc_submit <- function(submit_file = "job.sub",
             "condor_submit failed with exit code {exit_code}.",
             "i" = "Check that all files were uploaded with {.fn htc_upload}",
             " " = "  and that {.val {submit_file}} exists in {.val {remote_path}}.",
-            "x" = "{result}"
+            "x" = .cli_escape(paste(result, collapse = " "))
         ))
     }
 
+    # Remote output is printed verbatim rather than passed through cli, which
+    # would treat any braces in it as inline markup. This also matches how
+    # htc_status() prints the output of condor_q.
     if (verbose && length(result) > 0) {
-        cli::cli_inform(result)
+        cat(result, sep = "\n")
     }
 
     # -- 6. Parse and return cluster ID ----------------------------------------

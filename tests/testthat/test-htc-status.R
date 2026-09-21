@@ -1,7 +1,7 @@
 # tests/testthat/test-htc-status.R
 
 # ---------------------------------------------------------------------------
-# Layer 1 — Argument validation
+# Layer 1 -- Argument validation
 # ---------------------------------------------------------------------------
 
 test_that("htc_status() errors when config is NULL", {
@@ -50,7 +50,7 @@ test_that("htc_status() errors when interval is not a positive integer", {
 })
 
 # ---------------------------------------------------------------------------
-# Layer 2 — Command construction via dry_run
+# Layer 2 -- Command construction via dry_run
 # ---------------------------------------------------------------------------
 
 test_that("htc_status() dry_run produces ssh command", {
@@ -102,13 +102,95 @@ test_that("htc_status() accepts cluster_id as integer", {
 })
 
 # ---------------------------------------------------------------------------
-# Layer 3 — Integration (requires live CHTC connection)
+# .jobs_in_queue() -- the watch loop's termination condition
+#
+# condor_q reports carry numbers that have nothing to do with the cluster
+# being watched: an address and port in the schedd header, and the totals
+# lines at the foot. Because this function decides when the loop exits, a
+# false positive does not produce a wrong answer, it produces a watch loop
+# that never returns.
+# ---------------------------------------------------------------------------
+
+make_condor_q <- function(cluster = "6302860", n_jobs = 1L, totals = TRUE) {
+    header <- c(
+        "",
+        paste0("-- Schedd: ap2002.chtc.wisc.edu : <128.104.101.92:9618?addrs=..",
+               "> @ 09/21/26 14:23:01"),
+        "OWNER BATCH_NAME        SUBMITTED   DONE   RUN    IDLE  TOTAL JOB_IDS"
+    )
+
+    jobs <- if (n_jobs > 0L) {
+        vapply(
+            seq_len(n_jobs) - 1L,
+            function(i) {
+                paste0("lares ID: ", cluster, "   9/21 14:20      _      1      _",
+                       "      1 ", cluster, ".", i)
+            },
+            character(1L)
+        )
+    } else {
+        character(0)
+    }
+
+    foot <- if (totals) {
+        c(
+            "",
+            paste0("Total for query: ", n_jobs, " jobs; 0 completed, 0 removed, ",
+                   "0 idle, ", n_jobs, " running, 0 held, 0 suspended"),
+            paste0("Total for lares: ", n_jobs, " jobs; 0 completed, 0 removed, ",
+                   "0 idle, ", n_jobs, " running, 0 held, 0 suspended"),
+            paste0("Total for all users: 3402 jobs; 1 completed, 0 removed, ",
+                   "3200 idle, 200 running, 1 held, 0 suspended")
+        )
+    } else {
+        character(0)
+    }
+
+    c(header, jobs, foot)
+}
+
+test_that(".jobs_in_queue() counts jobs from the Total for query line", {
+    expect_equal(.jobs_in_queue(make_condor_q(n_jobs = 1L), "6302860"), 1L)
+    expect_equal(.jobs_in_queue(make_condor_q(n_jobs = 7L), "6302860"), 7L)
+})
+
+test_that(".jobs_in_queue() returns 0 once the cluster has left the queue", {
+    expect_equal(.jobs_in_queue(make_condor_q(n_jobs = 0L), "6302860"), 0L)
+})
+
+test_that(".jobs_in_queue() ignores digits belonging to the totals lines", {
+    # A substring search would match 3402 or 3200 in the all-users summary
+    # and keep polling forever.
+    empty <- make_condor_q(n_jobs = 0L)
+    expect_equal(.jobs_in_queue(empty, "3402"), 0L)
+    expect_equal(.jobs_in_queue(empty, "3200"), 0L)
+    expect_equal(.jobs_in_queue(empty, "9618"), 0L)
+})
+
+test_that(".jobs_in_queue() falls back to JOB_IDS when there is no totals line", {
+    out <- make_condor_q(n_jobs = 2L, totals = FALSE)
+    expect_equal(.jobs_in_queue(out, "6302860"), 2L)
+})
+
+test_that(".jobs_in_queue() fallback anchors on the process separator", {
+    # Cluster 6302 must not match job 63021.0, which belongs to cluster 63021.
+    out <- make_condor_q(cluster = "63021", n_jobs = 1L, totals = FALSE)
+    expect_equal(.jobs_in_queue(out, "6302"), 0L)
+    expect_equal(.jobs_in_queue(out, "63021"), 1L)
+})
+
+test_that(".jobs_in_queue() treats empty output as an empty queue", {
+    expect_equal(.jobs_in_queue(character(0), "6302860"), 0L)
+})
+
+# ---------------------------------------------------------------------------
+# Layer 3 -- Integration (requires live CHTC connection)
 # ---------------------------------------------------------------------------
 
 test_that("htc_status() returns condor_q output as character vector", {
     skip_if_not(
         nchar(Sys.getenv("CHTC_USERNAME")) > 0,
-        "CHTC_USERNAME not set — skipping integration test"
+        "CHTC_USERNAME not set -- skipping integration test"
     )
     cfg <- list(
         username = Sys.getenv("CHTC_USERNAME"),

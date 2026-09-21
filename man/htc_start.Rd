@@ -8,7 +8,9 @@ htc_start(...)
 }
 \arguments{
 \item{...}{Arguments passed to \code{\link[=htc_config]{htc_config()}}. Common arguments
-include \code{username}, \code{server}, \code{path}, and \code{overwrite}.}
+include \code{username}, \code{server}, \code{path}, \code{overwrite}, and
+\code{check_server}, the last of which turns off the SSH reachability
+probe for scripted or unattended use.}
 }
 \value{
 Invisibly returns the config list (same as \code{\link[=htc_config]{htc_config()}}).

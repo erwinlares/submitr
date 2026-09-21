@@ -67,7 +67,7 @@ test_that("htc_start() stores config in options", {
 
     withr::local_options(submitr.config = NULL)
 
-    suppressMessages(htc_start(path = tmp))
+    suppressMessages(htc_start(path = tmp, check_server = FALSE))
 
     stored <- getOption("submitr.config")
     expect_false(is.null(stored))
@@ -81,8 +81,7 @@ test_that("htc_start() returns config invisibly", {
     writeLines(cfg_content, file.path(tmp, "htc.cfg"))
 
     withr::local_options(submitr.config = NULL)
-
-    result <- suppressMessages(htc_start(path = tmp))
+    result <- suppressMessages(htc_start(path = tmp, check_server = FALSE))
 
     expect_equal(result$username, "testuser")
     expect_equal(result$server, "testserver.edu")
@@ -94,9 +93,8 @@ test_that("htc_start() prints a success message", {
     writeLines(cfg_content, file.path(tmp, "htc.cfg"))
 
     withr::local_options(submitr.config = NULL)
-
     expect_message(
-        htc_start(path = tmp),
+        htc_start(path = tmp, check_server = FALSE),
         regexp = "Session started"
     )
 })

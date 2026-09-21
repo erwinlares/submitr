@@ -170,3 +170,106 @@
         file.path(output, file)
     }
 }
+
+
+#' Quote a string as a single POSIX shell word
+#'
+#' Internal helper. Wraps `x` in single quotes, which a POSIX shell treats as
+#' entirely literal: no parameter expansion, no command substitution, no
+#' globbing, no escape processing. An embedded single quote is handled with
+#' the idiom of closing the quoted run, supplying a quote from inside a
+#' double-quoted pair, and reopening, so that `a'b` becomes `'a'"'"'b'`.
+#'
+#' This deliberately does not call [shQuote()]. `shQuote()` chooses between
+#' single and double quotes depending on whether its input contains an
+#' apostrophe, and its dialect follows the platform R is running on. Both are
+#' sensible for quoting a local command and both are wrong here. The far side
+#' of an SSH connection is a POSIX shell whatever the researcher's laptop
+#' runs, and submitr quotes each command twice, once for the remote shell and
+#' once for the local one, so a strategy that varies with its own input
+#' composes with itself in ways that have to be reasoned about case by case.
+#' Single quotes always, with one escape idiom, does not.
+#'
+#' The idiom also avoids a backslash, which keeps the `gsub()` replacement
+#' below free of escape-processing ambiguity.
+#'
+#' @param x A character string.
+#'
+#' @return A character string: `x` as one literal POSIX shell word.
+#'
+#' @keywords internal
+.sh_word <- function(x) {
+    paste0("'", gsub("'", "'\"'\"'", x, fixed = TRUE), "'")
+}
+
+
+#' Quote a string for a shell, but only when it needs quoting
+#'
+#' Internal helper. Quoting every argument is correct but makes `dry_run`
+#' output noisy for the ordinary case: a reader checking the command before
+#' running it should see `condor_submit job.sub`, not
+#' `condor_submit 'job.sub'`. This quotes only strings containing a character
+#' a shell would interpret, so the common case is byte-for-byte what submitr
+#' produced before quoting existed, while an awkward name such as
+#' `Erwin's analysis.sub` still survives intact.
+#'
+#' @param x A character string.
+#'
+#' @return A character string, quoted if necessary.
+#'
+#' @keywords internal
+.shell_quote <- function(x) {
+    if (grepl("^[A-Za-z0-9._/@:+-]+$", x)) x else .sh_word(x)
+}
+
+
+#' Quote a remote path while leaving a leading tilde expandable
+#'
+#' Internal helper. Remote paths reach the submit node through two shells:
+#' `system2()` runs the `ssh` invocation through a local shell, and `sshd`
+#' runs the command string through a shell on the far end. A leading `~` has
+#' to survive the first unexpanded and then be expanded by the second, so it
+#' cannot simply be handed to `shQuote()`: inside single quotes a tilde is a
+#' literal character, and `cd '~/'` fails.
+#'
+#' The fix is to hold the tilde outside the quotes and quote only what
+#' follows. A shell concatenates adjacent quoted and unquoted fragments into
+#' a single word, so `~/'my data/'` reaches `cd` as one argument, with the
+#' tilde expanded and the space preserved.
+#'
+#' @param path A character string. A remote directory, possibly beginning
+#'   with `~` or `~user`.
+#'
+#' @return A character string safe to interpolate into a remote command.
+#'
+#' @keywords internal
+.quote_remote_path <- function(path) {
+    if (!grepl("^~", path)) {
+        return(.shell_quote(path))
+    }
+
+    prefix <- sub("^(~[^/]*/?).*$", "\\1", path)
+    rest   <- substring(path, nchar(prefix) + 1L)
+
+    if (nchar(rest) == 0L) prefix else paste0(prefix, .shell_quote(rest))
+}
+
+
+#' Escape braces so cli renders text literally
+#'
+#' Internal helper. `cli` treats `{` and `}` in a message as inline markup
+#' and evaluates what sits between them. That is exactly wrong for text
+#' arriving from somewhere else, such as the output of a remote command: an
+#' HTCondor error mentioning a ClassAd expression in braces would be
+#' evaluated rather than displayed, and at best produce a confusing error
+#' about an object that does not exist. Doubling the braces makes `cli`
+#' print them verbatim.
+#'
+#' @param x A character vector.
+#'
+#' @return A character vector with braces doubled.
+#'
+#' @keywords internal
+.cli_escape <- function(x) {
+    gsub("}", "}}", gsub("{", "{{", x, fixed = TRUE), fixed = TRUE)
+}

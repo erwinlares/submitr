@@ -129,10 +129,13 @@ htc_status <- function(cluster_id = NULL,
     }
 
     # -- 4. Build SSH command --------------------------------------------------
+    # cluster_id is already validated as digits only, so nothing here can
+    # need quoting; the command is wrapped anyway so that both remote-command
+    # sites in the package are built the same way.
     remote_cmd <- if (!is.null(cluster_id)) {
-        paste0("'condor_q ", cluster_id, "'")
+        .sh_word(paste0("condor_q ", cluster_id))
     } else {
-        "'condor_q'"
+        .sh_word("condor_q")
     }
 
     ssh_args <- c(
@@ -179,7 +182,7 @@ htc_status <- function(cluster_id = NULL,
             cli::cli_abort(c(
                 "condor_q failed with exit code {exit_code}.",
                 "i" = "Check your connection to {.val {config$server}}.",
-                "x" = "{result}"
+                "x" = .cli_escape(paste(result, collapse = " "))
             ))
         }
 
@@ -201,7 +204,7 @@ htc_status <- function(cluster_id = NULL,
         cat(format(Sys.time(), "\n[%Y-%m-%d %H:%M:%S]\n"))
         output <- .poll()
 
-        if (!any(grepl(cluster_id, output, fixed = TRUE))) {
+        if (.jobs_in_queue(output, cluster_id) == 0L) {
             cli::cli_alert_success(
                 "All jobs in cluster {.val {cluster_id}} have left the queue."
             )
@@ -210,4 +213,56 @@ htc_status <- function(cluster_id = NULL,
 
         Sys.sleep(interval)
     }
+}
+
+
+#' Count the jobs a condor_q report still shows for a cluster
+#'
+#' Internal helper used by `htc_status(watch = TRUE)` to decide when to stop
+#' polling.
+#'
+#' The obvious test, searching the report for the cluster ID as a substring,
+#' is not safe. `condor_q` always prints a schedd header carrying an address,
+#' a port and a timestamp, and closes with summary lines such as
+#' `Total for all users: 3402 jobs; ...`. Digits from any of those can
+#' coincide with the cluster ID, and because the test drives the loop's exit,
+#' a false match does not produce a wrong answer -- it produces a watch loop
+#' that never returns.
+#'
+#' The report's own `Total for query:` line is a direct answer instead. The
+#' remote command is `condor_q <cluster_id>`, so the query is this cluster,
+#' and the count is the number of its jobs still in the queue. If that line
+#' is missing, the fallback matches the cluster ID anchored to the `.` that
+#' separates it from the process number, which restricts it to the `JOB_IDS`
+#' column (`6302860.0`) rather than the report at large.
+#'
+#' @param output A character vector. The lines returned by `condor_q`.
+#' @param cluster_id A character string. The cluster being watched.
+#'
+#' @return An integer count of jobs still in the queue.
+#'
+#' @keywords internal
+.jobs_in_queue <- function(output, cluster_id) {
+
+    if (length(output) == 0L) {
+        return(0L)
+    }
+
+    total_line <- grep("Total for query:", output, value = TRUE, fixed = TRUE)
+
+    if (length(total_line) > 0L) {
+        n <- sub(
+            ".*Total for query:[[:space:]]*([0-9]+)[[:space:]]+job.*",
+            "\\1",
+            total_line[[1]]
+        )
+        if (grepl("^[0-9]+$", n)) {
+            return(as.integer(n))
+        }
+    }
+
+    sum(grepl(
+        paste0("(^|[[:space:]])", cluster_id, "\\."),
+        output
+    ))
 }

@@ -21,7 +21,9 @@
 #' for example, in a new R session -- does not discard it.
 #'
 #' @param ... Arguments passed to [htc_config()]. Common arguments
-#'   include `username`, `server`, `path`, and `overwrite`.
+#'   include `username`, `server`, `path`, `overwrite`, and
+#'   `check_server`, the last of which turns off the SSH reachability
+#'   probe for scripted or unattended use.
 #'
 #' @return Invisibly returns the config list (same as [htc_config()]).
 #'

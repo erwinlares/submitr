@@ -18,9 +18,28 @@
 #'   directory).
 #' @param overwrite Logical. If `TRUE`, recreates `htc.cfg` even if one
 #'   already exists. Defaults to `FALSE`.
+#' @param check_server Logical. If `TRUE`, opens a short SSH connection to
+#'   `server` to report whether it is reachable before you rely on the
+#'   config. Defaults to the `submitr.check_server` option, which is itself
+#'   `TRUE` unless you set it otherwise. Set to `FALSE` in scripts, test
+#'   suites, and anywhere else the probe has no audience -- reading a config
+#'   file then costs nothing and touches no network.
 #'
 #' @return A named list with elements `username` and `server`, returned
 #'   invisibly.
+#'
+#' @section Options:
+#' Two options adjust how much `htc_config()` does on your behalf. Both
+#' default to `TRUE`, and both are most useful set once for a whole session
+#' or test suite rather than per call.
+#'
+#' `submitr.verbose` controls the progress messages ("Reading HTC config
+#' from ...", "Checking connectivity to ..."). Setting it to `FALSE` leaves
+#' warnings and errors intact.
+#'
+#' `submitr.check_server` controls the reachability probe described under
+#' `check_server` above. The argument takes precedence when supplied, so the
+#' option sets the default and a call can still override it.
 #'
 #' @section SSH connection reuse:
 #' Each call to `htc_upload()`, `htc_submit()`, `htc_status()`, or
@@ -74,14 +93,22 @@
 #' # Force recreation of htc.cfg
 #' cfg <- htc_config(overwrite = TRUE)
 #'
+#' # Read the config without probing the server, e.g. in a script or on CI
+#' cfg <- htc_config(check_server = FALSE)
+#'
+#' # Or turn the probe off for a whole session
+#' options(submitr.check_server = FALSE)
+#'
 #' # Use in other functions
 #' htc_upload(files = c("job.sub", "job.sh"), config = cfg)
 #' }
 
-htc_config <- function(username  = NULL,
-                       server    = NULL,
-                       path      = ".",
-                       overwrite = FALSE) {
+htc_config <- function(username     = NULL,
+                       server       = NULL,
+                       path         = ".",
+                       overwrite    = FALSE,
+                       check_server = getOption("submitr.check_server",
+                                                default = TRUE)) {
 
     cfg_path <- file.path(path, "htc.cfg")
 
@@ -97,14 +124,16 @@ htc_config <- function(username  = NULL,
             ))
         }
 
-        if (verbose <- getOption("htc_config_verbose", default = TRUE)) {
+        if (getOption("submitr.verbose", default = TRUE)) {
             cli::cli_inform(
                 "Reading HTC config from {.file {cfg_path}}"
             )
         }
 
         cfg <- list(username = cfg$username, server = cfg$server)
-        .htc_check_server(cfg)
+        if (check_server) {
+            .htc_check_server(cfg)
+        }
         return(invisible(cfg))
     }
 
@@ -178,7 +207,9 @@ htc_config <- function(username  = NULL,
     .htc_add_to_gitignore("htc.cfg", gitignore_path)
 
     # -- 6. Validate server reachability ---------------------------------------
-    .htc_check_server(cfg)
+    if (check_server) {
+        .htc_check_server(cfg)
+    }
 
     invisible(cfg)
 }
@@ -190,7 +221,7 @@ htc_config <- function(username  = NULL,
 .htc_check_server <- function(cfg) {
     if (is.null(cfg$username) || is.null(cfg$server)) return(invisible(NULL))
 
-    if (verbose <- getOption("htc_config_verbose", default = TRUE)) {
+    if (getOption("submitr.verbose", default = TRUE)) {
         cli::cli_inform("Checking connectivity to {.val {cfg$server}}...")
     }
 

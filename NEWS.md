@@ -58,7 +58,63 @@
   directory; the rest default to `"."`. Non-default directories must match
   across the five.
 
+* `htc_config()` gains a `check_server` argument controlling whether it
+  opens an SSH connection to report the server's reachability. It previously
+  did so unconditionally, which meant that merely reading a config file
+  required a network, and that scripts, test suites and `R CMD check` all
+  paid for a probe with no one to read it. The argument defaults to the new
+  `submitr.check_server` option, so it can be set once for a session or a
+  CI job rather than passed at every call, and `htc_start()` accepts it
+  through `...`.
+
+* The option controlling `htc_config()`'s progress messages is renamed from
+  `htc_config_verbose` to `submitr.verbose`, matching the namespacing of
+  `submitr.config` and `submitr.check_server`. It was undocumented, so this
+  is unlikely to affect anyone; both options are now documented under
+  `?htc_config`.
+
 ### Bug fixes
+
+* `htc_gen_executable()` now always writes `#!/bin/bash` as the first line of
+  the generated script. With `comments = TRUE` the shebang section's
+  explanatory comment was written ahead of it, putting `#!/bin/bash` on line
+  two, where the kernel does not look for it. The script would then run under
+  whatever shell happened to invoke it rather than the one it asked for. The
+  section is now split so that the shebang carries no comment of its own and
+  the comment sits with `set -euo pipefail`, which is what it was describing
+  all along.
+
+* `htc_status(watch = TRUE)` now decides when to stop polling by reading the
+  job count from `condor_q`'s own `Total for query:` line, falling back to
+  matching the cluster ID against the `JOB_IDS` column. It previously searched
+  the whole report for the cluster ID as a substring, which could match the
+  address or port in the schedd header, or a count in the `Total for all
+  users:` line. Because that test drives the loop's exit, a false match did
+  not give a wrong answer, it left the loop polling forever.
+
+* `htc_submit()` now quotes `remote_path` and `submit_file` for the remote
+  shell rather than typing quote characters around the assembled command. A
+  filename or path containing a space or an apostrophe previously truncated
+  the command at that character, producing a shell syntax error or, in the
+  worst case, running the remainder as separate commands. A leading `~` is
+  held outside the quoting so that the remote shell still expands it.
+
+* Remote commands in `htc_submit()` and `htc_status()` are assembled with a
+  single POSIX quoting idiom rather than `shQuote()`. This is not a fix for
+  a known failure: `shQuote()` was checked and does escape a dollar sign
+  when it switches to double quotes, so the previous arrangement held. It
+  was, though, relying on a choice `shQuote()` makes from its own input and
+  on a dialect that follows the platform R is running on, neither of which
+  suits a command destined for the POSIX shell at the far end of an SSH
+  connection and quoted twice on the way there. Quoting is now the same
+  whatever the input and whatever the local platform.
+
+* `htc_submit()` prints `condor_submit` output with `cat()` rather than
+  passing it to `cli`, which treats braces in a message as inline markup and
+  would try to evaluate anything an HTCondor message happened to wrap in
+  them. Error details from both `htc_submit()` and `htc_status()` are escaped
+  for the same reason. This also matches how `htc_status()` already printed
+  `condor_q` output.
 
 * `htc_gen_submit()` now prepends `docker://` to `container_image` if the
   prefix is missing. Previously, omitting the prefix caused HTCondor to

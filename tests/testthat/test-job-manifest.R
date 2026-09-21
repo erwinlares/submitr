@@ -643,6 +643,7 @@ test_that("htc_start() does not clear an existing job manifest", {
     withr::local_dir(tmp)
     withr::local_options(submitr.config = NULL)
 
+
     # Simulate a manifest left over from an earlier session, e.g. one that
     # ended (or crashed) after htc_gen_submit()/htc_gen_executable() but
     # before htc_download().
@@ -651,7 +652,7 @@ test_that("htc_start() does not clear an existing job manifest", {
     writeLines("username: testuser\nserver: testserver.edu\n",
                file.path(tmp, "htc.cfg"))
 
-    suppressMessages(htc_start(path = tmp))
+    suppressMessages(htc_start(path = tmp, check_server = FALSE))
 
     m <- .get_manifest()
     expect_equal(m$cluster_id, "old_job")

@@ -1,7 +1,7 @@
 # tests/testthat/test-htc-submit.R
 
 # ---------------------------------------------------------------------------
-# Layer 1 — Argument validation
+# Layer 1 -- Argument validation
 # ---------------------------------------------------------------------------
 
 test_that("htc_submit() errors when config is NULL", {
@@ -34,7 +34,7 @@ test_that("htc_submit() errors when submit_file does not end in .sub", {
 })
 
 # ---------------------------------------------------------------------------
-# Layer 2 — Command construction via dry_run
+# Layer 2 -- Command construction via dry_run
 # ---------------------------------------------------------------------------
 
 test_that("htc_submit() dry_run produces ssh command", {
@@ -111,6 +111,125 @@ test_that("htc_submit() dry_run returns invisible NULL", {
 })
 
 # ---------------------------------------------------------------------------
+# Remote command quoting
+#
+# Two shells see the remote command: system2() runs the ssh invocation
+# through a local shell, and sshd runs the command string through a shell on
+# the submit node. A leading tilde has to survive the first unexpanded and be
+# expanded by the second, which is why it cannot simply be passed through
+# shQuote().
+# ---------------------------------------------------------------------------
+
+test_that(".shell_quote() leaves ordinary filenames untouched", {
+    expect_equal(.shell_quote("job.sub"), "job.sub")
+    expect_equal(.shell_quote("analysis-2026.sub"), "analysis-2026.sub")
+    expect_equal(.shell_quote("sub/dir/job.sub"), "sub/dir/job.sub")
+})
+
+test_that(".sh_word() wraps a plain string in single quotes", {
+    expect_equal(.sh_word("job.sub"),  "'job.sub'")
+    expect_equal(.sh_word("my job"),   "'my job'")
+    expect_equal(.sh_word("$HOME"),    "'$HOME'")
+    expect_equal(.sh_word("`whoami`"), "'`whoami`'")
+})
+
+test_that(".sh_word() closes and reopens around an embedded apostrophe", {
+    # a'b becomes 'a'"'"'b', which a POSIX shell reads back as the single
+    # word a'b. The idiom avoids a backslash, so there is no escape
+    # processing to reason about on either the R or the shell side.
+    expect_equal(.sh_word("a'b"), "'a'\"'\"'b'")
+    expect_equal(.sh_word("'"),   "''\"'\"''")
+})
+
+test_that(".sh_word() output is one word however many specials it holds", {
+    nasty <- "a'b$c`d e.sub"
+    quoted <- .sh_word(nasty)
+    expect_true(startsWith(quoted, "'"))
+    expect_true(endsWith(quoted, "'"))
+    # Every apostrophe in the payload is carried by the "'" escape, so no
+    # bare apostrophe can terminate the quoting early.
+    expect_false(grepl("[^\"]'[^\"]", substr(quoted, 2, nchar(quoted) - 1)))
+})
+
+test_that(".shell_quote() quotes anything a shell would interpret", {
+    expect_equal(.shell_quote("my job.sub"),  .sh_word("my job.sub"))
+    expect_equal(.shell_quote("job;rm.sub"),  .sh_word("job;rm.sub"))
+    expect_equal(.shell_quote("Erwin's.sub"), .sh_word("Erwin's.sub"))
+    expect_equal(.shell_quote("job$x.sub"),   .sh_word("job$x.sub"))
+})
+
+test_that(".quote_remote_path() leaves a bare tilde path expandable", {
+    expect_equal(.quote_remote_path("~/"), "~/")
+    expect_equal(.quote_remote_path("~"),  "~")
+})
+
+test_that(".quote_remote_path() does not quote an ordinary tilde path", {
+    expect_equal(.quote_remote_path("~/projects/penguins/"),
+                 "~/projects/penguins/")
+    expect_equal(.quote_remote_path("~lares/jobs/"), "~lares/jobs/")
+})
+
+test_that(".quote_remote_path() keeps the tilde outside the quotes", {
+    # Quoting the whole path would make the tilde literal and cd '~/' fails.
+    # Adjacent quoted and unquoted fragments concatenate into one word, so
+    # ~/'my data/' reaches cd as a single expanded argument.
+    expect_equal(.quote_remote_path("~/my data/"),
+                 paste0("~/", .sh_word("my data/")))
+})
+
+test_that(".quote_remote_path() quotes an absolute path with a space", {
+    expect_equal(.quote_remote_path("/scratch/my data/"),
+                 .sh_word("/scratch/my data/"))
+})
+
+test_that(".cli_escape() doubles braces so cli prints them literally", {
+    expect_equal(.cli_escape("ERROR: {Requirements}"), "ERROR: {{Requirements}}")
+    expect_equal(.cli_escape("no braces here"), "no braces here")
+})
+
+test_that("htc_submit() dry_run is unchanged for ordinary arguments", {
+    # Quoting engages only where it is needed, so the command a reader checks
+    # before running reads exactly as it did before quoting existed.
+    cfg <- list(username = "lares", server = "ap2002.chtc.wisc.edu")
+    msg <- capture_messages(
+        htc_submit(submit_file = "job.sub", config = cfg, dry_run = TRUE)
+    )
+    expect_true(any(grepl("'cd ~/ && condor_submit job.sub'", msg, fixed = TRUE)))
+})
+
+test_that("htc_submit() dry_run keeps a submit file with a space in one piece", {
+    cfg <- list(username = "lares", server = "ap2002.chtc.wisc.edu")
+    msg <- capture_messages(
+        htc_submit(submit_file = "my analysis.sub", config = cfg, dry_run = TRUE)
+    )
+    expect_true(grepl("'my analysis.sub'", paste(msg, collapse = " "), fixed = TRUE))
+})
+
+test_that("an apostrophe in the submit file cannot terminate the quoting", {
+    hostile <- "x'; echo nope; echo '.sub"
+    quoted  <- .shell_quote(hostile)
+
+    expect_equal(quoted, .sh_word(hostile))
+    expect_false(identical(quoted, hostile))
+    # The dangerous reading is the command separator escaping the quoted run.
+    expect_false(grepl("^'x'; echo", quoted))
+})
+
+test_that("htc_submit() dry_run neutralises a separator inside the filename", {
+    cfg <- list(username = "lares", server = "ap2002.chtc.wisc.edu")
+    msg <- capture_messages(
+        htc_submit(
+            submit_file = "x'; echo nope; echo '.sub",
+            config      = cfg,
+            dry_run     = TRUE
+        )
+    )
+    cmd <- paste(msg, collapse = " ")
+    expect_false(grepl("condor_submit x'; echo", cmd, fixed = TRUE))
+    expect_false(grepl("condor_submit x';", cmd, fixed = TRUE))
+})
+
+# ---------------------------------------------------------------------------
 # Layer 2b -- job manifest recording
 # ---------------------------------------------------------------------------
 
@@ -177,13 +296,13 @@ test_that("htc_submit() appends to the manifest without disturbing job metadata"
 })
 
 # ---------------------------------------------------------------------------
-# Layer 3 — Integration (requires live CHTC connection)
+# Layer 3 -- Integration (requires live CHTC connection)
 # ---------------------------------------------------------------------------
 
 test_that("htc_submit() submits a job and returns a cluster ID", {
     skip_if_not(
         nchar(Sys.getenv("CHTC_USERNAME")) > 0,
-        "CHTC_USERNAME not set — skipping integration test"
+        "CHTC_USERNAME not set -- skipping integration test"
     )
     cfg <- list(
         username = Sys.getenv("CHTC_USERNAME"),
