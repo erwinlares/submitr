@@ -49,10 +49,13 @@ used in \code{containr::generate_dockerfile()}. Defaults to \code{"/home"}.}
 
 \item{mode}{A character string. Execution mode. \code{"single"} (the default)
 runs the R script with only the data file arguments (if any),
-producing a single fixed-name results tarball. \code{"multiple"} also
+producing a tarball named after the script alone. \code{"multiple"} also
 passes the subset filename as the first positional argument via
-\verb{$\{1\}}, producing a per-job tarball named \verb{$\{1\}-results.tar.gz}.
-Must match the \code{mode} used in \code{\link[=htc_gen_submit]{htc_gen_submit()}}.}
+\verb{$\{1\}}, producing a per-job tarball that adds the subset's own stem,
+so \code{analysis.R} over \code{adelie.csv} gives
+\code{analysis-adelie-results.tar.gz}. Must match the \code{mode} used in
+\code{\link[=htc_gen_submit]{htc_gen_submit()}}, which has to declare the same name in
+\code{transfer_output_files}.}
 
 \item{set_executable}{Logical. If \code{TRUE}, sets executable permissions on
 the generated script via \code{Sys.chmod()} so the file is ready to copy to
@@ -85,7 +88,7 @@ Called for its side effects. Writes a bash script to
 \description{
 \code{htc_gen_executable()} writes a ready-to-use bash script (\code{.sh}) that
 HTCondor runs inside the container for each job. The script changes to
-HTCondor's writable scratch directory, creates a results folder, runs
+HTCondor's writable scratch directory, creates an output folder, runs
 the R script via \code{Rscript} using absolute paths to the baked-in files,
 and compresses the results into a tarball for transfer back to the
 submit node.
@@ -101,12 +104,12 @@ path (e.g. \code{Rscript /home/analysis.R}) so the script is found
 regardless of the working directory.
 
 \strong{Writing} -- the script changes to HTCondor's scratch directory
-(\verb{_CONDOR_SCRATCH_DIR}) before creating the results folder. This
+(\verb{_CONDOR_SCRATCH_DIR}) before creating the output folder. This
 directory is writable and is where HTCondor looks for
-\code{transfer_output_files}. The R script writes outputs to \code{"results/"}
+\code{transfer_output_files}. The R script writes outputs to \code{"output/"}
 using a relative path, which resolves to the scratch directory.
 
-This separation means the R script stays portable -- \code{"results/"} works
+This separation means the R script stays portable -- \code{"output/"} works
 in RStudio, in \verb{quarto render}, and on HTCondor -- while the \code{.sh}
 script handles the HTCondor-specific directory setup.
 }
@@ -134,14 +137,14 @@ input_file <- switch(context,
 \examples{
 # Single-job executable script with baked-in data
 htc_gen_executable(
-  r_script   = "analysis.R",
+  r_script   = "R/analysis.R",
   data_files = "data-raw/sample.csv",
   output     = tempdir()
 )
 
 # Multiple-job executable script
 htc_gen_executable(
-  r_script = "analysis.R",
+  r_script = "R/analysis.R",
   mode     = "multiple",
   output   = tempdir()
 )
@@ -149,7 +152,7 @@ htc_gen_executable(
 # Custom names with annotations
 htc_gen_executable(
   output_file = "run.sh",
-  r_script    = "run-analysis.R",
+  r_script    = "R/run-analysis.R",
   data_files  = c("data-raw/train.csv", "data-raw/test.csv"),
   comments    = TRUE,
   verbose     = TRUE,

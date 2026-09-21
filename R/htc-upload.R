@@ -45,8 +45,9 @@
 #' ```r
 #' cfg <- htc_config()
 #'
-#' htc_gen_submit(executable = "job.sh", input_files = "analysis.R")
-#' htc_gen_executable(r_script = "analysis.R")
+#' htc_gen_submit(executable = "job.sh", r_script = "R/analysis.R",
+#'                input_files = "R/analysis.R")
+#' htc_gen_executable(r_script = "R/analysis.R")
 #'
 #' htc_upload(config = cfg)
 #'
@@ -83,8 +84,9 @@
 #' cfg <- htc_config()
 #'
 #' # Resolve files automatically from the job manifest
-#' htc_gen_submit(executable = "job.sh", input_files = "analysis.R")
-#' htc_gen_executable(r_script = "analysis.R")
+#' htc_gen_submit(executable = "job.sh", r_script = "R/analysis.R",
+#'                input_files = "R/analysis.R")
+#' htc_gen_executable(r_script = "R/analysis.R")
 #' htc_upload(config = cfg)
 #'
 #' # Upload a single file

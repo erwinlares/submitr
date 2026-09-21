@@ -62,7 +62,7 @@
 #' - Log files: `"{cluster_id}-0-job.log"`, `".err"`, `".out"`
 #'
 #' For a multiple-mode job:
-#' - Per-subset tarballs (e.g. `"adelie.csv-results.tar.gz"`)
+#' - Per-subset tarballs (e.g. `"analysis-adelie-results.tar.gz"`)
 #' - Log files for each process: `"{cluster_id}-{0,1,...}-job.log"`, etc.
 #'
 #' @section Workflow:
@@ -116,7 +116,7 @@
 #' htc_download(cluster_id = "6590895")
 #'
 #' # Download specific files using globs
-#' htc_download(files = "*.tar.gz", local_path = "results/")
+#' htc_download(files = "*.tar.gz", local_path = "downloads/")
 #'
 #' # Download logs only
 #' htc_download(files = c("*.log", "*.err", "*.out"), local_path = "logs/")

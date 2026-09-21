@@ -1,6 +1,6 @@
 ---
 title: "From the Notebook to the Cluster: Your First CHTC Job with submitr"
-output: 
+output:
   rmarkdown::html_vignette:
     css: styles.css
 vignette: >
@@ -85,6 +85,14 @@ Used together, the packages support a practical arc: start with a project that
 is easier to understand, make its software environment portable, then send it
 to CHTC with fewer command-line hurdles.
 
+The folder names and path conventions the three packages share are written down
+in
+[CONVENTIONS.md](https://github.com/erwinlares/toolero/blob/main/CONVENTIONS.md),
+in the `toolero` repository. Two of them appear throughout this vignette: a
+derived analysis script lives at `R/analysis.R`, and analysis outputs go in
+`output/`. Following them is what lets one script run unchanged on your laptop
+and on an execute node.
+
 ---
 
 ## What submitr does
@@ -111,7 +119,7 @@ packaging results.
 `submitr` helps you generate those files and then use them:
 
 ```{r}
-submitr::htc_config()         # configure your submit-node connection
+submitr::htc_start()          # configure and store your submit-node connection
 submitr::htc_gen_submit()     # generate the HTCondor submit file
 submitr::htc_gen_executable() # generate the executable shell script
 submitr::htc_upload()         # copy files to the submit node
@@ -119,6 +127,11 @@ submitr::htc_submit()         # submit the job
 submitr::htc_status()         # check progress
 submitr::htc_download()       # copy results back
 ```
+
+Two of those calls take no arguments in a normal workflow. As you go, `submitr`
+records what it has generated in a small file called `htc-manifest.yaml`, and
+`htc_upload()` and `htc_download()` read it to work out which files to move.
+There is a section on that below.
 
 ---
 
@@ -128,14 +141,14 @@ A successful CHTC submission starts before `condor_submit`.
 
 Before using `submitr`, confirm that:
 
-- your R script runs with `Rscript analysis.R` outside RStudio;
+- your R script runs with `Rscript R/analysis.R` outside RStudio;
 - your container image is pushed to a registry CHTC can access;
 - you have SSH access to a CHTC submit node such as `ap2002.chtc.wisc.edu`.
 
 The most important check is simple: your analysis should run outside RStudio.
 
 ```bash
-Rscript analysis.R
+Rscript R/analysis.R
 ```
 
 If that command fails locally, the same analysis is likely to fail on CHTC. Fix
@@ -146,9 +159,9 @@ installed on your laptop.
 **Set up SSH connection reuse now, before anything else.** Every `submitr`
 function that touches CHTC opens an SSH connection, which can trigger a Duo MFA
 prompt. ControlMaster caches your authenticated session so all subsequent
-calls -- uploads, submits, status checks, downloads -- reuse the same
+calls, whether uploads, submits, status checks or downloads, reuse the same
 connection without prompting again. The setup takes two minutes and is worth
-doing before your first `htc_config()` call. Full instructions appear right
+doing before your first `htc_start()` call. Full instructions appear right
 after Step 1.
 
 For a first submission, choose something small and intentionally boring. The
@@ -163,13 +176,14 @@ Suppose your project has this shape:
 
 ```text
 my-analysis/
-├── analysis.R
+├── R/
+│   └── analysis.R
 ├── data.csv
 ├── renv.lock
-└── results/
+└── output/
 ```
 
-Your `analysis.R` script might look like this:
+Your `R/analysis.R` script might look like this:
 
 ```{r}
 library(readr)
@@ -185,39 +199,54 @@ summary <- input |>
     .groups    = "drop"
   )
 
-if (!dir.exists("results")) {
-  dir.create("results")
+if (!dir.exists("output")) {
+  dir.create("output")
 }
 
-write_csv(summary, "results/summary.csv")
+write_csv(summary, "output/summary.csv")
 ```
 
 This script is deliberately modest. A first CHTC job should be easy to inspect.
 Once the small version works, you can scale the pattern with more confidence.
 
+Note the relative path. `"output/"` resolves correctly in RStudio, under
+`quarto render`, and on an execute node, because the generated executable
+script moves to HTCondor's writable scratch directory before calling `Rscript`.
+The script itself never has to know where it is running.
+
 ---
 
 ## Step 1: configure your CHTC connection
 
-Load `submitr` and create a project-level configuration:
+Load `submitr` and start a session:
 
 ```{r}
 library(submitr)
 
-cfg <- htc_config()
+htc_start()
+#> v Session started: "your.netid"@"ap2002.chtc.wisc.edu"
 ```
 
-On first use, `htc_config()` prompts for your NetID and submit node. It writes
+On first use, `htc_start()` prompts for your NetID and submit node. It writes
 an `htc.cfg` file to the project directory so later calls can reuse the same
-connection information, and it displays ControlMaster setup instructions.
+connection information, and it displays ControlMaster setup instructions. It
+then stores the configuration for the rest of the session, which is why none of
+the calls that follow need a `config` argument.
 
 A later call should look something like this:
 
 ```{r}
-cfg <- htc_config()
+htc_start()
 #> Reading HTC config from ./htc.cfg
-#> ✔ Connected to "ap2002.chtc.wisc.edu" as "your.netid".
+#> v Connected to "ap2002.chtc.wisc.edu" as "your.netid".
+#> v Session started: "your.netid"@"ap2002.chtc.wisc.edu"
 ```
+
+That middle line comes from a short SSH connection made to tell you whether the
+server is reachable before you rely on the configuration. It is useful at a
+prompt and pointless in a script, so it can be turned off with
+`check_server = FALSE`, or for a whole session with the
+`submitr.check_server` option.
 
 This configuration file is deliberately project-local. Different projects may
 need different submit nodes, paths, or connection settings.
@@ -244,9 +273,9 @@ mkdir -p ~/.ssh/connections
 
 With ControlMaster in place, all subsequent SSH connections reuse the same
 authenticated session. You authenticate once when the connection is first
-established; everything that follows -- file uploads, job submission, status
-checks, result downloads -- happens without prompting for Duo MFA again. Full
-documentation is at
+established; everything that follows, including file uploads, job submission,
+status checks and result downloads, happens without prompting for Duo MFA
+again. Full documentation is at
 <https://chtc.cs.wisc.edu/uw-research-computing/configure-ssh>.
 
 The rest of this vignette assumes ControlMaster is in place.
@@ -263,8 +292,8 @@ htc_gen_submit(
   output_file     = "analysis.sub",
   container_image = "docker://registry.doit.wisc.edu/your.netid/my-analysis:1.0.0",
   executable      = "analysis.sh",
-  input_files     = c("analysis.R", "data.csv"),
-  output_files    = "results.tar.gz",
+  r_script        = "R/analysis.R",
+  input_files     = c("R/analysis.R", "data.csv"),
   resources       = "small",
   comments        = TRUE,
   output          = "."
@@ -274,6 +303,13 @@ htc_gen_submit(
 For a first submission, keep `comments = TRUE`. The generated file includes
 explanations of the main sections, making it easier to inspect, learn from,
 and share with a collaborator or consultant.
+
+`r_script` is worth a word, because nothing here runs it. `htc_gen_submit()`
+uses it only to work out what to call the results tarball, so that the name
+matches the one `htc_gen_executable()` will tell the job to build. The function
+never opens the executable script and never reads the Dockerfile, so the name
+of your analysis script is genuinely not something it can infer. Supply
+`output_files` yourself if you want a different name.
 
 The `resources` argument uses presets. For a first test, always start with
 `"small"` regardless of what your eventual job will need:
@@ -285,7 +321,7 @@ The `resources` argument uses presets. For a first test, always start with
 | large  | 8    | 64 GB  | 32 GB | memory-intensive work, large datasets |
 
 The HTCondor log file reports actual resource usage after each run. That log
-is the ground truth for tuning future submissions -- not guesswork. Requesting
+is the ground truth for tuning future submissions, not guesswork. Requesting
 too little causes jobs to fail; requesting much more than you need makes jobs
 harder to match with available resources.
 
@@ -298,18 +334,27 @@ commands should run?
 
 ```{r}
 htc_gen_executable(
-  r_script       = "analysis.R",
-  output_file    = "analysis.sh",
-  results_folder = "results",
-  comments       = TRUE
+  r_script    = "R/analysis.R",
+  output_file = "analysis.sh",
+  comments    = TRUE
 )
 ```
 
 The generated script handles a standard sequence:
 
-1. create the results folder;
-2. run the R script with `Rscript`;
-3. archive the results as `results.tar.gz`.
+1. move to HTCondor's writable scratch directory;
+2. create the `output/` folder;
+3. run the R script with `Rscript`, using an absolute path to the copy baked
+   into the container;
+4. archive the folder as `analysis-results.tar.gz`.
+
+That last name is derived from `r_script`, with the directory and extension
+stripped, which is why `R/analysis.R` gives `analysis-results.tar.gz` rather
+than something containing a `R/` that does not exist on the execute node.
+
+Only `output/` itself is created. If your analysis writes to `output/figures/`,
+the R script has to create that subfolder, which `toolero::save_output()` does
+and a bare `ggsave()` does not.
 
 That sequence is not complicated, but it is exactly the kind of glue code that
 can become a barrier for researchers who are new to shell scripts. `submitr`
@@ -322,23 +367,25 @@ writes the standard version so you can focus on the analysis.
 Before copying files to the submit node, do a dry run:
 
 ```{r}
-htc_upload(
-  files   = c("analysis.sub", "analysis.sh", "analysis.R", "data.csv"),
-  config  = cfg,
-  dry_run = TRUE
-)
-#> ✔ Dry run -- command that would be executed:
-#>   `scp analysis.sub analysis.sh analysis.R data.csv your.netid@ap2002.chtc.wisc.edu:~/`
+htc_upload(dry_run = TRUE)
+#> v Dry run -- command that would be executed:
+#>   `scp analysis.sub analysis.sh R/analysis.R your.netid@ap2002.chtc.wisc.edu:~/`
 ```
 
 A dry run is a safety habit. It lets you see the command before it changes
 anything on the remote system. Once the command looks right, upload the files:
 
 ```{r}
-htc_upload(
-  files  = c("analysis.sub", "analysis.sh", "analysis.R", "data.csv"),
-  config = cfg
-)
+htc_upload()
+```
+
+Neither call names any files. `htc_upload()` reads the job manifest that the
+two generators just wrote, and sends the submit file, the executable, and any
+shared input files you declared. You can still pass `files` explicitly, which
+bypasses the manifest entirely:
+
+```{r}
+htc_upload(files = c("analysis.sub", "analysis.sh", "R/analysis.R", "data.csv"))
 ```
 
 ---
@@ -348,17 +395,17 @@ htc_upload(
 ```{r}
 cluster_id <- htc_submit(
   submit_file = "analysis.sub",
-  config      = cfg,
   verbose     = TRUE
 )
 #> Submitting "analysis.sub" on "ap2002.chtc.wisc.edu"...
-#> Submitting job(s)...
 #> 1 job(s) submitted to cluster 6302860.
-#> ✔ Job submitted from "~/analysis.sub" on "ap2002.chtc.wisc.edu".
+#> v Job submitted from "~/analysis.sub" on "ap2002.chtc.wisc.edu".
 ```
 
 The cluster ID is the handle for this submission. Store it in an object so you
-can check the job later without having to look it up.
+can check the job later without having to look it up. `htc_submit()` also
+writes it to the job manifest, along with the remote directory it submitted
+from, so the next two steps can find the job without being told.
 
 ---
 
@@ -366,10 +413,10 @@ can check the job later without having to look it up.
 
 ```{r}
 # One-shot status check
-htc_status(cluster_id = cluster_id, config = cfg)
+htc_status(cluster_id = cluster_id)
 
 # Watch until the job completes
-htc_status(cluster_id = cluster_id, config = cfg, watch = TRUE)
+htc_status(cluster_id = cluster_id, watch = TRUE)
 ```
 
 For a small test job, `watch = TRUE` is useful. For larger workloads,
@@ -380,26 +427,70 @@ occupied.
 
 ## Step 7: download results
 
-When the job is complete, download the result archive and logs:
+When the job is complete:
 
 ```{r}
-# Results
-htc_download(
-  files      = "*.tar.gz",
-  config     = cfg,
-  local_path = "results/"
-)
-
-# Logs
-htc_download(
-  files      = c("job.log", "job.err"),
-  config     = cfg,
-  local_path = "logs/"
-)
+htc_download()
 ```
 
-The logs are not just for failures. They record what happened when the job ran
--- including actual resource usage, which informs future resource requests.
+That single call retrieves the results tarball and the three HTCondor log
+files, `6302860-0-job.log`, `.err` and `.out`. It knows the tarball's name
+because `htc_gen_submit()` recorded it, knows the cluster ID because
+`htc_submit()` recorded it, and knows which remote directory to look in for the
+same reason.
+
+You can still be explicit when you want to be:
+
+```{r}
+htc_download(cluster_id = "6302860")
+htc_download(files = "*.tar.gz", local_path = "downloads/")
+```
+
+The logs are not just for failures. They record what happened when the job ran,
+including actual resource usage, which informs future resource requests.
+
+If your analysis renders a Quarto document, set `embed-resources: true` in its
+YAML header. Both `toolero` templates already do. Without it a rendered `.qmd`
+produces an `.html` file plus a `_files/` directory of supporting assets, and
+only what you named in `output/` comes home; with it the report arrives as a
+single self-contained file.
+
+---
+
+## The job manifest
+
+Steps 4 and 7 took no arguments, and it is worth understanding why, because it
+also explains something that matters when a job runs long.
+
+As you work, `submitr` writes what it learns to `htc-manifest.yaml`, a small
+file that sits in your project beside `htc.cfg`. `htc_gen_submit()` records the
+submit file, the mode and the derived results name. `htc_gen_executable()`
+records the analysis script and the executable it wrote. `htc_submit()` records
+the cluster ID and the remote directory. By the time you reach
+`htc_download()`, the manifest holds everything needed to work out what to ask
+the submit node for.
+
+It is ordinary YAML, and reading it is often the quickest way to see what
+`submitr` thinks the state of your job is:
+
+```yaml
+submit_file: analysis.sub
+executable_file: analysis.sh
+r_script: R/analysis.R
+script_stem: analysis
+mode: single
+output_files: analysis-results.tar.gz
+cluster_id: '6302860'
+remote_path: ~/
+```
+
+The reason it is a file rather than something held in the R session is the
+shape of the work. A job worth sending to CHTC usually takes a while, so you
+submit it one day and collect it another, and somewhere in between you close
+RStudio or your laptop sleeps. Anything held in memory would be gone. Because
+the manifest is on disk, you can restart R, come back on Thursday, call
+`htc_download()` with no arguments, and it still knows what to fetch.
+`htc_start()` leaves it alone for exactly that reason.
 
 ---
 
@@ -419,7 +510,8 @@ htc_gen_submit(
   output_file     = "analysis.sub",
   container_image = "docker://registry.doit.wisc.edu/your.netid/my-analysis:1.0.0",
   executable      = "analysis.sh",
-  input_files     = "analysis.R",
+  r_script        = "R/analysis.R",
+  input_files     = "R/analysis.R",
   mode            = "multiple",
   queue_from      = "data/manifest.csv",
   resources       = "medium",
@@ -427,11 +519,10 @@ htc_gen_submit(
 )
 
 htc_gen_executable(
-  r_script       = "analysis.R",
-  output_file    = "analysis.sh",
-  results_folder = "results",
-  mode           = "multiple",
-  comments       = TRUE
+  r_script    = "R/analysis.R",
+  output_file = "analysis.sh",
+  mode        = "multiple",
+  comments    = TRUE
 )
 ```
 
@@ -447,7 +538,8 @@ data <- readr::read_csv(input_file)
 ```
 
 This is a key pattern. The script stays the same; each job receives a different
-input.
+input. The companion vignette, *Single Jobs vs Multiple Jobs on HTCondor*,
+works through both modes side by side.
 
 ---
 
@@ -462,7 +554,11 @@ analysis.
 `containr` handles that step:
 
 ```{r}
-containr::generate_dockerfile(r_version = "4.4.0", output = ".")
+containr::generate_dockerfile(
+  r_version = "4.4.0",
+  code_file = "R/analysis.R",
+  output    = "."
+)
 containr::build_image(verbose = TRUE)
 
 imgs <- containr::list_images()
@@ -488,14 +584,15 @@ analysis.
 
 Before scaling up, confirm that the small job works end to end:
 
-- The script runs locally with `Rscript analysis.R`.
+- The script runs locally with `Rscript R/analysis.R`.
 - ControlMaster is configured and the session is authenticated.
 - The container image is pushed to a registry CHTC can access.
 - The image tag is explicit, not `"latest"`.
 - The submit file lists the correct executable and input files.
-- The executable script points to the correct R script and results folder.
+- `r_script` is the same in both generator calls, so the tarball the job builds
+  is the one the submit file asks for.
 - The dry-run upload shows the expected files.
-- `htc_config()` connects to the submit node without error.
+- `htc_start()` connects to the submit node without error.
 - The resource request is reasonable for a test job.
 - The job produces logs and a result archive.
 

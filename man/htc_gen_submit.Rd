@@ -156,10 +156,10 @@ The typical workflow is:
 \code{toolero::detect_execution_context()} for data loading.
 \item Split your dataset with \code{toolero::write_by_group(manifest = TRUE)} to
 produce subset CSV files and a \code{manifest.csv}.
-\item Strip \code{analysis.qmd} to \code{analysis.R} with \code{knitr::purl()}.
+\item Strip \code{analysis.qmd} to \code{R/analysis.R} with \code{knitr::purl()}.
 \item Call \code{htc_gen_submit(mode = "multiple", queue_from = "manifest.csv")}
 to produce the submit file and \code{subdatasets.csv}.
-\item Copy \code{analysis.R}, the subset data files, \code{analysis.sub},
+\item Copy \code{R/analysis.R}, the subset data files, \code{analysis.sub},
 \code{analysis.sh}, and \code{subdatasets.csv} to CHTC and submit.
 }
 }
@@ -182,8 +182,8 @@ htc_gen_submit(
   output_file     = "analysis.sub",
   container_image = "docker://registry.doit.wisc.edu/netid/myimage",
   executable      = "analysis.sh",
-  input_files     = "analysis.R",
-  output_files    = "results.tar.gz",
+  r_script        = "R/analysis.R",
+  input_files     = "R/analysis.R",
   resources       = "medium",
   output          = tempdir()
 )

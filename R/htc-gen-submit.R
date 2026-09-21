@@ -111,10 +111,10 @@
 #'    `toolero::detect_execution_context()` for data loading.
 #' 2. Split your dataset with `toolero::write_by_group(manifest = TRUE)` to
 #'    produce subset CSV files and a `manifest.csv`.
-#' 3. Strip `analysis.qmd` to `analysis.R` with `knitr::purl()`.
+#' 3. Strip `analysis.qmd` to `R/analysis.R` with `knitr::purl()`.
 #' 4. Call `htc_gen_submit(mode = "multiple", queue_from = "manifest.csv")`
 #'    to produce the submit file and `subdatasets.csv`.
-#' 5. Copy `analysis.R`, the subset data files, `analysis.sub`,
+#' 5. Copy `R/analysis.R`, the subset data files, `analysis.sub`,
 #'    `analysis.sh`, and `subdatasets.csv` to CHTC and submit.
 #'
 #' @section Resource presets:
@@ -135,8 +135,8 @@
 #'   output_file     = "analysis.sub",
 #'   container_image = "docker://registry.doit.wisc.edu/netid/myimage",
 #'   executable      = "analysis.sh",
-#'   input_files     = "analysis.R",
-#'   output_files    = "results.tar.gz",
+#'   r_script        = "R/analysis.R",
+#'   input_files     = "R/analysis.R",
 #'   resources       = "medium",
 #'   output          = tempdir()
 #' )
@@ -525,7 +525,7 @@ htc_gen_submit <- function(output_file      = "job.sub",
                 if (!is.null(resolved_output_files)) {
                     glue::glue("transfer_output_files = {resolved_output_files}")
                 } else {
-                    "# transfer_output_files = results.tar.gz"
+                    "# transfer_output_files = analysis-results.tar.gz"
                 },
                 ""
             )

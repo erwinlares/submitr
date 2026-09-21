@@ -13,7 +13,7 @@
 ## The problem with the handoff
 
 You have an R analysis that runs on your laptop. Maybe it takes a while. Maybe
-you need to run it many times — once per species, once per county, once per
+you need to run it many times, once per species, once per county, once per
 simulation parameter, once per experimental condition. Maybe both.
 
 CHTC's high-throughput computing infrastructure can run many independent jobs
@@ -30,7 +30,7 @@ results need to come back.
 `submitr` is designed to make that handoff easier. It generates the HTCondor
 submit file, generates the executable script, wraps the SSH and SCP commands
 that move files to and from the submit node, submits the job, checks status,
-and downloads results — all from R.
+and downloads results, all from R.
 
 If you are new to CHTC, `submitr` gives you a guided path to your first
 successful submission. If you already use CHTC, `submitr` reduces repetitive
@@ -82,7 +82,7 @@ You can adopt these packages one at a time. `submitr` does not require
 each step prepares cleanly for the next when your project is ready to scale.
 
 The folder names, path conventions, and shared vocabulary used consistently
-across all three packages are collected in one place --
+across all three packages are collected in one place,
 [CONVENTIONS.md](https://github.com/erwinlares/toolero/blob/main/CONVENTIONS.md),
 maintained in the `toolero` repository, since that is where those conventions
 are authored. Two of them show up throughout this README: analysis outputs go
@@ -97,7 +97,7 @@ execute node.
 `submitr` assumes your project is already organized and containerized. Before
 using it, confirm that:
 
-- your R script runs with `Rscript analysis.R` outside RStudio;
+- your R script runs with `Rscript R/analysis.R` outside RStudio;
 - your container image is pushed to a registry CHTC can access;
 - you have SSH access to a CHTC submit node such as `ap2002.chtc.wisc.edu`.
 
@@ -149,7 +149,7 @@ htc_gen_executable(
 )
 
 # 4. Upload files to the submit node
-#    With no files argument, submitr uploads what the job manifest recorded
+#    With no files argument, submitr sends what the job manifest recorded
 htc_upload()
 
 # 5. Submit the job
@@ -162,6 +162,10 @@ htc_status(cluster_id = cluster_id, watch = TRUE)
 htc_download()
 ```
 
+Steps 4 and 7 take no arguments because submitr keeps track of what it has
+generated. The section on [the job manifest](#the-job-manifest) below explains
+how, and why it still works if you close R between submitting and collecting.
+
 ---
 
 ## Core workflow functions
@@ -170,7 +174,7 @@ htc_download()
 
 `htc_start()` reads your project's `htc.cfg` and stores the connection
 config for the rest of the R session. All subsequent `htc_*()` calls use
-it automatically -- no need to pass `config = cfg` on every call.
+it automatically, with no need to pass `config = cfg` on every call.
 
 ```r
 htc_start()
@@ -203,6 +207,13 @@ cfg <- htc_config()
 #> v Connected to "ap2002.chtc.wisc.edu" as "your.netid".
 ```
 
+That second line comes from a short SSH connection made to tell you whether
+the server is reachable before you rely on the config, which is useful at a
+prompt and pointless in a script. Turn it off with `check_server = FALSE`, or
+for a whole session with the `submitr.check_server` option. A companion
+option, `submitr.verbose`, silences the progress messages while leaving
+warnings and errors intact. Both are documented under `?htc_config`.
+
 ---
 
 ### Setting up SSH connection reuse
@@ -223,8 +234,8 @@ Then create the directory used by `ControlPath`:
 mkdir -p ~/.ssh/connections
 ```
 
-With ControlMaster in place, all subsequent SSH connections — uploads,
-submits, status checks, downloads — reuse the same authenticated session
+With ControlMaster in place, all subsequent SSH connections, whether uploads,
+submits, status checks or downloads, reuse the same authenticated session
 without prompting for Duo MFA. Full documentation is at
 <https://chtc.cs.wisc.edu/uw-research-computing/configure-ssh>.
 
@@ -252,6 +263,11 @@ Use `comments = TRUE` on a first submission. The generated file includes
 explanations of each section, making it useful both as a working submit file
 and as a learning document.
 
+`r_script` is not used to run anything here. It is how the function works out
+what to name the results tarball, so that the name matches the one
+`htc_gen_executable()` tells the job to build. Pass `output_files` yourself if
+you want a different name.
+
 **Resource presets:**
 
 | preset | cpus | memory | disk  | when to use |
@@ -271,8 +287,9 @@ match with available resources. The log is the ground truth.
 ### `htc_gen_executable()`
 
 Generates the `.sh` script that HTCondor runs inside the container. The
-generated script creates the `output/` directory, runs your R script with
-`Rscript`, and archives the results as a `.tar.gz` file.
+generated script changes to HTCondor's scratch directory, creates `output/`,
+runs your R script with `Rscript`, and archives `output/` as a `.tar.gz` for
+transfer back to the submit node.
 
 ```r
 htc_gen_executable(
@@ -282,26 +299,35 @@ htc_gen_executable(
 )
 ```
 
+Only `output/` itself is created. If your analysis writes to `output/figures/`,
+the R script has to create that subfolder, which `toolero::save_output()` does
+and a bare `ggsave()` does not.
+
+With `comments = TRUE`, each section of the generated script is preceded by an
+explanation of the line beneath it. `containr` annotates its Dockerfiles the
+same way round, so a reader moving between the two files reads them the same
+way: explanation first, instruction second.
+
 ---
 
 ### `htc_upload()`
 
-Copies files to the CHTC submit node via `scp`. Use `dry_run = TRUE` to
-preview the command before running it.
+Copies files to the CHTC submit node via `scp`. Called with no `files`
+argument, it sends what the job manifest recorded: the submit file, the
+executable, any shared input files, and in multiple-job mode the subsets and
+their manifest.
 
 ```r
-# Preview first
-htc_upload(
-  files   = c("analysis.sub", "analysis.sh", "analysis.R", "data.csv"),
-  dry_run = TRUE
-)
-#> ✔ Dry run -- command that would be executed:
-#>   `scp analysis.sub analysis.sh analysis.R data.csv your.netid@ap2002.chtc.wisc.edu:~/`
+# Automatic -- uses the job manifest built by the two generators
+htc_upload()
 
-# Then upload
-htc_upload(
-  files  = c("analysis.sub", "analysis.sh", "analysis.R", "data.csv")
-)
+# Preview the command before running it
+htc_upload(dry_run = TRUE)
+#> v Dry run -- command that would be executed:
+#>   `scp analysis.sub analysis.sh R/analysis.R your.netid@ap2002.chtc.wisc.edu:~/`
+
+# Or name the files yourself, which bypasses the manifest entirely
+htc_upload(files = c("analysis.sub", "analysis.sh", "R/analysis.R", "data.csv"))
 ```
 
 ---
@@ -317,8 +343,12 @@ cluster_id <- htc_submit(
 )
 #> Submitting "analysis.sub" on "ap2002.chtc.wisc.edu"...
 #> 1 job(s) submitted to cluster 6302860.
-#> ✔ Job submitted successfully.
+#> v Job submitted successfully.
 ```
+
+The cluster ID and the directory the job was submitted from are both written
+to the job manifest, so neither has to be repeated when you come back to
+collect the results.
 
 ---
 
@@ -340,7 +370,8 @@ htc_status(cluster_id = cluster_id, watch = TRUE)
 ### `htc_download()`
 
 Copies files back from the submit node via `scp`. After a full workflow,
-`htc_download()` knows which files to retrieve automatically:
+`htc_download()` knows which files to retrieve and which remote directory to
+take them from:
 
 ```r
 # Automatic -- uses the job manifest built during the workflow
@@ -350,7 +381,68 @@ htc_download()
 htc_download(cluster_id = "6590895")
 
 # Or specify files directly with glob patterns
-htc_download(files = "*.tar.gz", local_path = "results/")
+htc_download(files = "*.tar.gz", local_path = "downloads/")
+```
+
+For a single job it retrieves the results tarball and the three HTCondor log
+files. For a multiple-job run it retrieves one tarball per subset and one set
+of logs per process.
+
+If your analysis renders a Quarto document, set `embed-resources: true` in its
+YAML header. Both `toolero` templates already do. Without it a rendered `.qmd`
+produces an `.html` file plus a `_files/` directory of supporting assets, and
+only what you named in `output/` comes home; with it the report arrives as a
+single self-contained file. This removes a whole category of "my figures did
+not come back".
+
+---
+
+## The job manifest
+
+Several calls above take no arguments at all, and they are not guessing. As
+you work, submitr writes what it learns to `htc-manifest.yaml`, a small file
+that sits in your project beside `htc.cfg`.
+
+Each step contributes what it knows. `htc_gen_submit()` records the submit
+file, the mode, the derived results name, and in multiple-job mode the list of
+subsets. `htc_gen_executable()` records the analysis script and the executable
+it wrote. `htc_submit()` records the cluster ID HTCondor assigned and the
+remote directory it submitted from. By the time you call `htc_download()`, the
+manifest holds everything needed to work out which files to ask for.
+
+The reason it is a file rather than something held in memory is the shape of
+the work. A CHTC job worth sending to CHTC is usually one that takes a while,
+so you submit it in one sitting and collect it in another, and somewhere in
+between you close RStudio or your laptop sleeps. A manifest that lived only in
+the R session would be gone by then, and with it any chance of `htc_download()`
+knowing what to retrieve. Because it is on disk, restarting R costs you
+nothing, and `htc_start()` leaves it alone.
+
+You can read it at any time. It is ordinary YAML, and looking at it is often
+the quickest way to see what submitr thinks the state of your job is.
+
+```yaml
+submit_file: analysis.sub
+executable_file: analysis.sh
+r_script: R/analysis.R
+script_stem: analysis
+mode: single
+output_files: analysis-results.tar.gz
+cluster_id: '6302860'
+remote_path: ~/
+```
+
+By default the manifest is written to the same directory as the generated
+files, which for the default `output = "."` is your project root. If you
+generate into a subdirectory, pass the same `path` to every function that
+touches the manifest, so that all five are reading and writing the same file:
+
+```r
+htc_gen_submit(r_script = "R/analysis.R", output = "jobs/")
+htc_gen_executable(r_script = "R/analysis.R", output = "jobs/")
+htc_upload(path   = "jobs/")
+htc_submit(submit_file = "analysis.sub", path = "jobs/")
+htc_download(path = "jobs/")
 ```
 
 ---
@@ -391,6 +483,14 @@ input_file <- args[[1]]
 
 data <- readr::read_csv(input_file)
 ```
+
+One thing to watch when you split more than one dataset. Uploaded files land
+in a single flat directory on the access point, so two datasets split on the
+same grouping column produce the same subset filenames and the second set
+overwrites the first. `toolero::write_by_group()` takes a `prefix` argument
+for exactly this reason; use it whenever a project splits more than one
+dataset, and the subset names stay distinct all the way through to the
+tarballs that come back.
 
 ---
 
@@ -438,14 +538,18 @@ something it can work out for itself.
 
 | Function | What it does |
 |---|---|
-| `htc_start()` | Start a session -- reads config and stores it for all calls |
-| `htc_config()` | Create or read `htc.cfg`, validate connection |
+| `htc_start()` | Start a session, reading config and storing it for all calls |
+| `htc_config()` | Create or read `htc.cfg`, optionally checking the server |
 | `htc_gen_submit()` | Generate the HTCondor `.sub` submit file |
 | `htc_gen_executable()` | Generate the `.sh` executable script |
 | `htc_upload()` | Copy files to the submit node via `scp` |
 | `htc_submit()` | Run `condor_submit` on the submit node |
 | `htc_status()` | Check job progress via `condor_q` |
 | `htc_download()` | Copy results back from the submit node |
+
+`htc_upload()` and `htc_download()` can be called with no arguments once the
+two generators have run. All five of the functions that read or write the job
+manifest take a `path` argument naming the directory it lives in.
 
 ---
 
@@ -481,12 +585,12 @@ with annotated output at each stage:
 
 `submitr` is part of the **From the Notebook to the Cluster** package family:
 
-- [toolero](https://github.com/erwinlares/toolero) — organize and scaffold the
-  project, use Quarto as the source of truth, and split datasets for parallel
-  jobs
-- [containr](https://github.com/erwinlares/containr) — containerize the
+- [toolero](https://github.com/erwinlares/toolero), which organizes and
+  scaffolds the project, uses Quarto as the source of truth, and splits
+  datasets for parallel jobs
+- [containr](https://github.com/erwinlares/containr), which containerizes the
   software environment
-- **submitr** — submit to CHTC and retrieve results (this package)
+- **submitr**, which submits to CHTC and retrieves results (this package)
 
 ---
 

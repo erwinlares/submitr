@@ -2,7 +2,7 @@
 #'
 #' `htc_gen_executable()` writes a ready-to-use bash script (`.sh`) that
 #' HTCondor runs inside the container for each job. The script changes to
-#' HTCondor's writable scratch directory, creates a results folder, runs
+#' HTCondor's writable scratch directory, creates an output folder, runs
 #' the R script via `Rscript` using absolute paths to the baked-in files,
 #' and compresses the results into a tarball for transfer back to the
 #' submit node.
@@ -32,10 +32,13 @@
 #'   used in `containr::generate_dockerfile()`. Defaults to `"/home"`.
 #' @param mode A character string. Execution mode. `"single"` (the default)
 #'   runs the R script with only the data file arguments (if any),
-#'   producing a single fixed-name results tarball. `"multiple"` also
+#'   producing a tarball named after the script alone. `"multiple"` also
 #'   passes the subset filename as the first positional argument via
-#'   `${1}`, producing a per-job tarball named `${1}-results.tar.gz`.
-#'   Must match the `mode` used in [htc_gen_submit()].
+#'   `${1}`, producing a per-job tarball that adds the subset's own stem,
+#'   so `analysis.R` over `adelie.csv` gives
+#'   `analysis-adelie-results.tar.gz`. Must match the `mode` used in
+#'   [htc_gen_submit()], which has to declare the same name in
+#'   `transfer_output_files`.
 #' @param verbose Logical. If `TRUE`, prints progress messages as each
 #'   section of the script is written. Defaults to `FALSE`.
 #' @param comments Logical. If `TRUE`, annotates each section with an
@@ -69,12 +72,12 @@
 #' regardless of the working directory.
 #'
 #' **Writing** -- the script changes to HTCondor's scratch directory
-#' (`_CONDOR_SCRATCH_DIR`) before creating the results folder. This
+#' (`_CONDOR_SCRATCH_DIR`) before creating the output folder. This
 #' directory is writable and is where HTCondor looks for
-#' `transfer_output_files`. The R script writes outputs to `"results/"`
+#' `transfer_output_files`. The R script writes outputs to `"output/"`
 #' using a relative path, which resolves to the scratch directory.
 #'
-#' This separation means the R script stays portable -- `"results/"` works
+#' This separation means the R script stays portable -- `"output/"` works
 #' in RStudio, in `quarto render`, and on HTCondor -- while the `.sh`
 #' script handles the HTCondor-specific directory setup.
 #'
@@ -102,14 +105,14 @@
 #' @examples
 #' # Single-job executable script with baked-in data
 #' htc_gen_executable(
-#'   r_script   = "analysis.R",
+#'   r_script   = "R/analysis.R",
 #'   data_files = "data-raw/sample.csv",
 #'   output     = tempdir()
 #' )
 #'
 #' # Multiple-job executable script
 #' htc_gen_executable(
-#'   r_script = "analysis.R",
+#'   r_script = "R/analysis.R",
 #'   mode     = "multiple",
 #'   output   = tempdir()
 #' )
@@ -117,7 +120,7 @@
 #' # Custom names with annotations
 #' htc_gen_executable(
 #'   output_file = "run.sh",
-#'   r_script    = "run-analysis.R",
+#'   r_script    = "R/run-analysis.R",
 #'   data_files  = c("data-raw/train.csv", "data-raw/test.csv"),
 #'   comments    = TRUE,
 #'   verbose     = TRUE,

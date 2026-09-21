@@ -92,7 +92,7 @@ For a single-mode job:
 
 For a multiple-mode job:
 \itemize{
-\item Per-subset tarballs (e.g. \code{"adelie.csv-results.tar.gz"})
+\item Per-subset tarballs (e.g. \code{"analysis-adelie-results.tar.gz"})
 \item Log files for each process: \code{"{cluster_id}-{0,1,...}-job.log"}, etc.
 }
 }
@@ -151,7 +151,7 @@ htc_download()
 htc_download(cluster_id = "6590895")
 
 # Download specific files using globs
-htc_download(files = "*.tar.gz", local_path = "results/")
+htc_download(files = "*.tar.gz", local_path = "downloads/")
 
 # Download logs only
 htc_download(files = c("*.log", "*.err", "*.out"), local_path = "logs/")
