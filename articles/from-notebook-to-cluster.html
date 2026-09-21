@@ -64,7 +64,7 @@
       <img src="../logo.png" class="logo" alt=""><h1>From the Notebook to the Cluster: Your First CHTC Job with submitr</h1>
             
             <h4 data-toc-skip class="date">Created 2026-04-30 | Last
-updated 2026-09-03</h4>
+updated 2026-09-21</h4>
       
       <small class="dont-index">Source: <a href="https://github.com/erwinlares/submitr/blob/main/vignettes/from-notebook-to-cluster.Rmd" class="external-link"><code>vignettes/from-notebook-to-cluster.Rmd</code></a></small>
       <div class="d-none name"><code>from-notebook-to-cluster.Rmd</code></div>
@@ -128,6 +128,13 @@ containerized, and you are ready to submit it to CHTC.</p>
 <p>Used together, the packages support a practical arc: start with a
 project that is easier to understand, make its software environment
 portable, then send it to CHTC with fewer command-line hurdles.</p>
+<p>The folder names and path conventions the three packages share are
+written down in <a href="https://github.com/erwinlares/toolero/blob/main/CONVENTIONS.md" class="external-link">CONVENTIONS.md</a>,
+in the <code>toolero</code> repository. Two of them appear throughout
+this vignette: a derived analysis script lives at
+<code>R/analysis.R</code>, and analysis outputs go in
+<code>output/</code>. Following them is what lets one script run
+unchanged on your laptop and on an execute node.</p>
 <hr>
 </div>
 <div class="section level2">
@@ -152,13 +159,18 @@ folder, running <code>Rscript</code>, and packaging results.</p>
 <p><code>submitr</code> helps you generate those files and then use
 them:</p>
 <div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu">submitr</span><span class="fu">::</span><span class="fu"><a href="../reference/htc_config.html">htc_config</a></span><span class="op">(</span><span class="op">)</span>         <span class="co"># configure your submit-node connection</span></span>
+<code class="sourceCode R"><span><span class="fu">submitr</span><span class="fu">::</span><span class="fu"><a href="../reference/htc_start.html">htc_start</a></span><span class="op">(</span><span class="op">)</span>          <span class="co"># configure and store your submit-node connection</span></span>
 <span><span class="fu">submitr</span><span class="fu">::</span><span class="fu"><a href="../reference/htc_gen_submit.html">htc_gen_submit</a></span><span class="op">(</span><span class="op">)</span>     <span class="co"># generate the HTCondor submit file</span></span>
 <span><span class="fu">submitr</span><span class="fu">::</span><span class="fu"><a href="../reference/htc_gen_executable.html">htc_gen_executable</a></span><span class="op">(</span><span class="op">)</span> <span class="co"># generate the executable shell script</span></span>
 <span><span class="fu">submitr</span><span class="fu">::</span><span class="fu"><a href="../reference/htc_upload.html">htc_upload</a></span><span class="op">(</span><span class="op">)</span>         <span class="co"># copy files to the submit node</span></span>
 <span><span class="fu">submitr</span><span class="fu">::</span><span class="fu"><a href="../reference/htc_submit.html">htc_submit</a></span><span class="op">(</span><span class="op">)</span>         <span class="co"># submit the job</span></span>
 <span><span class="fu">submitr</span><span class="fu">::</span><span class="fu"><a href="../reference/htc_status.html">htc_status</a></span><span class="op">(</span><span class="op">)</span>         <span class="co"># check progress</span></span>
 <span><span class="fu">submitr</span><span class="fu">::</span><span class="fu"><a href="../reference/htc_download.html">htc_download</a></span><span class="op">(</span><span class="op">)</span>       <span class="co"># copy results back</span></span></code></pre></div>
+<p>Two of those calls take no arguments in a normal workflow. As you go,
+<code>submitr</code> records what it has generated in a small file
+called <code>htc-manifest.yaml</code>, and <code><a href="../reference/htc_upload.html">htc_upload()</a></code> and
+<code><a href="../reference/htc_download.html">htc_download()</a></code> read it to work out which files to move.
+There is a section on that below.</p>
 <hr>
 </div>
 <div class="section level2">
@@ -168,7 +180,7 @@ them:</p>
 <code>condor_submit</code>.</p>
 <p>Before using <code>submitr</code>, confirm that:</p>
 <ul>
-<li>your R script runs with <code>Rscript analysis.R</code> outside
+<li>your R script runs with <code>Rscript R/analysis.R</code> outside
 RStudio;</li>
 <li>your container image is pushed to a registry CHTC can access;</li>
 <li>you have SSH access to a CHTC submit node such as
@@ -176,7 +188,7 @@ RStudio;</li>
 </ul>
 <p>The most important check is simple: your analysis should run outside
 RStudio.</p>
-<div class="sourceCode" id="cb3"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb3-1"><a href="#cb3-1" tabindex="-1"></a><span class="ex">Rscript</span> analysis.R</span></code></pre></div>
+<div class="sourceCode" id="cb3"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb3-1"><a href="#cb3-1" tabindex="-1"></a><span class="ex">Rscript</span> R/analysis.R</span></code></pre></div>
 <p>If that command fails locally, the same analysis is likely to fail on
 CHTC. Fix that first. CHTC will not know about objects in your Global
 Environment, local RStudio settings, manually clicked files, or packages
@@ -184,11 +196,11 @@ that happen to be installed on your laptop.</p>
 <p><strong>Set up SSH connection reuse now, before anything
 else.</strong> Every <code>submitr</code> function that touches CHTC
 opens an SSH connection, which can trigger a Duo MFA prompt.
-ControlMaster caches your authenticated session so all subsequent calls
-– uploads, submits, status checks, downloads – reuse the same connection
-without prompting again. The setup takes two minutes and is worth doing
-before your first <code><a href="../reference/htc_config.html">htc_config()</a></code> call. Full instructions
-appear right after Step 1.</p>
+ControlMaster caches your authenticated session so all subsequent calls,
+whether uploads, submits, status checks or downloads, reuse the same
+connection without prompting again. The setup takes two minutes and is
+worth doing before your first <code><a href="../reference/htc_start.html">htc_start()</a></code> call. Full
+instructions appear right after Step 1.</p>
 <p>For a first submission, choose something small and intentionally
 boring. The goal is not to prove that your full analysis can scale yet.
 The goal is to prove that the pathway works.</p>
@@ -199,11 +211,12 @@ The goal is to prove that the pathway works.</p>
 </h2>
 <p>Suppose your project has this shape:</p>
 <pre class="text"><code>my-analysis/
-├── analysis.R
+├── R/
+│   └── analysis.R
 ├── data.csv
 ├── renv.lock
-└── results/</code></pre>
-<p>Your <code>analysis.R</code> script might look like this:</p>
+└── output/</code></pre>
+<p>Your <code>R/analysis.R</code> script might look like this:</p>
 <div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://readr.tidyverse.org" class="external-link">readr</a></span><span class="op">)</span></span>
 <span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://dplyr.tidyverse.org" class="external-link">dplyr</a></span><span class="op">)</span></span>
@@ -218,34 +231,47 @@ The goal is to prove that the pathway works.</p>
 <span>    .groups    <span class="op">=</span> <span class="st">"drop"</span></span>
 <span>  <span class="op">)</span></span>
 <span></span>
-<span><span class="kw">if</span> <span class="op">(</span><span class="op">!</span><span class="fu"><a href="https://rdrr.io/r/base/files2.html" class="external-link">dir.exists</a></span><span class="op">(</span><span class="st">"results"</span><span class="op">)</span><span class="op">)</span> <span class="op">{</span></span>
-<span>  <span class="fu"><a href="https://rdrr.io/r/base/files2.html" class="external-link">dir.create</a></span><span class="op">(</span><span class="st">"results"</span><span class="op">)</span></span>
+<span><span class="kw">if</span> <span class="op">(</span><span class="op">!</span><span class="fu"><a href="https://rdrr.io/r/base/files2.html" class="external-link">dir.exists</a></span><span class="op">(</span><span class="st">"output"</span><span class="op">)</span><span class="op">)</span> <span class="op">{</span></span>
+<span>  <span class="fu"><a href="https://rdrr.io/r/base/files2.html" class="external-link">dir.create</a></span><span class="op">(</span><span class="st">"output"</span><span class="op">)</span></span>
 <span><span class="op">}</span></span>
 <span></span>
-<span><span class="fu"><a href="https://readr.tidyverse.org/reference/write_delim.html" class="external-link">write_csv</a></span><span class="op">(</span><span class="va">summary</span>, <span class="st">"results/summary.csv"</span><span class="op">)</span></span></code></pre></div>
+<span><span class="fu"><a href="https://readr.tidyverse.org/reference/write_delim.html" class="external-link">write_csv</a></span><span class="op">(</span><span class="va">summary</span>, <span class="st">"output/summary.csv"</span><span class="op">)</span></span></code></pre></div>
 <p>This script is deliberately modest. A first CHTC job should be easy
 to inspect. Once the small version works, you can scale the pattern with
 more confidence.</p>
+<p>Note the relative path. <code>"output/"</code> resolves correctly in
+RStudio, under <code>quarto render</code>, and on an execute node,
+because the generated executable script moves to HTCondor’s writable
+scratch directory before calling <code>Rscript</code>. The script itself
+never has to know where it is running.</p>
 <hr>
 </div>
 <div class="section level2">
 <h2 id="step-1-configure-your-chtc-connection">Step 1: configure your CHTC connection<a class="anchor" aria-label="anchor" href="#step-1-configure-your-chtc-connection"></a>
 </h2>
-<p>Load <code>submitr</code> and create a project-level
-configuration:</p>
+<p>Load <code>submitr</code> and start a session:</p>
 <div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://erwinlares.github.io/submitr/">submitr</a></span><span class="op">)</span></span>
 <span></span>
-<span><span class="va">cfg</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/htc_config.html">htc_config</a></span><span class="op">(</span><span class="op">)</span></span></code></pre></div>
-<p>On first use, <code><a href="../reference/htc_config.html">htc_config()</a></code> prompts for your NetID and
+<span><span class="fu"><a href="../reference/htc_start.html">htc_start</a></span><span class="op">(</span><span class="op">)</span></span>
+<span><span class="co">#&gt; v Session started: "your.netid"@"ap2002.chtc.wisc.edu"</span></span></code></pre></div>
+<p>On first use, <code><a href="../reference/htc_start.html">htc_start()</a></code> prompts for your NetID and
 submit node. It writes an <code>htc.cfg</code> file to the project
 directory so later calls can reuse the same connection information, and
-it displays ControlMaster setup instructions.</p>
+it displays ControlMaster setup instructions. It then stores the
+configuration for the rest of the session, which is why none of the
+calls that follow need a <code>config</code> argument.</p>
 <p>A later call should look something like this:</p>
 <div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">cfg</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/htc_config.html">htc_config</a></span><span class="op">(</span><span class="op">)</span></span>
+<code class="sourceCode R"><span><span class="fu"><a href="../reference/htc_start.html">htc_start</a></span><span class="op">(</span><span class="op">)</span></span>
 <span><span class="co">#&gt; Reading HTC config from ./htc.cfg</span></span>
-<span><span class="co">#&gt; ✔ Connected to "ap2002.chtc.wisc.edu" as "your.netid".</span></span></code></pre></div>
+<span><span class="co">#&gt; v Connected to "ap2002.chtc.wisc.edu" as "your.netid".</span></span>
+<span><span class="co">#&gt; v Session started: "your.netid"@"ap2002.chtc.wisc.edu"</span></span></code></pre></div>
+<p>That middle line comes from a short SSH connection made to tell you
+whether the server is reachable before you rely on the configuration. It
+is useful at a prompt and pointless in a script, so it can be turned off
+with <code>check_server = FALSE</code>, or for a whole session with the
+<code>submitr.check_server</code> option.</p>
 <p>This configuration file is deliberately project-local. Different
 projects may need different submit nodes, paths, or connection
 settings.</p>
@@ -264,9 +290,9 @@ this block to <code>~/.ssh/config</code>:</p>
 <div class="sourceCode" id="cb9"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb9-1"><a href="#cb9-1" tabindex="-1"></a><span class="fu">mkdir</span> <span class="at">-p</span> ~/.ssh/connections</span></code></pre></div>
 <p>With ControlMaster in place, all subsequent SSH connections reuse the
 same authenticated session. You authenticate once when the connection is
-first established; everything that follows – file uploads, job
-submission, status checks, result downloads – happens without prompting
-for Duo MFA again. Full documentation is at <a href="https://chtc.cs.wisc.edu/uw-research-computing/configure-ssh" class="external-link uri">https://chtc.cs.wisc.edu/uw-research-computing/configure-ssh</a>.</p>
+first established; everything that follows, including file uploads, job
+submission, status checks and result downloads, happens without
+prompting for Duo MFA again. Full documentation is at <a href="https://chtc.cs.wisc.edu/uw-research-computing/configure-ssh" class="external-link uri">https://chtc.cs.wisc.edu/uw-research-computing/configure-ssh</a>.</p>
 <p>The rest of this vignette assumes ControlMaster is in place.</p>
 <hr>
 </div>
@@ -280,8 +306,8 @@ question: what should the HTC system run, and what does it need?</p>
 <span>  output_file     <span class="op">=</span> <span class="st">"analysis.sub"</span>,</span>
 <span>  container_image <span class="op">=</span> <span class="st">"docker://registry.doit.wisc.edu/your.netid/my-analysis:1.0.0"</span>,</span>
 <span>  executable      <span class="op">=</span> <span class="st">"analysis.sh"</span>,</span>
-<span>  input_files     <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"analysis.R"</span>, <span class="st">"data.csv"</span><span class="op">)</span>,</span>
-<span>  output_files    <span class="op">=</span> <span class="st">"results.tar.gz"</span>,</span>
+<span>  r_script        <span class="op">=</span> <span class="st">"R/analysis.R"</span>,</span>
+<span>  input_files     <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"R/analysis.R"</span>, <span class="st">"data.csv"</span><span class="op">)</span>,</span>
 <span>  resources       <span class="op">=</span> <span class="st">"small"</span>,</span>
 <span>  comments        <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  output          <span class="op">=</span> <span class="st">"."</span></span>
@@ -290,6 +316,14 @@ question: what should the HTC system run, and what does it need?</p>
 generated file includes explanations of the main sections, making it
 easier to inspect, learn from, and share with a collaborator or
 consultant.</p>
+<p><code>r_script</code> is worth a word, because nothing here runs it.
+<code><a href="../reference/htc_gen_submit.html">htc_gen_submit()</a></code> uses it only to work out what to call the
+results tarball, so that the name matches the one
+<code><a href="../reference/htc_gen_executable.html">htc_gen_executable()</a></code> will tell the job to build. The
+function never opens the executable script and never reads the
+Dockerfile, so the name of your analysis script is genuinely not
+something it can infer. Supply <code>output_files</code> yourself if you
+want a different name.</p>
 <p>The <code>resources</code> argument uses presets. For a first test,
 always start with <code>"small"</code> regardless of what your eventual
 job will need:</p>
@@ -333,7 +367,7 @@ job will need:</p>
 </tbody>
 </table>
 <p>The HTCondor log file reports actual resource usage after each run.
-That log is the ground truth for tuning future submissions – not
+That log is the ground truth for tuning future submissions, not
 guesswork. Requesting too little causes jobs to fail; requesting much
 more than you need makes jobs harder to match with available
 resources.</p>
@@ -346,17 +380,27 @@ resources.</p>
 starts, what commands should run?</p>
 <div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/htc_gen_executable.html">htc_gen_executable</a></span><span class="op">(</span></span>
-<span>  r_script       <span class="op">=</span> <span class="st">"analysis.R"</span>,</span>
-<span>  output_file    <span class="op">=</span> <span class="st">"analysis.sh"</span>,</span>
-<span>  results_folder <span class="op">=</span> <span class="st">"results"</span>,</span>
-<span>  comments       <span class="op">=</span> <span class="cn">TRUE</span></span>
+<span>  r_script    <span class="op">=</span> <span class="st">"R/analysis.R"</span>,</span>
+<span>  output_file <span class="op">=</span> <span class="st">"analysis.sh"</span>,</span>
+<span>  comments    <span class="op">=</span> <span class="cn">TRUE</span></span>
 <span><span class="op">)</span></span></code></pre></div>
 <p>The generated script handles a standard sequence:</p>
 <ol style="list-style-type: decimal">
-<li>create the results folder;</li>
-<li>run the R script with <code>Rscript</code>;</li>
-<li>archive the results as <code>results.tar.gz</code>.</li>
+<li>move to HTCondor’s writable scratch directory;</li>
+<li>create the <code>output/</code> folder;</li>
+<li>run the R script with <code>Rscript</code>, using an absolute path
+to the copy baked into the container;</li>
+<li>archive the folder as <code>analysis-results.tar.gz</code>.</li>
 </ol>
+<p>That last name is derived from <code>r_script</code>, with the
+directory and extension stripped, which is why <code>R/analysis.R</code>
+gives <code>analysis-results.tar.gz</code> rather than something
+containing a <code>R/</code> that does not exist on the execute
+node.</p>
+<p>Only <code>output/</code> itself is created. If your analysis writes
+to <code>output/figures/</code>, the R script has to create that
+subfolder, which <code>toolero::save_output()</code> does and a bare
+<code>ggsave()</code> does not.</p>
 <p>That sequence is not complicated, but it is exactly the kind of glue
 code that can become a barrier for researchers who are new to shell
 scripts. <code>submitr</code> writes the standard version so you can
@@ -368,49 +412,50 @@ focus on the analysis.</p>
 </h2>
 <p>Before copying files to the submit node, do a dry run:</p>
 <div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu"><a href="../reference/htc_upload.html">htc_upload</a></span><span class="op">(</span></span>
-<span>  files   <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"analysis.sub"</span>, <span class="st">"analysis.sh"</span>, <span class="st">"analysis.R"</span>, <span class="st">"data.csv"</span><span class="op">)</span>,</span>
-<span>  config  <span class="op">=</span> <span class="va">cfg</span>,</span>
-<span>  dry_run <span class="op">=</span> <span class="cn">TRUE</span></span>
-<span><span class="op">)</span></span>
-<span><span class="co">#&gt; ✔ Dry run -- command that would be executed:</span></span>
-<span><span class="co">#&gt;   `scp analysis.sub analysis.sh analysis.R data.csv your.netid@ap2002.chtc.wisc.edu:~/`</span></span></code></pre></div>
+<code class="sourceCode R"><span><span class="fu"><a href="../reference/htc_upload.html">htc_upload</a></span><span class="op">(</span>dry_run <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
+<span><span class="co">#&gt; v Dry run -- command that would be executed:</span></span>
+<span><span class="co">#&gt;   `scp analysis.sub analysis.sh R/analysis.R your.netid@ap2002.chtc.wisc.edu:~/`</span></span></code></pre></div>
 <p>A dry run is a safety habit. It lets you see the command before it
 changes anything on the remote system. Once the command looks right,
 upload the files:</p>
 <div class="sourceCode" id="cb13"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu"><a href="../reference/htc_upload.html">htc_upload</a></span><span class="op">(</span></span>
-<span>  files  <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"analysis.sub"</span>, <span class="st">"analysis.sh"</span>, <span class="st">"analysis.R"</span>, <span class="st">"data.csv"</span><span class="op">)</span>,</span>
-<span>  config <span class="op">=</span> <span class="va">cfg</span></span>
-<span><span class="op">)</span></span></code></pre></div>
+<code class="sourceCode R"><span><span class="fu"><a href="../reference/htc_upload.html">htc_upload</a></span><span class="op">(</span><span class="op">)</span></span></code></pre></div>
+<p>Neither call names any files. <code><a href="../reference/htc_upload.html">htc_upload()</a></code> reads the job
+manifest that the two generators just wrote, and sends the submit file,
+the executable, and any shared input files you declared. You can still
+pass <code>files</code> explicitly, which bypasses the manifest
+entirely:</p>
+<div class="sourceCode" id="cb14"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="../reference/htc_upload.html">htc_upload</a></span><span class="op">(</span>files <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"analysis.sub"</span>, <span class="st">"analysis.sh"</span>, <span class="st">"R/analysis.R"</span>, <span class="st">"data.csv"</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
 <hr>
 </div>
 <div class="section level2">
 <h2 id="step-5-submit-the-job">Step 5: submit the job<a class="anchor" aria-label="anchor" href="#step-5-submit-the-job"></a>
 </h2>
-<div class="sourceCode" id="cb14"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb15"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">cluster_id</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/htc_submit.html">htc_submit</a></span><span class="op">(</span></span>
 <span>  submit_file <span class="op">=</span> <span class="st">"analysis.sub"</span>,</span>
-<span>  config      <span class="op">=</span> <span class="va">cfg</span>,</span>
 <span>  verbose     <span class="op">=</span> <span class="cn">TRUE</span></span>
 <span><span class="op">)</span></span>
 <span><span class="co">#&gt; Submitting "analysis.sub" on "ap2002.chtc.wisc.edu"...</span></span>
-<span><span class="co">#&gt; Submitting job(s)...</span></span>
 <span><span class="co">#&gt; 1 job(s) submitted to cluster 6302860.</span></span>
-<span><span class="co">#&gt; ✔ Job submitted from "~/analysis.sub" on "ap2002.chtc.wisc.edu".</span></span></code></pre></div>
+<span><span class="co">#&gt; v Job submitted from "~/analysis.sub" on "ap2002.chtc.wisc.edu".</span></span></code></pre></div>
 <p>The cluster ID is the handle for this submission. Store it in an
-object so you can check the job later without having to look it up.</p>
+object so you can check the job later without having to look it up.
+<code><a href="../reference/htc_submit.html">htc_submit()</a></code> also writes it to the job manifest, along with
+the remote directory it submitted from, so the next two steps can find
+the job without being told.</p>
 <hr>
 </div>
 <div class="section level2">
 <h2 id="step-6-check-progress">Step 6: check progress<a class="anchor" aria-label="anchor" href="#step-6-check-progress"></a>
 </h2>
-<div class="sourceCode" id="cb15"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb16"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># One-shot status check</span></span>
-<span><span class="fu"><a href="../reference/htc_status.html">htc_status</a></span><span class="op">(</span>cluster_id <span class="op">=</span> <span class="va">cluster_id</span>, config <span class="op">=</span> <span class="va">cfg</span><span class="op">)</span></span>
+<span><span class="fu"><a href="../reference/htc_status.html">htc_status</a></span><span class="op">(</span>cluster_id <span class="op">=</span> <span class="va">cluster_id</span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># Watch until the job completes</span></span>
-<span><span class="fu"><a href="../reference/htc_status.html">htc_status</a></span><span class="op">(</span>cluster_id <span class="op">=</span> <span class="va">cluster_id</span>, config <span class="op">=</span> <span class="va">cfg</span>, watch <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span></code></pre></div>
+<span><span class="fu"><a href="../reference/htc_status.html">htc_status</a></span><span class="op">(</span>cluster_id <span class="op">=</span> <span class="va">cluster_id</span>, watch <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span></code></pre></div>
 <p>For a small test job, <code>watch = TRUE</code> is useful. For larger
 workloads, occasional one-shot checks are usually a better fit than
 keeping an R session occupied.</p>
@@ -419,24 +464,64 @@ keeping an R session occupied.</p>
 <div class="section level2">
 <h2 id="step-7-download-results">Step 7: download results<a class="anchor" aria-label="anchor" href="#step-7-download-results"></a>
 </h2>
-<p>When the job is complete, download the result archive and logs:</p>
-<div class="sourceCode" id="cb16"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co"># Results</span></span>
-<span><span class="fu"><a href="../reference/htc_download.html">htc_download</a></span><span class="op">(</span></span>
-<span>  files      <span class="op">=</span> <span class="st">"*.tar.gz"</span>,</span>
-<span>  config     <span class="op">=</span> <span class="va">cfg</span>,</span>
-<span>  local_path <span class="op">=</span> <span class="st">"results/"</span></span>
-<span><span class="op">)</span></span>
-<span></span>
-<span><span class="co"># Logs</span></span>
-<span><span class="fu"><a href="../reference/htc_download.html">htc_download</a></span><span class="op">(</span></span>
-<span>  files      <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"job.log"</span>, <span class="st">"job.err"</span><span class="op">)</span>,</span>
-<span>  config     <span class="op">=</span> <span class="va">cfg</span>,</span>
-<span>  local_path <span class="op">=</span> <span class="st">"logs/"</span></span>
-<span><span class="op">)</span></span></code></pre></div>
+<p>When the job is complete:</p>
+<div class="sourceCode" id="cb17"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="../reference/htc_download.html">htc_download</a></span><span class="op">(</span><span class="op">)</span></span></code></pre></div>
+<p>That single call retrieves the results tarball and the three HTCondor
+log files, <code>6302860-0-job.log</code>, <code>.err</code> and
+<code>.out</code>. It knows the tarball’s name because
+<code><a href="../reference/htc_gen_submit.html">htc_gen_submit()</a></code> recorded it, knows the cluster ID because
+<code><a href="../reference/htc_submit.html">htc_submit()</a></code> recorded it, and knows which remote directory
+to look in for the same reason.</p>
+<p>You can still be explicit when you want to be:</p>
+<div class="sourceCode" id="cb18"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="../reference/htc_download.html">htc_download</a></span><span class="op">(</span>cluster_id <span class="op">=</span> <span class="st">"6302860"</span><span class="op">)</span></span>
+<span><span class="fu"><a href="../reference/htc_download.html">htc_download</a></span><span class="op">(</span>files <span class="op">=</span> <span class="st">"*.tar.gz"</span>, local_path <span class="op">=</span> <span class="st">"downloads/"</span><span class="op">)</span></span></code></pre></div>
 <p>The logs are not just for failures. They record what happened when
-the job ran – including actual resource usage, which informs future
+the job ran, including actual resource usage, which informs future
 resource requests.</p>
+<p>If your analysis renders a Quarto document, set
+<code>embed-resources: true</code> in its YAML header. Both
+<code>toolero</code> templates already do. Without it a rendered
+<code>.qmd</code> produces an <code>.html</code> file plus a
+<code>_files/</code> directory of supporting assets, and only what you
+named in <code>output/</code> comes home; with it the report arrives as
+a single self-contained file.</p>
+<hr>
+</div>
+<div class="section level2">
+<h2 id="the-job-manifest">The job manifest<a class="anchor" aria-label="anchor" href="#the-job-manifest"></a>
+</h2>
+<p>Steps 4 and 7 took no arguments, and it is worth understanding why,
+because it also explains something that matters when a job runs
+long.</p>
+<p>As you work, <code>submitr</code> writes what it learns to
+<code>htc-manifest.yaml</code>, a small file that sits in your project
+beside <code>htc.cfg</code>. <code><a href="../reference/htc_gen_submit.html">htc_gen_submit()</a></code> records the
+submit file, the mode and the derived results name.
+<code><a href="../reference/htc_gen_executable.html">htc_gen_executable()</a></code> records the analysis script and the
+executable it wrote. <code><a href="../reference/htc_submit.html">htc_submit()</a></code> records the cluster ID
+and the remote directory. By the time you reach
+<code><a href="../reference/htc_download.html">htc_download()</a></code>, the manifest holds everything needed to
+work out what to ask the submit node for.</p>
+<p>It is ordinary YAML, and reading it is often the quickest way to see
+what <code>submitr</code> thinks the state of your job is:</p>
+<div class="sourceCode" id="cb19"><pre class="sourceCode yaml"><code class="sourceCode yaml"><span id="cb19-1"><a href="#cb19-1" tabindex="-1"></a><span class="fu">submit_file</span><span class="kw">:</span><span class="at"> analysis.sub</span></span>
+<span id="cb19-2"><a href="#cb19-2" tabindex="-1"></a><span class="fu">executable_file</span><span class="kw">:</span><span class="at"> analysis.sh</span></span>
+<span id="cb19-3"><a href="#cb19-3" tabindex="-1"></a><span class="fu">r_script</span><span class="kw">:</span><span class="at"> R/analysis.R</span></span>
+<span id="cb19-4"><a href="#cb19-4" tabindex="-1"></a><span class="fu">script_stem</span><span class="kw">:</span><span class="at"> analysis</span></span>
+<span id="cb19-5"><a href="#cb19-5" tabindex="-1"></a><span class="fu">mode</span><span class="kw">:</span><span class="at"> single</span></span>
+<span id="cb19-6"><a href="#cb19-6" tabindex="-1"></a><span class="fu">output_files</span><span class="kw">:</span><span class="at"> analysis-results.tar.gz</span></span>
+<span id="cb19-7"><a href="#cb19-7" tabindex="-1"></a><span class="fu">cluster_id</span><span class="kw">:</span><span class="at"> </span><span class="st">'6302860'</span></span>
+<span id="cb19-8"><a href="#cb19-8" tabindex="-1"></a><span class="fu">remote_path</span><span class="kw">:</span><span class="at"> ~/</span></span></code></pre></div>
+<p>The reason it is a file rather than something held in the R session
+is the shape of the work. A job worth sending to CHTC usually takes a
+while, so you submit it one day and collect it another, and somewhere in
+between you close RStudio or your laptop sleeps. Anything held in memory
+would be gone. Because the manifest is on disk, you can restart R, come
+back on Thursday, call <code><a href="../reference/htc_download.html">htc_download()</a></code> with no arguments,
+and it still knows what to fetch. <code><a href="../reference/htc_start.html">htc_start()</a></code> leaves it
+alone for exactly that reason.</p>
 <hr>
 </div>
 <div class="section level2">
@@ -452,12 +537,13 @@ or bootstrap iteration. This is where
 frame into separate CSV files and writes a manifest describing those
 files. Then <code>submitr</code> queues one job per row of the
 manifest:</p>
-<div class="sourceCode" id="cb17"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb20"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/htc_gen_submit.html">htc_gen_submit</a></span><span class="op">(</span></span>
 <span>  output_file     <span class="op">=</span> <span class="st">"analysis.sub"</span>,</span>
 <span>  container_image <span class="op">=</span> <span class="st">"docker://registry.doit.wisc.edu/your.netid/my-analysis:1.0.0"</span>,</span>
 <span>  executable      <span class="op">=</span> <span class="st">"analysis.sh"</span>,</span>
-<span>  input_files     <span class="op">=</span> <span class="st">"analysis.R"</span>,</span>
+<span>  r_script        <span class="op">=</span> <span class="st">"R/analysis.R"</span>,</span>
+<span>  input_files     <span class="op">=</span> <span class="st">"R/analysis.R"</span>,</span>
 <span>  mode            <span class="op">=</span> <span class="st">"multiple"</span>,</span>
 <span>  queue_from      <span class="op">=</span> <span class="st">"data/manifest.csv"</span>,</span>
 <span>  resources       <span class="op">=</span> <span class="st">"medium"</span>,</span>
@@ -465,22 +551,22 @@ manifest:</p>
 <span><span class="op">)</span></span>
 <span></span>
 <span><span class="fu"><a href="../reference/htc_gen_executable.html">htc_gen_executable</a></span><span class="op">(</span></span>
-<span>  r_script       <span class="op">=</span> <span class="st">"analysis.R"</span>,</span>
-<span>  output_file    <span class="op">=</span> <span class="st">"analysis.sh"</span>,</span>
-<span>  results_folder <span class="op">=</span> <span class="st">"results"</span>,</span>
-<span>  mode           <span class="op">=</span> <span class="st">"multiple"</span>,</span>
-<span>  comments       <span class="op">=</span> <span class="cn">TRUE</span></span>
+<span>  r_script    <span class="op">=</span> <span class="st">"R/analysis.R"</span>,</span>
+<span>  output_file <span class="op">=</span> <span class="st">"analysis.sh"</span>,</span>
+<span>  mode        <span class="op">=</span> <span class="st">"multiple"</span>,</span>
+<span>  comments    <span class="op">=</span> <span class="cn">TRUE</span></span>
 <span><span class="op">)</span></span></code></pre></div>
 <p>In multiple-job mode, the generated executable passes the per-job
 input file to your R script as the first command-line argument. Your
 script should read that argument explicitly:</p>
-<div class="sourceCode" id="cb18"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb21"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">args</span>       <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/commandArgs.html" class="external-link">commandArgs</a></span><span class="op">(</span>trailingOnly <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
 <span><span class="va">input_file</span> <span class="op">&lt;-</span> <span class="va">args</span><span class="op">[[</span><span class="fl">1</span><span class="op">]</span><span class="op">]</span></span>
 <span></span>
 <span><span class="va">data</span> <span class="op">&lt;-</span> <span class="fu">readr</span><span class="fu">::</span><span class="fu"><a href="https://readr.tidyverse.org/reference/read_delim.html" class="external-link">read_csv</a></span><span class="op">(</span><span class="va">input_file</span><span class="op">)</span></span></code></pre></div>
 <p>This is a key pattern. The script stays the same; each job receives a
-different input.</p>
+different input. The companion vignette, <em>Single Jobs vs Multiple
+Jobs on HTCondor</em>, works through both modes side by side.</p>
 <hr>
 </div>
 <div class="section level2">
@@ -492,8 +578,12 @@ node will not automatically have the same setup. A container image
 solves that problem by packaging the R version, packages, and system
 libraries needed to run the analysis.</p>
 <p><code>containr</code> handles that step:</p>
-<div class="sourceCode" id="cb19"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu">containr</span><span class="fu">::</span><span class="fu"><a href="https://erwinlares.github.io/containr/reference/generate_dockerfile.html" class="external-link">generate_dockerfile</a></span><span class="op">(</span>r_version <span class="op">=</span> <span class="st">"4.4.0"</span>, output <span class="op">=</span> <span class="st">"."</span><span class="op">)</span></span>
+<div class="sourceCode" id="cb22"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu">containr</span><span class="fu">::</span><span class="fu"><a href="https://erwinlares.github.io/containr/reference/generate_dockerfile.html" class="external-link">generate_dockerfile</a></span><span class="op">(</span></span>
+<span>  r_version <span class="op">=</span> <span class="st">"4.4.0"</span>,</span>
+<span>  code_file <span class="op">=</span> <span class="st">"R/analysis.R"</span>,</span>
+<span>  output    <span class="op">=</span> <span class="st">"."</span></span>
+<span><span class="op">)</span></span>
 <span><span class="fu">containr</span><span class="fu">::</span><span class="fu">build_image</span><span class="op">(</span>verbose <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
 <span></span>
 <span><span class="va">imgs</span> <span class="op">&lt;-</span> <span class="fu">containr</span><span class="fu">::</span><span class="fu">list_images</span><span class="op">(</span><span class="op">)</span></span>
@@ -517,16 +607,17 @@ software environment was used for a particular analysis.</p>
 </h2>
 <p>Before scaling up, confirm that the small job works end to end:</p>
 <ul>
-<li>The script runs locally with <code>Rscript analysis.R</code>.</li>
+<li>The script runs locally with <code>Rscript R/analysis.R</code>.</li>
 <li>ControlMaster is configured and the session is authenticated.</li>
 <li>The container image is pushed to a registry CHTC can access.</li>
 <li>The image tag is explicit, not <code>"latest"</code>.</li>
 <li>The submit file lists the correct executable and input files.</li>
-<li>The executable script points to the correct R script and results
-folder.</li>
+<li>
+<code>r_script</code> is the same in both generator calls, so the
+tarball the job builds is the one the submit file asks for.</li>
 <li>The dry-run upload shows the expected files.</li>
 <li>
-<code><a href="../reference/htc_config.html">htc_config()</a></code> connects to the submit node without
+<code><a href="../reference/htc_start.html">htc_start()</a></code> connects to the submit node without
 error.</li>
 <li>The resource request is reasonable for a test job.</li>
 <li>The job produces logs and a result archive.</li>

@@ -57,7 +57,8 @@ so that relative paths in the submit file resolve correctly.</p>
 <span>  remote_path <span class="op">=</span> <span class="st">"~/"</span>,</span>
 <span>  config <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  dry_run <span class="op">=</span> <span class="cn">FALSE</span>,</span>
-<span>  verbose <span class="op">=</span> <span class="cn">FALSE</span></span>
+<span>  verbose <span class="op">=</span> <span class="cn">FALSE</span>,</span>
+<span>  path <span class="op">=</span> <span class="st">"."</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
 
@@ -93,6 +94,16 @@ submitting. Defaults to <code>FALSE</code>.</p></dd>
 <dt id="arg-verbose">verbose<a class="anchor" aria-label="anchor" href="#arg-verbose"></a></dt>
 <dd><p>Logical. If <code>TRUE</code>, prints progress messages and the
 <code>condor_submit</code> output. Defaults to <code>FALSE</code>.</p></dd>
+
+
+<dt id="arg-path">path<a class="anchor" aria-label="anchor" href="#arg-path"></a></dt>
+<dd><p>A character string. Directory holding the job manifest
+(<code>htc-manifest.yaml</code>), where the cluster ID and <code>remote_path</code> are
+recorded on a successful submission. Defaults to <code>"."</code>. If you passed a
+non-default <code>output</code> or <code>path</code> to <code><a href="htc_gen_submit.html">htc_gen_submit()</a></code>, pass that same
+directory here, or the cluster ID will be written to a second, separate
+manifest and <code><a href="htc_download.html">htc_download()</a></code> will not find it alongside the job
+metadata it needs.</p></dd>
 
 </dl></div>
     <div class="section level2">

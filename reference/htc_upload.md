@@ -11,11 +11,12 @@ can run `condor_submit`.
 
 ``` r
 htc_upload(
-  files,
+  files = NULL,
   remote_path = "~/",
   config = NULL,
   dry_run = FALSE,
-  verbose = FALSE
+  verbose = FALSE,
+  path = "."
 )
 ```
 
@@ -23,9 +24,17 @@ htc_upload(
 
 - files:
 
-  A character vector. One or more local file paths or directory paths to
-  copy to the submit node. A single file, a vector of files, and a
-  directory path are all accepted. Directories are copied recursively.
+  A character vector or `NULL`. One or more local file paths or
+  directory paths to copy to the submit node. A single file, a vector of
+  files, and a directory path are all accepted. Directories are copied
+  recursively. When `NULL` (the default), the function resolves the
+  files to upload from the job manifest built up by
+  [`htc_gen_submit()`](https://erwinlares.github.io/submitr/reference/htc_gen_submit.md)
+  and
+  [`htc_gen_executable()`](https://erwinlares.github.io/submitr/reference/htc_gen_executable.md):
+  the submit file, the executable script, any shared input files, and –
+  in `"multiple"` mode – the subdatasets manifest and the individual
+  subset data files.
 
 - remote_path:
 
@@ -53,6 +62,17 @@ htc_upload(
 
   Logical. If `TRUE`, prints progress messages. Defaults to `FALSE`.
 
+- path:
+
+  A character string. Directory holding the job manifest
+  (`htc-manifest.yaml`), consulted only when `files` is `NULL`. Defaults
+  to `"."`, which matches the generator functions' own default. If you
+  passed a non-default `output` or `path` to
+  [`htc_gen_submit()`](https://erwinlares.github.io/submitr/reference/htc_gen_submit.md)
+  and
+  [`htc_gen_executable()`](https://erwinlares.github.io/submitr/reference/htc_gen_executable.md),
+  pass that same directory here.
+
 ## Value
 
 Called for its side effects. Returns `invisible(NULL)`.
@@ -67,16 +87,25 @@ and
 and before calling
 [`htc_submit()`](https://erwinlares.github.io/submitr/reference/htc_submit.md).
 
-The typical sequence is:
+The typical sequence relies on automatic resolution from the job
+manifest, so `files` can usually be omitted:
 
     cfg <- htc_config()
+
+    htc_gen_submit(executable = "job.sh", r_script = "R/analysis.R",
+                   input_files = "R/analysis.R")
+    htc_gen_executable(r_script = "R/analysis.R")
+
+    htc_upload(config = cfg)
+
+    htc_submit(submit_file = "job.sub", config = cfg)
+
+Pass `files` explicitly to upload a specific set of files instead:
 
     htc_upload(
       files  = c("job.sub", "job.sh", "analysis.R", "data.csv"),
       config = cfg
     )
-
-    htc_submit(submit_file = "job.sub", config = cfg)
 
 ## SSH connection reuse
 
@@ -96,12 +125,18 @@ tmp <- tempfile(fileext = ".sub")
 writeLines("queue 1", tmp)
 htc_upload(files = tmp, config = cfg, dry_run = TRUE)
 #> ✔ Dry run -- command that would be executed:
-#>   `scp /tmp/Rtmp5SaDa3/file4c6ad576549.sub netid@ap2002.chtc.wisc.edu:~/`
+#>   `scp /tmp/RtmpiOgEG2/file4a5d386c6282.sub netid@ap2002.chtc.wisc.edu:~/`
 # }
 
 if (FALSE) { # \dontrun{
 # All remaining examples require a live CHTC connection
 cfg <- htc_config()
+
+# Resolve files automatically from the job manifest
+htc_gen_submit(executable = "job.sh", r_script = "R/analysis.R",
+               input_files = "R/analysis.R")
+htc_gen_executable(r_script = "R/analysis.R")
+htc_upload(config = cfg)
 
 # Upload a single file
 htc_upload(files = "job.sub", config = cfg)

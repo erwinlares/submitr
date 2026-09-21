@@ -2,7 +2,7 @@
 
 `htc_gen_executable()` writes a ready-to-use bash script (`.sh`) that
 HTCondor runs inside the container for each job. The script changes to
-HTCondor's writable scratch directory, creates a results folder, runs
+HTCondor's writable scratch directory, creates an output folder, runs
 the R script via `Rscript` using absolute paths to the baked-in files,
 and compresses the results into a tarball for transfer back to the
 submit node.
@@ -14,13 +14,14 @@ htc_gen_executable(
   output_file = "job.sh",
   r_script = NULL,
   data_files = NULL,
-  results_folder = "results",
+  results_folder = "output",
   home_dir = "/home",
   mode = "single",
   set_executable = TRUE,
   verbose = FALSE,
   comments = FALSE,
-  output = "."
+  output = ".",
+  path = output
 )
 ```
 
@@ -52,7 +53,10 @@ htc_gen_executable(
 
   A character string. Name of the folder created in the scratch
   directory to hold job outputs before compression. Defaults to
-  `"results"`.
+  `"output"`, the output folder used across the toolero family. Note
+  that only this folder is created: if your analysis writes to
+  `output/figures/`, the R script must create that subfolder itself,
+  which `toolero::save_output()` does and a bare `ggsave()` does not.
 
 - home_dir:
 
@@ -66,11 +70,13 @@ htc_gen_executable(
 
   A character string. Execution mode. `"single"` (the default) runs the
   R script with only the data file arguments (if any), producing a
-  single fixed-name results tarball. `"multiple"` also passes the subset
-  filename as the first positional argument via `${1}`, producing a
-  per-job tarball named `${1}-results.tar.gz`. Must match the `mode`
-  used in
-  [`htc_gen_submit()`](https://erwinlares.github.io/submitr/reference/htc_gen_submit.md).
+  tarball named after the script alone. `"multiple"` also passes the
+  subset filename as the first positional argument via `${1}`, producing
+  a per-job tarball that adds the subset's own stem, so `analysis.R`
+  over `adelie.csv` gives `analysis-adelie-results.tar.gz`. Must match
+  the `mode` used in
+  [`htc_gen_submit()`](https://erwinlares.github.io/submitr/reference/htc_gen_submit.md),
+  which has to declare the same name in `transfer_output_files`.
 
 - set_executable:
 
@@ -97,6 +103,18 @@ htc_gen_executable(
   A character string. Directory where the shell script will be written.
   Defaults to `"."` (current working directory).
 
+- path:
+
+  A character string. Directory where the job manifest
+  (`htc-manifest.yaml`) is read from and written to. Defaults to
+  whatever `output` is set to, so the manifest travels with the files it
+  describes. Must match the `path` given to
+  [`htc_gen_submit()`](https://erwinlares.github.io/submitr/reference/htc_gen_submit.md),
+  [`htc_upload()`](https://erwinlares.github.io/submitr/reference/htc_upload.md),
+  [`htc_submit()`](https://erwinlares.github.io/submitr/reference/htc_submit.md),
+  and
+  [`htc_download()`](https://erwinlares.github.io/submitr/reference/htc_download.md).
+
 ## Value
 
 Called for its side effects. Writes a bash script to
@@ -115,13 +133,13 @@ an absolute path (e.g. `Rscript /home/analysis.R`) so the script is
 found regardless of the working directory.
 
 **Writing** – the script changes to HTCondor's scratch directory
-(`_CONDOR_SCRATCH_DIR`) before creating the results folder. This
+(`_CONDOR_SCRATCH_DIR`) before creating the output folder. This
 directory is writable and is where HTCondor looks for
-`transfer_output_files`. The R script writes outputs to `"results/"`
+`transfer_output_files`. The R script writes outputs to `"output/"`
 using a relative path, which resolves to the scratch directory.
 
-This separation means the R script stays portable – `"results/"` works
-in RStudio, in `quarto render`, and on HTCondor – while the `.sh` script
+This separation means the R script stays portable – `"output/"` works in
+RStudio, in `quarto render`, and on HTCondor – while the `.sh` script
 handles the HTCondor-specific directory setup.
 
 ## Relationship to htc_gen_submit()
@@ -149,14 +167,14 @@ approach is
 ``` r
 # Single-job executable script with baked-in data
 htc_gen_executable(
-  r_script   = "analysis.R",
+  r_script   = "R/analysis.R",
   data_files = "data-raw/sample.csv",
   output     = tempdir()
 )
 
 # Multiple-job executable script
 htc_gen_executable(
-  r_script = "analysis.R",
+  r_script = "R/analysis.R",
   mode     = "multiple",
   output   = tempdir()
 )
@@ -164,17 +182,18 @@ htc_gen_executable(
 # Custom names with annotations
 htc_gen_executable(
   output_file = "run.sh",
-  r_script    = "run-analysis.R",
+  r_script    = "R/run-analysis.R",
   data_files  = c("data-raw/train.csv", "data-raw/test.csv"),
   comments    = TRUE,
   verbose     = TRUE,
   output      = tempdir()
 )
 #> Writing shebang line
+#> Writing shell options
 #> Writing working directory change
 #> Writing results folder creation
 #> Writing Rscript execution line (mode: single)
 #> Writing compression line
-#> Set executable permissions on /tmp/Rtmp5SaDa3/run.sh
-#> ✔ Executable script written to /tmp/Rtmp5SaDa3/run.sh
+#> Set executable permissions on /tmp/RtmpiOgEG2/run.sh
+#> ✔ Executable script written to /tmp/RtmpiOgEG2/run.sh
 ```

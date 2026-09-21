@@ -61,7 +61,9 @@ explicit <code>config</code> argument on every call.</p>
 
 <dl><dt id="arg--">...<a class="anchor" aria-label="anchor" href="#arg--"></a></dt>
 <dd><p>Arguments passed to <code><a href="htc_config.html">htc_config()</a></code>. Common arguments
-include <code>username</code>, <code>server</code>, <code>path</code>, and <code>overwrite</code>.</p></dd>
+include <code>username</code>, <code>server</code>, <code>path</code>, <code>overwrite</code>, and
+<code>check_server</code>, the last of which turns off the SSH reachability
+probe for scripted or unattended use.</p></dd>
 
 </dl></div>
     <div class="section level2">
@@ -78,6 +80,10 @@ function to override the session config.</p>
 <p>The session config is stored via <code>options(submitr.config = ...)</code> and
 is cleared automatically when the R session ends. To clear it
 manually, call <code>options(submitr.config = NULL)</code>.</p>
+<p>The job manifest built up by <code><a href="htc_gen_submit.html">htc_gen_submit()</a></code>, <code><a href="htc_gen_executable.html">htc_gen_executable()</a></code>,
+and <code><a href="htc_submit.html">htc_submit()</a></code> is persisted to disk separately (see
+<code><a href="htc_upload.html">htc_upload()</a></code>/<code><a href="htc_download.html">htc_download()</a></code>), so calling <code>htc_start()</code> again –
+for example, in a new R session – does not discard it.</p>
     </div>
 
     <div class="section level2">

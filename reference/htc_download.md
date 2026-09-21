@@ -12,11 +12,12 @@ confirms all jobs have completed.
 htc_download(
   files = NULL,
   cluster_id = NULL,
-  remote_path = "~/",
+  remote_path = NULL,
   local_path = ".",
   config = NULL,
   dry_run = FALSE,
-  verbose = FALSE
+  verbose = FALSE,
+  path = "."
 )
 ```
 
@@ -40,9 +41,12 @@ htc_download(
 
 - remote_path:
 
-  A character string. The directory on the submit node where the files
-  are located. Defaults to `"~/"`. Should match the `remote_path` used
-  in
+  A character string or `NULL`. The directory on the submit node where
+  the files are located. When `NULL` (the default), resolves to the
+  `remote_path` recorded in the job manifest by the preceding call to
+  [`htc_submit()`](https://erwinlares.github.io/submitr/reference/htc_submit.md),
+  falling back to `"~/"` if no manifest value is available. Should match
+  the `remote_path` used in
   [`htc_upload()`](https://erwinlares.github.io/submitr/reference/htc_upload.md)
   and
   [`htc_submit()`](https://erwinlares.github.io/submitr/reference/htc_submit.md).
@@ -69,6 +73,18 @@ htc_download(
 - verbose:
 
   Logical. If `TRUE`, prints progress messages. Defaults to `FALSE`.
+
+- path:
+
+  A character string. Directory holding the job manifest
+  (`htc-manifest.yaml`). This is where the function looks for job
+  metadata; it is not where downloaded files are written, which is
+  `local_path`. Defaults to `"."`. If you passed a non-default `output`
+  or `path` to
+  [`htc_gen_submit()`](https://erwinlares.github.io/submitr/reference/htc_gen_submit.md)
+  and
+  [`htc_gen_executable()`](https://erwinlares.github.io/submitr/reference/htc_gen_executable.md),
+  pass that same directory here.
 
 ## Value
 
@@ -109,7 +125,7 @@ For a single-mode job:
 
 For a multiple-mode job:
 
-- Per-subset tarballs (e.g. `"adelie.csv-results.tar.gz"`)
+- Per-subset tarballs (e.g. `"analysis-adelie-results.tar.gz"`)
 
 - Log files for each process: `"{cluster_id}-{0,1,...}-job.log"`, etc.
 
@@ -171,7 +187,7 @@ htc_download()
 htc_download(cluster_id = "6590895")
 
 # Download specific files using globs
-htc_download(files = "*.tar.gz", local_path = "results/")
+htc_download(files = "*.tar.gz", local_path = "downloads/")
 
 # Download logs only
 htc_download(files = c("*.log", "*.err", "*.out"), local_path = "logs/")

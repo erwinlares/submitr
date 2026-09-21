@@ -18,8 +18,9 @@ htc_start(...)
 
   Arguments passed to
   [`htc_config()`](https://erwinlares.github.io/submitr/reference/htc_config.md).
-  Common arguments include `username`, `server`, `path`, and
-  `overwrite`.
+  Common arguments include `username`, `server`, `path`, `overwrite`,
+  and `check_server`, the last of which turns off the SSH reachability
+  probe for scripted or unattended use.
 
 ## Value
 
@@ -41,6 +42,16 @@ override the session config.
 The session config is stored via `options(submitr.config = ...)` and is
 cleared automatically when the R session ends. To clear it manually,
 call `options(submitr.config = NULL)`.
+
+The job manifest built up by
+[`htc_gen_submit()`](https://erwinlares.github.io/submitr/reference/htc_gen_submit.md),
+[`htc_gen_executable()`](https://erwinlares.github.io/submitr/reference/htc_gen_executable.md),
+and
+[`htc_submit()`](https://erwinlares.github.io/submitr/reference/htc_submit.md)
+is persisted to disk separately (see
+[`htc_upload()`](https://erwinlares.github.io/submitr/reference/htc_upload.md)/[`htc_download()`](https://erwinlares.github.io/submitr/reference/htc_download.md)),
+so calling `htc_start()` again – for example, in a new R session – does
+not discard it.
 
 ## Examples
 

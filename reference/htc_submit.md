@@ -14,7 +14,8 @@ htc_submit(
   remote_path = "~/",
   config = NULL,
   dry_run = FALSE,
-  verbose = FALSE
+  verbose = FALSE,
+  path = "."
 )
 ```
 
@@ -51,6 +52,18 @@ htc_submit(
 
   Logical. If `TRUE`, prints progress messages and the `condor_submit`
   output. Defaults to `FALSE`.
+
+- path:
+
+  A character string. Directory holding the job manifest
+  (`htc-manifest.yaml`), where the cluster ID and `remote_path` are
+  recorded on a successful submission. Defaults to `"."`. If you passed
+  a non-default `output` or `path` to
+  [`htc_gen_submit()`](https://erwinlares.github.io/submitr/reference/htc_gen_submit.md),
+  pass that same directory here, or the cluster ID will be written to a
+  second, separate manifest and
+  [`htc_download()`](https://erwinlares.github.io/submitr/reference/htc_download.md)
+  will not find it alongside the job metadata it needs.
 
 ## Value
 

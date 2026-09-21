@@ -6,6 +6,47 @@
 
 - Development version following initial release.
 
+#### Breaking changes
+
+- The results folder written by
+  [`htc_gen_executable()`](https://erwinlares.github.io/submitr/reference/htc_gen_executable.md)
+  is now `output/` rather than `results/`, matching the folder
+  convention used across `toolero` and `containr`. Analysis scripts that
+  write to `results/` will produce an empty tarball until they are
+  updated; `toolero::save_output()` handles this for you.
+
+- Results tarballs are named
+  `<script stem>[-<subset stem>]-results.tar.gz`, with directories and
+  extensions stripped from both stems. A single job running `analysis.R`
+  now produces `analysis-results.tar.gz` as before, but a multiple-mode
+  job over `adelie.csv` produces `analysis-adelie-results.tar.gz` where
+  it previously produced `adelie.csv-results.tar.gz`. This is a clean
+  break: a job submitted with an earlier version and collected with this
+  one will have
+  [`htc_download()`](https://erwinlares.github.io/submitr/reference/htc_download.md)
+  looking for names that do not exist on the submit node. Download those
+  results before upgrading, or pass `files` explicitly. See the README
+  section “A note on the results naming change” for the rationale.
+
+- [`htc_gen_submit()`](https://erwinlares.github.io/submitr/reference/htc_gen_submit.md)
+  gains an `r_script` argument, positioned after `executable`. It is
+  used only to derive the default `output_files` name, which has to
+  match the tarball
+  [`htc_gen_executable()`](https://erwinlares.github.io/submitr/reference/htc_gen_executable.md)
+  tells the job to build. The function never reads the executable script
+  or the Dockerfile, so the script’s name cannot be inferred and has to
+  be supplied. In multiple mode, omitting it now warns. Code calling
+  [`htc_gen_submit()`](https://erwinlares.github.io/submitr/reference/htc_gen_submit.md)
+  with positional arguments past `executable` will need updating.
+
+- Single-mode submit files now carry a `transfer_output_files` line
+  derived from `r_script`, where previously they carried only a
+  placeholder comment unless `output_files` was supplied. This is what
+  makes
+  [`htc_download()`](https://erwinlares.github.io/submitr/reference/htc_download.md)
+  bring back the results tarball in single mode rather than log files
+  alone.
+
 #### New features
 
 - [`htc_start()`](https://erwinlares.github.io/submitr/reference/htc_start.md)
@@ -50,32 +91,175 @@
   [`htc_gen_executable()`](https://erwinlares.github.io/submitr/reference/htc_gen_executable.md),
   and
   [`htc_submit()`](https://erwinlares.github.io/submitr/reference/htc_submit.md)
-  now record job metadata (mode, output files, subset names, cluster ID)
-  in a session-level option.
+  now record job metadata (mode, output files, subset names, cluster ID,
+  remote path) in `htc-manifest.yaml`, written to the `path` directory
+  alongside `htc.cfg`.
+  [`htc_upload()`](https://erwinlares.github.io/submitr/reference/htc_upload.md)
+  and
   [`htc_download()`](https://erwinlares.github.io/submitr/reference/htc_download.md)
-  reads this manifest to determine which files to retrieve.
+  read this manifest to determine which files to transfer.
+
+- The job manifest is stored on disk rather than in a session option, so
+  it survives an R restart. This matters for the case it was built for:
+  a long job submitted in one session and collected in another.
   [`htc_start()`](https://erwinlares.github.io/submitr/reference/htc_start.md)
-  clears stale manifests on session init.
+  no longer clears the manifest, since doing so destroyed exactly the
+  state a restart needs.
+
+- [`htc_upload()`](https://erwinlares.github.io/submitr/reference/htc_upload.md)
+  gains a `files = NULL` default. When `files` is omitted, the upload
+  list is resolved from the job manifest – the submit file, the
+  executable script, any shared input files, and, in `"multiple"` mode,
+  `subdatasets.csv` together with the individual subset data files. This
+  closes the asymmetry with
+  [`htc_download()`](https://erwinlares.github.io/submitr/reference/htc_download.md),
+  which already resolved its own file list.
+
+- [`htc_download()`](https://erwinlares.github.io/submitr/reference/htc_download.md)
+  gains a `remote_path = NULL` default, resolving in order of explicit
+  argument, the `remote_path` recorded by
+  [`htc_submit()`](https://erwinlares.github.io/submitr/reference/htc_submit.md),
+  then `"~/"`. Previously the automatic mode assumed `"~/"` even when
+  the job had been submitted from somewhere else.
+
+- [`htc_gen_submit()`](https://erwinlares.github.io/submitr/reference/htc_gen_submit.md),
+  [`htc_gen_executable()`](https://erwinlares.github.io/submitr/reference/htc_gen_executable.md),
+  [`htc_upload()`](https://erwinlares.github.io/submitr/reference/htc_upload.md),
+  [`htc_submit()`](https://erwinlares.github.io/submitr/reference/htc_submit.md),
+  and
+  [`htc_download()`](https://erwinlares.github.io/submitr/reference/htc_download.md)
+  all gain a `path` argument naming the directory that holds
+  `htc-manifest.yaml`. The generators default it to their `output`
+  directory; the rest default to `"."`. Non-default directories must
+  match across the five.
+
+- [`htc_config()`](https://erwinlares.github.io/submitr/reference/htc_config.md)
+  gains a `check_server` argument controlling whether it opens an SSH
+  connection to report the server’s reachability. It previously did so
+  unconditionally, which meant that merely reading a config file
+  required a network, and that scripts, test suites and `R CMD check`
+  all paid for a probe with no one to read it. The argument defaults to
+  the new `submitr.check_server` option, so it can be set once for a
+  session or a CI job rather than passed at every call, and
+  [`htc_start()`](https://erwinlares.github.io/submitr/reference/htc_start.md)
+  accepts it through `...`.
+
+- The option controlling
+  [`htc_config()`](https://erwinlares.github.io/submitr/reference/htc_config.md)’s
+  progress messages is renamed from `htc_config_verbose` to
+  `submitr.verbose`, matching the namespacing of `submitr.config` and
+  `submitr.check_server`. It was undocumented, so this is unlikely to
+  affect anyone; both options are now documented under
+  [`?htc_config`](https://erwinlares.github.io/submitr/reference/htc_config.md).
+
+- [`htc_config()`](https://erwinlares.github.io/submitr/reference/htc_config.md)
+  gains a `project_config` argument. Pass the path to a `_toolero.yml`
+  file (the resolved project configuration
+  [`toolero::init_project()`](https://erwinlares.github.io/toolero/reference/init_project.html)
+  writes to a project’s root) and its `folders` and `conventions`
+  sections are parsed once and folded into the returned list as
+  `config$project$folders` and `config$project$conventions`, kept
+  separate from the connection details `config` has always held. Never
+  written into `htc.cfg` on disk.
+  [`containr::generate_dockerfile()`](https://erwinlares.github.io/containr/reference/generate_dockerfile.html)
+  already reads the same file through its own `config` argument.
 
 #### Bug fixes
+
+- [`htc_gen_executable()`](https://erwinlares.github.io/submitr/reference/htc_gen_executable.md)
+  now always writes `#!/bin/bash` as the first line of the generated
+  script. With `comments = TRUE` the shebang section’s explanatory
+  comment was written ahead of it, putting `#!/bin/bash` on line two,
+  where the kernel does not look for it. The script would then run under
+  whatever shell happened to invoke it rather than the one it asked for.
+  The section is now split so that the shebang carries no comment of its
+  own and the comment sits with `set -euo pipefail`, which is what it
+  was describing all along.
+
+- `htc_status(watch = TRUE)` now decides when to stop polling by reading
+  the job count from `condor_q`’s own `Total for query:` line, falling
+  back to matching the cluster ID against the `JOB_IDS` column. It
+  previously searched the whole report for the cluster ID as a
+  substring, which could match the address or port in the schedd header,
+  or a count in the `Total for all users:` line. Because that test
+  drives the loop’s exit, a false match did not give a wrong answer, it
+  left the loop polling forever.
+
+- [`htc_submit()`](https://erwinlares.github.io/submitr/reference/htc_submit.md)
+  now quotes `remote_path` and `submit_file` for the remote shell rather
+  than typing quote characters around the assembled command. A filename
+  or path containing a space or an apostrophe previously truncated the
+  command at that character, producing a shell syntax error or, in the
+  worst case, running the remainder as separate commands. A leading `~`
+  is held outside the quoting so that the remote shell still expands it.
+
+- Remote commands in
+  [`htc_submit()`](https://erwinlares.github.io/submitr/reference/htc_submit.md)
+  and
+  [`htc_status()`](https://erwinlares.github.io/submitr/reference/htc_status.md)
+  are assembled with a single POSIX quoting idiom rather than
+  [`shQuote()`](https://rdrr.io/r/base/shQuote.html). This is not a fix
+  for a known failure:
+  [`shQuote()`](https://rdrr.io/r/base/shQuote.html) was checked and
+  does escape a dollar sign when it switches to double quotes, so the
+  previous arrangement held. It was, though, relying on a choice
+  [`shQuote()`](https://rdrr.io/r/base/shQuote.html) makes from its own
+  input and on a dialect that follows the platform R is running on,
+  neither of which suits a command destined for the POSIX shell at the
+  far end of an SSH connection and quoted twice on the way there.
+  Quoting is now the same whatever the input and whatever the local
+  platform.
+
+- [`htc_submit()`](https://erwinlares.github.io/submitr/reference/htc_submit.md)
+  prints `condor_submit` output with
+  [`cat()`](https://rdrr.io/r/base/cat.html) rather than passing it to
+  `cli`, which treats braces in a message as inline markup and would try
+  to evaluate anything an HTCondor message happened to wrap in them.
+  Error details from both
+  [`htc_submit()`](https://erwinlares.github.io/submitr/reference/htc_submit.md)
+  and
+  [`htc_status()`](https://erwinlares.github.io/submitr/reference/htc_status.md)
+  are escaped for the same reason. This also matches how
+  [`htc_status()`](https://erwinlares.github.io/submitr/reference/htc_status.md)
+  already printed `condor_q` output.
 
 - [`htc_gen_submit()`](https://erwinlares.github.io/submitr/reference/htc_gen_submit.md)
   now prepends `docker://` to `container_image` if the prefix is
   missing. Previously, omitting the prefix caused HTCondor to treat the
   image path as a local file.
+
 - [`htc_gen_submit()`](https://erwinlares.github.io/submitr/reference/htc_gen_submit.md)
   now includes `should_transfer_files = YES` and
   `when_to_transfer_output = ON_EXIT` in the transfer section. These
   directives are required by HTCondor for the file transfer mechanism to
   work.
+
 - [`htc_gen_executable()`](https://erwinlares.github.io/submitr/reference/htc_gen_executable.md)
   now includes `set -euo pipefail` after the shebang line, causing the
   script to exit immediately on errors instead of silently continuing.
+
 - [`htc_gen_executable()`](https://erwinlares.github.io/submitr/reference/htc_gen_executable.md)
-  now includes `cd /home` before any file operations, ensuring the
-  script runs from the container’s working directory where
+  now changes to HTCondor’s scratch directory
+  (`cd "${_CONDOR_SCRATCH_DIR:-$PWD}"`) before any file operations, and
+  reads the R script and data files by absolute path under `home_dir`
+  (default `/home`), where
   [`containr::generate_dockerfile()`](https://erwinlares.github.io/containr/reference/generate_dockerfile.html)
-  placed the baked-in files.
+  baked them in. Outputs are therefore written where HTCondor looks for
+  `transfer_output_files`, while inputs are read from where the image
+  actually holds them.
+
+#### Testing
+
+- New `tests/testthat/test-readme-workflow.R`, a
+  documentation-regression suite rather than a code-correctness one. It
+  reproduces README.md’s documented code blocks (the first workflow,
+  scaling to many jobs) using their literal argument values in a
+  temporary directory, and checks the result against claims made
+  elsewhere in the README: the job manifest’s example YAML, the resource
+  preset table, the results-naming table, and the quick function
+  reference. It exists because the README silently went stale once
+  already (S20) after Phase 4 changed the output folder and the tarball
+  naming convention.
 
 ## submitr 0.1.0
 

@@ -55,11 +55,12 @@ have completed.</p>
     <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">htc_download</span><span class="op">(</span></span>
 <span>  files <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  cluster_id <span class="op">=</span> <span class="cn">NULL</span>,</span>
-<span>  remote_path <span class="op">=</span> <span class="st">"~/"</span>,</span>
+<span>  remote_path <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  local_path <span class="op">=</span> <span class="st">"."</span>,</span>
 <span>  config <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  dry_run <span class="op">=</span> <span class="cn">FALSE</span>,</span>
-<span>  verbose <span class="op">=</span> <span class="cn">FALSE</span></span>
+<span>  verbose <span class="op">=</span> <span class="cn">FALSE</span>,</span>
+<span>  path <span class="op">=</span> <span class="st">"."</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
 
@@ -84,9 +85,12 @@ Defaults to <code>NULL</code>.</p></dd>
 
 
 <dt id="arg-remote-path">remote_path<a class="anchor" aria-label="anchor" href="#arg-remote-path"></a></dt>
-<dd><p>A character string. The directory on the submit node
-where the files are located. Defaults to <code>"~/"</code>. Should match the
-<code>remote_path</code> used in <code><a href="htc_upload.html">htc_upload()</a></code> and <code><a href="htc_submit.html">htc_submit()</a></code>.</p></dd>
+<dd><p>A character string or <code>NULL</code>. The directory on the
+submit node where the files are located. When <code>NULL</code> (the default),
+resolves to the <code>remote_path</code> recorded in the job manifest by the
+preceding call to <code><a href="htc_submit.html">htc_submit()</a></code>, falling back to <code>"~/"</code> if no manifest
+value is available. Should match the <code>remote_path</code> used in
+<code><a href="htc_upload.html">htc_upload()</a></code> and <code><a href="htc_submit.html">htc_submit()</a></code>.</p></dd>
 
 
 <dt id="arg-local-path">local_path<a class="anchor" aria-label="anchor" href="#arg-local-path"></a></dt>
@@ -109,6 +113,15 @@ executed without running it. Defaults to <code>FALSE</code>.</p></dd>
 <dt id="arg-verbose">verbose<a class="anchor" aria-label="anchor" href="#arg-verbose"></a></dt>
 <dd><p>Logical. If <code>TRUE</code>, prints progress messages. Defaults to
 <code>FALSE</code>.</p></dd>
+
+
+<dt id="arg-path">path<a class="anchor" aria-label="anchor" href="#arg-path"></a></dt>
+<dd><p>A character string. Directory holding the job manifest
+(<code>htc-manifest.yaml</code>). This is where the function looks for job
+metadata; it is not where downloaded files are written, which is
+<code>local_path</code>. Defaults to <code>"."</code>. If you passed a non-default <code>output</code>
+or <code>path</code> to <code><a href="htc_gen_submit.html">htc_gen_submit()</a></code> and <code><a href="htc_gen_executable.html">htc_gen_executable()</a></code>, pass that
+same directory here.</p></dd>
 
 </dl></div>
     <div class="section level2">
@@ -137,7 +150,7 @@ job manifest. The manifest is built automatically as you call
 the normal workflow. No extra steps are needed.</p>
 <p>For a single-mode job:</p><ul><li><p>The results tarball (e.g. <code>"analysis-results.tar.gz"</code>)</p></li>
 <li><p>Log files: <code>"{cluster_id}-0-job.log"</code>, <code>".err"</code>, <code>".out"</code></p></li>
-</ul><p>For a multiple-mode job:</p><ul><li><p>Per-subset tarballs (e.g. <code>"adelie.csv-results.tar.gz"</code>)</p></li>
+</ul><p>For a multiple-mode job:</p><ul><li><p>Per-subset tarballs (e.g. <code>"analysis-adelie-results.tar.gz"</code>)</p></li>
 <li><p>Log files for each process: <code>"{cluster_id}-{0,1,...}-job.log"</code>, etc.</p></li>
 </ul></div>
     <div class="section level2">
@@ -199,7 +212,7 @@ a Duo MFA prompt. Run <code><a href="htc_config.html">htc_config()</a></code> fo
 <span class="r-in"><span><span class="fu">htc_download</span><span class="op">(</span>cluster_id <span class="op">=</span> <span class="st">"6590895"</span><span class="op">)</span></span></span>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="co"># Download specific files using globs</span></span></span>
-<span class="r-in"><span><span class="fu">htc_download</span><span class="op">(</span>files <span class="op">=</span> <span class="st">"*.tar.gz"</span>, local_path <span class="op">=</span> <span class="st">"results/"</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="fu">htc_download</span><span class="op">(</span>files <span class="op">=</span> <span class="st">"*.tar.gz"</span>, local_path <span class="op">=</span> <span class="st">"downloads/"</span><span class="op">)</span></span></span>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="co"># Download logs only</span></span></span>
 <span class="r-in"><span><span class="fu">htc_download</span><span class="op">(</span>files <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"*.log"</span>, <span class="st">"*.err"</span>, <span class="st">"*.out"</span><span class="op">)</span>, local_path <span class="op">=</span> <span class="st">"logs/"</span><span class="op">)</span></span></span>

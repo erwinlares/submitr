@@ -11,6 +11,7 @@ htc_gen_submit(
   output_file = "job.sub",
   container_image = NULL,
   executable = NULL,
+  r_script = NULL,
   input_files = NULL,
   output_files = NULL,
   mode = "single",
@@ -22,7 +23,8 @@ htc_gen_submit(
   gpu_options = NULL,
   verbose = FALSE,
   comments = FALSE,
-  output = "."
+  output = ".",
+  path = output
 )
 ```
 
@@ -46,6 +48,21 @@ htc_gen_submit(
   container, e.g. `"analysis.sh"`. Defaults to `NULL`, which writes a
   placeholder comment in the submit file.
 
+- r_script:
+
+  A character string. The R script the job runs, e.g. `"R/analysis.R"`.
+  Used only to derive the default `output_files` name, which must match
+  the tarball
+  [`htc_gen_executable()`](https://erwinlares.github.io/submitr/reference/htc_gen_executable.md)
+  tells the job to build. This function never reads the executable
+  script or the Dockerfile, so the script's name cannot be inferred and
+  has to be given here. If omitted, the value recorded in the job
+  manifest by a previous
+  [`htc_gen_executable()`](https://erwinlares.github.io/submitr/reference/htc_gen_executable.md)
+  call is used; note that the documented workflow calls this function
+  first, in which case there is nothing recorded yet. Ignored when
+  `output_files` is supplied. Defaults to `NULL`.
+
 - input_files:
 
   A character vector. Files to transfer to the job's working directory
@@ -57,8 +74,15 @@ htc_gen_submit(
 - output_files:
 
   A character vector. Files to transfer back from the job's working
-  directory after execution. In `"multiple"` mode, this defaults to
-  `"$(file)-results.tar.gz"` if not supplied. Defaults to `NULL`.
+  directory after execution. When not supplied, it is derived from
+  `r_script` following the family convention
+  `<script stem>[-<subset stem>]-results.tar.gz`, giving for example
+  `analysis-results.tar.gz` in `"single"` mode and
+  `analysis-$Fn(file)-results.tar.gz` in `"multiple"` mode. `$Fn()` is
+  an HTCondor submit macro that strips a value's directory and
+  extension, so a subset named `adelie.csv` yields
+  `analysis-adelie-results.tar.gz`. Supplying this argument overrides
+  the derivation entirely. Defaults to `NULL`.
 
 - mode:
 
@@ -126,6 +150,20 @@ htc_gen_submit(
   `"multiple"` mode, `subdatasets.csv`) will be written. Defaults to
   `"."` (current working directory).
 
+- path:
+
+  A character string. Directory where the job manifest
+  (`htc-manifest.yaml`) is read from and written to. Defaults to
+  whatever `output` is set to, so the manifest travels with the files it
+  describes. Pass `path = "."` to keep the manifest in the project root
+  while writing generated files elsewhere. Whatever you choose,
+  [`htc_upload()`](https://erwinlares.github.io/submitr/reference/htc_upload.md),
+  [`htc_submit()`](https://erwinlares.github.io/submitr/reference/htc_submit.md),
+  and
+  [`htc_download()`](https://erwinlares.github.io/submitr/reference/htc_download.md)
+  must be given the same directory, since that is where they look for
+  the manifest.
+
 ## Value
 
 Called for its side effects. Writes an HTCondor submit file to
@@ -161,14 +199,14 @@ The typical workflow is:
 2.  Split your dataset with `toolero::write_by_group(manifest = TRUE)`
     to produce subset CSV files and a `manifest.csv`.
 
-3.  Strip `analysis.qmd` to `analysis.R` with
+3.  Strip `analysis.qmd` to `R/analysis.R` with
     [`knitr::purl()`](https://rdrr.io/pkg/knitr/man/knit.html).
 
 4.  Call
     `htc_gen_submit(mode = "multiple", queue_from = "manifest.csv")` to
     produce the submit file and `subdatasets.csv`.
 
-5.  Copy `analysis.R`, the subset data files, `analysis.sub`,
+5.  Copy `R/analysis.R`, the subset data files, `analysis.sub`,
     `analysis.sh`, and `subdatasets.csv` to CHTC and submit.
 
 ## Resource presets
@@ -191,8 +229,8 @@ htc_gen_submit(
   output_file     = "analysis.sub",
   container_image = "docker://registry.doit.wisc.edu/netid/myimage",
   executable      = "analysis.sh",
-  input_files     = "analysis.R",
-  output_files    = "results.tar.gz",
+  r_script        = "R/analysis.R",
+  input_files     = "R/analysis.R",
   resources       = "medium",
   output          = tempdir()
 )
@@ -211,7 +249,7 @@ htc_gen_submit(
 #> Writing logging section
 #> Writing resources section (small preset: 1 CPU / 4GB RAM / 4GB disk)
 #> Writing queue section (1 job)
-#> ✔ Submit file written to /tmp/Rtmp5SaDa3/annotated.sub
+#> ✔ Submit file written to /tmp/RtmpiOgEG2/annotated.sub
 
 # Custom resource request
 htc_gen_submit(
