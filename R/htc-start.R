@@ -21,9 +21,10 @@
 #' for example, in a new R session -- does not discard it.
 #'
 #' @param ... Arguments passed to [htc_config()]. Common arguments
-#'   include `username`, `server`, `path`, `overwrite`, and
-#'   `check_server`, the last of which turns off the SSH reachability
-#'   probe for scripted or unattended use.
+#'   include `username`, `server`, `path`, `overwrite`, `check_server`
+#'   (turns off the SSH reachability probe for scripted or unattended use),
+#'   and `project_config` (folds a `_toolero.yml` project's folders and
+#'   conventions into the returned config under `config$project`).
 #'
 #' @return Invisibly returns the config list (same as [htc_config()]).
 #'

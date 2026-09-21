@@ -18,6 +18,17 @@
 #'   directory).
 #' @param overwrite Logical. If `TRUE`, recreates `htc.cfg` even if one
 #'   already exists. Defaults to `FALSE`.
+#' @param project_config A character string or `NULL` (the default). Path to
+#'   a `_toolero.yml` file, the resolved project configuration
+#'   `toolero::init_project()` writes to a project's root. When supplied,
+#'   its `folders` and `conventions` sections are parsed once and folded
+#'   into the returned list under `project`, so `config$project$folders`
+#'   and `config$project$conventions` become available alongside the
+#'   connection details. This is the same file, in the same schema, that
+#'   `containr::generate_dockerfile()` reads through its own `config`
+#'   argument. Never written into `htc.cfg`: project layout and SSH
+#'   connection details are recorded separately, and `htc.cfg` on disk is
+#'   unaffected by whether you pass `project_config`.
 #' @param check_server Logical. If `TRUE`, opens a short SSH connection to
 #'   `server` to report whether it is reachable before you rely on the
 #'   config. Defaults to the `submitr.check_server` option, which is itself
@@ -25,7 +36,8 @@
 #'   suites, and anywhere else the probe has no audience -- reading a config
 #'   file then costs nothing and touches no network.
 #'
-#' @return A named list with elements `username` and `server`, returned
+#' @return A named list with elements `username` and `server`, plus a
+#'   `project` element when `project_config` is supplied, returned
 #'   invisibly.
 #'
 #' @section Options:
@@ -65,6 +77,31 @@
 #' require Duo authentication. Full documentation:
 #' <https://chtc.cs.wisc.edu/uw-research-computing/configure-ssh>
 #'
+#' @section Project configuration:
+#' `project_config` is how `submitr` learns the layout a `toolero` project
+#' already settled on, instead of retyping it. `toolero::init_project()`
+#' writes `_toolero.yml` to a project's root once it has resolved the
+#' folder set, and that file records two things: `folders`, the full list
+#' of folders the project uses, and `conventions`, the names the family
+#' resolves rather than assumes (`output_dir`, `script_dir`, `split_dir`).
+#'
+#' Passing `project_config = "_toolero.yml"` reads that file once and
+#' returns it under `config$project`:
+#'
+#' ```r
+#' cfg <- htc_config(project_config = "_toolero.yml")
+#' cfg$project$conventions$output_dir
+#' #> [1] "output"
+#' ```
+#'
+#' Nothing in `submitr` requires this yet -- `htc_gen_executable()`'s
+#' `results_folder` argument still has to be set (or left at its own
+#' `"output"` default) independently. What `project_config` buys you today
+#' is one place to read a project's own folder layout from R, and a
+#' foundation for `submitr` functions to default to the project's own
+#' conventions in a future release, the way `containr::generate_dockerfile()`
+#' already reads the same file for its own purposes.
+#'
 #' @section Security:
 #' `htc.cfg` contains your username and server address. Neither is
 #' sensitive on its own, but `htc_config()` adds `htc.cfg` to
@@ -99,16 +136,21 @@
 #' # Or turn the probe off for a whole session
 #' options(submitr.check_server = FALSE)
 #'
+#' # Fold in a toolero project's own folder layout and conventions
+#' cfg <- htc_config(project_config = "_toolero.yml")
+#' cfg$project$conventions$output_dir
+#'
 #' # Use in other functions
 #' htc_upload(files = c("job.sub", "job.sh"), config = cfg)
 #' }
 
-htc_config <- function(username     = NULL,
-                       server       = NULL,
-                       path         = ".",
-                       overwrite    = FALSE,
-                       check_server = getOption("submitr.check_server",
-                                                default = TRUE)) {
+htc_config <- function(username       = NULL,
+                       server         = NULL,
+                       path           = ".",
+                       overwrite      = FALSE,
+                       project_config = NULL,
+                       check_server   = getOption("submitr.check_server",
+                                                  default = TRUE)) {
 
     cfg_path <- file.path(path, "htc.cfg")
 
@@ -131,6 +173,11 @@ htc_config <- function(username     = NULL,
         }
 
         cfg <- list(username = cfg$username, server = cfg$server)
+
+        if (!is.null(project_config)) {
+            cfg$project <- .read_project_config(project_config)
+        }
+
         if (check_server) {
             .htc_check_server(cfg)
         }
@@ -205,6 +252,14 @@ htc_config <- function(username     = NULL,
     # -- 5. Add to .gitignore --------------------------------------------------
     gitignore_path <- file.path(path, ".gitignore")
     .htc_add_to_gitignore("htc.cfg", gitignore_path)
+
+    # -- 5b. Fold in project config, if supplied --------------------------------
+    # Read after htc.cfg is already written to disk, so a project's folder
+    # layout never ends up inside the connection-details file. It lives only
+    # in the list this call returns.
+    if (!is.null(project_config)) {
+        cfg$project <- .read_project_config(project_config)
+    }
 
     # -- 6. Validate server reachability ---------------------------------------
     if (check_server) {

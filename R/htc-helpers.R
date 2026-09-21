@@ -329,3 +329,55 @@
 .cli_escape <- function(x) {
   gsub("}", "}}", gsub("{", "{{", x, fixed = TRUE), fixed = TRUE)
 }
+
+
+#' Read a toolero project configuration file
+#'
+#' Internal helper behind `htc_config()`'s `project_config` argument. Parses
+#' a `_toolero.yml` file (the resolved instance `toolero::init_project()`
+#' writes to a project's root, not the internal template it renders from)
+#' and returns its `folders` and `conventions` sections.
+#'
+#' Like `.get_manifest()`, this normalizes YAML's round trip: a sequence of
+#' scalars (`folders`) comes back from `yaml::read_yaml()` as a list, and
+#' callers expect an ordinary character vector.
+#'
+#' @param path A character string. Path to a `_toolero.yml` file.
+#'
+#' @return A named list with elements `folders` (a character vector, possibly
+#'   `NULL`) and `conventions` (a named list, possibly `NULL`, typically with
+#'   `output_dir`, `script_dir`, and `split_dir`).
+#'
+#' @keywords internal
+.read_project_config <- function(path) {
+  if (!file.exists(path)) {
+    cli::cli_abort(c(
+      "Project config file not found: {.path {path}}.",
+      "i" = "{.arg project_config} must name an existing",
+      " " = "  {.file _toolero.yml} file."
+    ))
+  }
+
+  project <- yaml::read_yaml(path)
+
+  known_version <- 1L
+  if (!is.null(project$schema_version) &&
+      !identical(as.integer(project$schema_version), known_version)) {
+    cli::cli_warn(c(
+      "{.path {path}} declares schema_version {project$schema_version},
+             which this version of submitr does not recognize.",
+      "i" = "Parsing {.val folders} and {.val conventions} anyway;",
+      " " = "  check for a newer submitr release if something looks off."
+    ))
+  }
+
+  folders <- project$folders
+  if (is.list(folders)) {
+    folders <- unlist(folders)
+  }
+
+  list(
+    folders     = folders,
+    conventions = project$conventions
+  )
+}

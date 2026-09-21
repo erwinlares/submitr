@@ -105,6 +105,15 @@
   is unlikely to affect anyone; both options are now documented under
   `?htc_config`.
 
+* `htc_config()` gains a `project_config` argument. Pass the path to a
+  `_toolero.yml` file (the resolved project configuration
+  `toolero::init_project()` writes to a project's root) and its `folders`
+  and `conventions` sections are parsed once and folded into the returned
+  list as `config$project$folders` and `config$project$conventions`, kept
+  separate from the connection details `config` has always held. Never
+  written into `htc.cfg` on disk. `containr::generate_dockerfile()` already
+  reads the same file through its own `config` argument.
+
 ### Bug fixes
 
 * `htc_gen_executable()` now always writes `#!/bin/bash` as the first line of
@@ -164,6 +173,18 @@
   `/home`), where `containr::generate_dockerfile()` baked them in. Outputs
   are therefore written where HTCondor looks for `transfer_output_files`,
   while inputs are read from where the image actually holds them.
+
+### Testing
+
+* New `tests/testthat/test-readme-workflow.R`, a documentation-regression
+  suite rather than a code-correctness one. It reproduces README.md's
+  documented code blocks (the first workflow, scaling to many jobs) using
+  their literal argument values in a temporary directory, and checks the
+  result against claims made elsewhere in the README: the job manifest's
+  example YAML, the resource preset table, the results-naming table, and
+  the quick function reference. It exists because the README silently went
+  stale once already (S20) after Phase 4 changed the output folder and the
+  tarball naming convention.
 
 # submitr 0.1.0
 

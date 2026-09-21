@@ -272,6 +272,145 @@ test_that("ControlMaster notice references htc_upload/htc_download, not removed 
 })
 
 # ---------------------------------------------------------------------------
+# project_config -- folding a toolero project's layout into the config (S13)
+#
+# _toolero.yml is written by toolero::init_project() to a project's root
+# once it has resolved the folder set. It is a resolved instance, not the
+# {{folders}}/{{conventions}} template init_project() renders from, so the
+# fixture below writes the shape a real project would have: folders as a
+# YAML sequence, conventions as a mapping with output_dir/script_dir/
+# split_dir.
+# ---------------------------------------------------------------------------
+
+.write_toolero_yml <- function(path, schema_version = 1L) {
+    yaml::write_yaml(
+        list(
+            schema_version = schema_version,
+            folders        = c("R", "data", "output"),
+            conventions    = list(
+                output_dir = "output",
+                script_dir = "R",
+                split_dir  = "data/splits"
+            )
+        ),
+        path
+    )
+}
+
+test_that("project_config folds folders and conventions into config$project", {
+    tmp <- withr::local_tempdir()
+    withr::local_dir(tmp)
+    .write_toolero_yml(file.path(tmp, "_toolero.yml"))
+
+    result <- htc_config(
+        username       = "lares",
+        server         = "ap2002.chtc.wisc.edu",
+        project_config = file.path(tmp, "_toolero.yml"),
+        check_server   = FALSE
+    )
+
+    expect_equal(result$project$folders, c("R", "data", "output"))
+    expect_equal(result$project$conventions$output_dir, "output")
+    expect_equal(result$project$conventions$script_dir, "R")
+    expect_equal(result$project$conventions$split_dir, "data/splits")
+})
+
+test_that("project_config folders come back as a character vector, not a list", {
+    tmp <- withr::local_tempdir()
+    withr::local_dir(tmp)
+    .write_toolero_yml(file.path(tmp, "_toolero.yml"))
+
+    result <- htc_config(
+        username       = "lares",
+        server         = "ap2002.chtc.wisc.edu",
+        project_config = file.path(tmp, "_toolero.yml"),
+        check_server   = FALSE
+    )
+
+    expect_false(is.list(result$project$folders))
+    expect_type(result$project$folders, "character")
+})
+
+test_that("omitting project_config leaves the returned list unchanged", {
+    tmp <- withr::local_tempdir()
+    withr::local_dir(tmp)
+
+    result <- htc_config(
+        username     = "lares",
+        server       = "ap2002.chtc.wisc.edu",
+        check_server = FALSE
+    )
+
+    expect_named(result, c("username", "server"))
+    expect_null(result$project)
+})
+
+test_that("project_config is folded in when reading an existing htc.cfg", {
+    tmp <- withr::local_tempdir()
+    withr::local_dir(tmp)
+    yaml::write_yaml(
+        list(username = "lares", server = "ap2002.chtc.wisc.edu"),
+        file.path(tmp, "htc.cfg")
+    )
+    .write_toolero_yml(file.path(tmp, "_toolero.yml"))
+
+    result <- htc_config(
+        project_config = file.path(tmp, "_toolero.yml"),
+        check_server   = FALSE
+    )
+
+    expect_equal(result$project$conventions$output_dir, "output")
+})
+
+test_that("project_config never leaks into htc.cfg on disk", {
+    tmp <- withr::local_tempdir()
+    withr::local_dir(tmp)
+    .write_toolero_yml(file.path(tmp, "_toolero.yml"))
+
+    htc_config(
+        username       = "lares",
+        server         = "ap2002.chtc.wisc.edu",
+        project_config = file.path(tmp, "_toolero.yml"),
+        check_server   = FALSE
+    )
+
+    on_disk <- yaml::read_yaml(file.path(tmp, "htc.cfg"))
+    expect_named(on_disk, c("username", "server"))
+})
+
+test_that("project_config errors when the file does not exist", {
+    tmp <- withr::local_tempdir()
+    withr::local_dir(tmp)
+
+    expect_error(
+        htc_config(
+            username       = "lares",
+            server         = "ap2002.chtc.wisc.edu",
+            project_config = file.path(tmp, "no-such-file.yml"),
+            check_server   = FALSE
+        ),
+        regexp = "not found"
+    )
+})
+
+test_that("project_config warns on an unrecognized schema_version but still parses", {
+    tmp <- withr::local_tempdir()
+    withr::local_dir(tmp)
+    .write_toolero_yml(file.path(tmp, "_toolero.yml"), schema_version = 99L)
+
+    expect_warning(
+        result <- htc_config(
+            username       = "lares",
+            server         = "ap2002.chtc.wisc.edu",
+            project_config = file.path(tmp, "_toolero.yml"),
+            check_server   = FALSE
+        ),
+        regexp = "schema_version"
+    )
+    expect_equal(result$project$conventions$output_dir, "output")
+})
+
+# ---------------------------------------------------------------------------
 # Layer 3 — Integration (requires live htc.cfg and CHTC connection)
 # ---------------------------------------------------------------------------
 
