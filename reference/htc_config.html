@@ -63,6 +63,7 @@ existing file.</p>
 <span>  server <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  path <span class="op">=</span> <span class="st">"."</span>,</span>
 <span>  overwrite <span class="op">=</span> <span class="cn">FALSE</span>,</span>
+<span>  project_config <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  check_server <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/options.html" class="external-link">getOption</a></span><span class="op">(</span><span class="st">"submitr.check_server"</span>, default <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
@@ -94,6 +95,20 @@ directory).</p></dd>
 already exists. Defaults to <code>FALSE</code>.</p></dd>
 
 
+<dt id="arg-project-config">project_config<a class="anchor" aria-label="anchor" href="#arg-project-config"></a></dt>
+<dd><p>A character string or <code>NULL</code> (the default). Path to
+a <code>_toolero.yml</code> file, the resolved project configuration
+<code><a href="https://erwinlares.github.io/toolero/reference/init_project.html" class="external-link">toolero::init_project()</a></code> writes to a project's root. When supplied,
+its <code>folders</code> and <code>conventions</code> sections are parsed once and folded
+into the returned list under <code>project</code>, so <code>config$project$folders</code>
+and <code>config$project$conventions</code> become available alongside the
+connection details. This is the same file, in the same schema, that
+<code><a href="https://erwinlares.github.io/containr/reference/generate_dockerfile.html" class="external-link">containr::generate_dockerfile()</a></code> reads through its own <code>config</code>
+argument. Never written into <code>htc.cfg</code>: project layout and SSH
+connection details are recorded separately, and <code>htc.cfg</code> on disk is
+unaffected by whether you pass <code>project_config</code>.</p></dd>
+
+
 <dt id="arg-check-server">check_server<a class="anchor" aria-label="anchor" href="#arg-check-server"></a></dt>
 <dd><p>Logical. If <code>TRUE</code>, opens a short SSH connection to
 <code>server</code> to report whether it is reachable before you rely on the
@@ -105,7 +120,8 @@ file then costs nothing and touches no network.</p></dd>
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
-    <p>A named list with elements <code>username</code> and <code>server</code>, returned
+    <p>A named list with elements <code>username</code> and <code>server</code>, plus a
+<code>project</code> element when <code>project_config</code> is supplied, returned
 invisibly.</p>
     </div>
     <div class="section level2">
@@ -140,6 +156,29 @@ configuring SSH connection reuse (ControlMaster) in your
 <p>After this, only the first connection in a two-hour window will
 require Duo authentication. Full documentation:
 <a href="https://chtc.cs.wisc.edu/uw-research-computing/configure-ssh" class="external-link">https://chtc.cs.wisc.edu/uw-research-computing/configure-ssh</a></p>
+    </div>
+    <div class="section level2">
+    <h2 id="project-configuration">Project configuration<a class="anchor" aria-label="anchor" href="#project-configuration"></a></h2>
+
+
+<p><code>project_config</code> is how <code>submitr</code> learns the layout a <code>toolero</code> project
+already settled on, instead of retyping it. <code><a href="https://erwinlares.github.io/toolero/reference/init_project.html" class="external-link">toolero::init_project()</a></code>
+writes <code>_toolero.yml</code> to a project's root once it has resolved the
+folder set, and that file records two things: <code>folders</code>, the full list
+of folders the project uses, and <code>conventions</code>, the names the family
+resolves rather than assumes (<code>output_dir</code>, <code>script_dir</code>, <code>split_dir</code>).</p>
+<p>Passing <code>project_config = "_toolero.yml"</code> reads that file once and
+returns it under <code>config$project</code>:</p>
+<p></p><div class="sourceCode r"><pre><code><span><span class="va">cfg</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/htc_config.html">htc_config</a></span><span class="op">(</span>project_config <span class="op">=</span> <span class="st">"_toolero.yml"</span><span class="op">)</span></span>
+<span><span class="va">cfg</span><span class="op">$</span><span class="va">project</span><span class="op">$</span><span class="va">conventions</span><span class="op">$</span><span class="va">output_dir</span></span>
+<span><span class="co">#&gt; [1] "output"</span></span></code></pre><p></p></div>
+<p>Nothing in <code>submitr</code> requires this yet – <code><a href="htc_gen_executable.html">htc_gen_executable()</a></code>'s
+<code>results_folder</code> argument still has to be set (or left at its own
+<code>"output"</code> default) independently. What <code>project_config</code> buys you today
+is one place to read a project's own folder layout from R, and a
+foundation for <code>submitr</code> functions to default to the project's own
+conventions in a future release, the way <code><a href="https://erwinlares.github.io/containr/reference/generate_dockerfile.html" class="external-link">containr::generate_dockerfile()</a></code>
+already reads the same file for its own purposes.</p>
     </div>
     <div class="section level2">
     <h2 id="security">Security<a class="anchor" aria-label="anchor" href="#security"></a></h2>
@@ -180,6 +219,10 @@ institutional account details to a public repository.</p>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="co"># Or turn the probe off for a whole session</span></span></span>
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/options.html" class="external-link">options</a></span><span class="op">(</span>submitr.check_server <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span></span>
+<span class="r-in"><span></span></span>
+<span class="r-in"><span><span class="co"># Fold in a toolero project's own folder layout and conventions</span></span></span>
+<span class="r-in"><span><span class="va">cfg</span> <span class="op">&lt;-</span> <span class="fu">htc_config</span><span class="op">(</span>project_config <span class="op">=</span> <span class="st">"_toolero.yml"</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="va">cfg</span><span class="op">$</span><span class="va">project</span><span class="op">$</span><span class="va">conventions</span><span class="op">$</span><span class="va">output_dir</span></span></span>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="co"># Use in other functions</span></span></span>
 <span class="r-in"><span><span class="fu"><a href="htc_upload.html">htc_upload</a></span><span class="op">(</span>files <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"job.sub"</span>, <span class="st">"job.sh"</span><span class="op">)</span>, config <span class="op">=</span> <span class="va">cfg</span><span class="op">)</span></span></span>

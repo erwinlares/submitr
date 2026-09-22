@@ -19,8 +19,10 @@ htc_start(...)
   Arguments passed to
   [`htc_config()`](https://erwinlares.github.io/submitr/reference/htc_config.md).
   Common arguments include `username`, `server`, `path`, `overwrite`,
-  and `check_server`, the last of which turns off the SSH reachability
-  probe for scripted or unattended use.
+  `check_server` (turns off the SSH reachability probe for scripted or
+  unattended use), and `project_config` (folds a `_toolero.yml`
+  project's folders and conventions into the returned config under
+  `config$project`).
 
 ## Value
 

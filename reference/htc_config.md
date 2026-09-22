@@ -19,6 +19,7 @@ htc_config(
   server = NULL,
   path = ".",
   overwrite = FALSE,
+  project_config = NULL,
   check_server = getOption("submitr.check_server", default = TRUE)
 )
 ```
@@ -46,6 +47,21 @@ htc_config(
   Logical. If `TRUE`, recreates `htc.cfg` even if one already exists.
   Defaults to `FALSE`.
 
+- project_config:
+
+  A character string or `NULL` (the default). Path to a `_toolero.yml`
+  file, the resolved project configuration
+  [`toolero::init_project()`](https://erwinlares.github.io/toolero/reference/init_project.html)
+  writes to a project's root. When supplied, its `folders` and
+  `conventions` sections are parsed once and folded into the returned
+  list under `project`, so `config$project$folders` and
+  `config$project$conventions` become available alongside the connection
+  details. This is the same file, in the same schema, that
+  [`containr::generate_dockerfile()`](https://erwinlares.github.io/containr/reference/generate_dockerfile.html)
+  reads through its own `config` argument. Never written into `htc.cfg`:
+  project layout and SSH connection details are recorded separately, and
+  `htc.cfg` on disk is unaffected by whether you pass `project_config`.
+
 - check_server:
 
   Logical. If `TRUE`, opens a short SSH connection to `server` to report
@@ -57,7 +73,8 @@ htc_config(
 
 ## Value
 
-A named list with elements `username` and `server`, returned invisibly.
+A named list with elements `username` and `server`, plus a `project`
+element when `project_config` is supplied, returned invisibly.
 
 ## Options
 
@@ -99,6 +116,33 @@ After this, only the first connection in a two-hour window will require
 Duo authentication. Full documentation:
 <https://chtc.cs.wisc.edu/uw-research-computing/configure-ssh>
 
+## Project configuration
+
+`project_config` is how `submitr` learns the layout a `toolero` project
+already settled on, instead of retyping it.
+[`toolero::init_project()`](https://erwinlares.github.io/toolero/reference/init_project.html)
+writes `_toolero.yml` to a project's root once it has resolved the
+folder set, and that file records two things: `folders`, the full list
+of folders the project uses, and `conventions`, the names the family
+resolves rather than assumes (`output_dir`, `script_dir`, `split_dir`).
+
+Passing `project_config = "_toolero.yml"` reads that file once and
+returns it under `config$project`:
+
+    cfg <- htc_config(project_config = "_toolero.yml")
+    cfg$project$conventions$output_dir
+    #> [1] "output"
+
+Nothing in `submitr` requires this yet –
+[`htc_gen_executable()`](https://erwinlares.github.io/submitr/reference/htc_gen_executable.md)'s
+`results_folder` argument still has to be set (or left at its own
+`"output"` default) independently. What `project_config` buys you today
+is one place to read a project's own folder layout from R, and a
+foundation for `submitr` functions to default to the project's own
+conventions in a future release, the way
+[`containr::generate_dockerfile()`](https://erwinlares.github.io/containr/reference/generate_dockerfile.html)
+already reads the same file for its own purposes.
+
 ## Security
 
 `htc.cfg` contains your username and server address. Neither is
@@ -136,6 +180,10 @@ cfg <- htc_config(check_server = FALSE)
 
 # Or turn the probe off for a whole session
 options(submitr.check_server = FALSE)
+
+# Fold in a toolero project's own folder layout and conventions
+cfg <- htc_config(project_config = "_toolero.yml")
+cfg$project$conventions$output_dir
 
 # Use in other functions
 htc_upload(files = c("job.sub", "job.sh"), config = cfg)

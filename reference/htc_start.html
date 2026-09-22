@@ -61,9 +61,10 @@ explicit <code>config</code> argument on every call.</p>
 
 <dl><dt id="arg--">...<a class="anchor" aria-label="anchor" href="#arg--"></a></dt>
 <dd><p>Arguments passed to <code><a href="htc_config.html">htc_config()</a></code>. Common arguments
-include <code>username</code>, <code>server</code>, <code>path</code>, <code>overwrite</code>, and
-<code>check_server</code>, the last of which turns off the SSH reachability
-probe for scripted or unattended use.</p></dd>
+include <code>username</code>, <code>server</code>, <code>path</code>, <code>overwrite</code>, <code>check_server</code>
+(turns off the SSH reachability probe for scripted or unattended use),
+and <code>project_config</code> (folds a <code>_toolero.yml</code> project's folders and
+conventions into the returned config under <code>config$project</code>).</p></dd>
 
 </dl></div>
     <div class="section level2">
