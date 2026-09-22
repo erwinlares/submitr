@@ -177,14 +177,10 @@
 ### Testing
 
 * New `tests/testthat/test-readme-workflow.R`, a documentation-regression
-  suite rather than a code-correctness one. It reproduces README.md's
-  documented code blocks (the first workflow, scaling to many jobs) using
-  their literal argument values in a temporary directory, and checks the
-  result against claims made elsewhere in the README: the job manifest's
-  example YAML, the resource preset table, the results-naming table, and
-  the quick function reference. It exists because the README silently went
-  stale once already (S20) after Phase 4 changed the output folder and the
-  tarball naming convention.
+  suite rather than a code-correctness one. It reproduces the documented
+  code blocks in `README.md` (the first workflow, scaling to many jobs)
+  using their literal argument values in a temporary directory, and checks
+  the result against claims made elsewhere in the README: the job manifest's example YAML, the resource preset table, the results-naming table, and the quick function reference. It exists because the README silently went stale once already (S20) after Phase 4 changed the output folder and the tarball naming convention.
 
 # submitr 0.1.0
 

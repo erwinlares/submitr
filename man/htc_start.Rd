@@ -8,9 +8,10 @@ htc_start(...)
 }
 \arguments{
 \item{...}{Arguments passed to \code{\link[=htc_config]{htc_config()}}. Common arguments
-include \code{username}, \code{server}, \code{path}, \code{overwrite}, and
-\code{check_server}, the last of which turns off the SSH reachability
-probe for scripted or unattended use.}
+include \code{username}, \code{server}, \code{path}, \code{overwrite}, \code{check_server}
+(turns off the SSH reachability probe for scripted or unattended use),
+and \code{project_config} (folds a \verb{_toolero.yml} project's folders and
+conventions into the returned config under \code{config$project}).}
 }
 \value{
 Invisibly returns the config list (same as \code{\link[=htc_config]{htc_config()}}).

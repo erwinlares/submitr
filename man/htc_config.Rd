@@ -9,6 +9,7 @@ htc_config(
   server = NULL,
   path = ".",
   overwrite = FALSE,
+  project_config = NULL,
   check_server = getOption("submitr.check_server", default = TRUE)
 )
 }
@@ -28,6 +29,18 @@ directory).}
 \item{overwrite}{Logical. If \code{TRUE}, recreates \code{htc.cfg} even if one
 already exists. Defaults to \code{FALSE}.}
 
+\item{project_config}{A character string or \code{NULL} (the default). Path to
+a \verb{_toolero.yml} file, the resolved project configuration
+\code{toolero::init_project()} writes to a project's root. When supplied,
+its \code{folders} and \code{conventions} sections are parsed once and folded
+into the returned list under \code{project}, so \code{config$project$folders}
+and \code{config$project$conventions} become available alongside the
+connection details. This is the same file, in the same schema, that
+\code{containr::generate_dockerfile()} reads through its own \code{config}
+argument. Never written into \code{htc.cfg}: project layout and SSH
+connection details are recorded separately, and \code{htc.cfg} on disk is
+unaffected by whether you pass \code{project_config}.}
+
 \item{check_server}{Logical. If \code{TRUE}, opens a short SSH connection to
 \code{server} to report whether it is reachable before you rely on the
 config. Defaults to the \code{submitr.check_server} option, which is itself
@@ -36,7 +49,8 @@ suites, and anywhere else the probe has no audience -- reading a config
 file then costs nothing and touches no network.}
 }
 \value{
-A named list with elements \code{username} and \code{server}, returned
+A named list with elements \code{username} and \code{server}, plus a
+\code{project} element when \code{project_config} is supplied, returned
 invisibly.
 }
 \description{
@@ -86,6 +100,32 @@ require Duo authentication. Full documentation:
 \url{https://chtc.cs.wisc.edu/uw-research-computing/configure-ssh}
 }
 
+\section{Project configuration}{
+
+\code{project_config} is how \code{submitr} learns the layout a \code{toolero} project
+already settled on, instead of retyping it. \code{toolero::init_project()}
+writes \verb{_toolero.yml} to a project's root once it has resolved the
+folder set, and that file records two things: \code{folders}, the full list
+of folders the project uses, and \code{conventions}, the names the family
+resolves rather than assumes (\code{output_dir}, \code{script_dir}, \code{split_dir}).
+
+Passing \code{project_config = "_toolero.yml"} reads that file once and
+returns it under \code{config$project}:
+
+\if{html}{\out{<div class="sourceCode r">}}\preformatted{cfg <- htc_config(project_config = "_toolero.yml")
+cfg$project$conventions$output_dir
+#> [1] "output"
+}\if{html}{\out{</div>}}
+
+Nothing in \code{submitr} requires this yet -- \code{htc_gen_executable()}'s
+\code{results_folder} argument still has to be set (or left at its own
+\code{"output"} default) independently. What \code{project_config} buys you today
+is one place to read a project's own folder layout from R, and a
+foundation for \code{submitr} functions to default to the project's own
+conventions in a future release, the way \code{containr::generate_dockerfile()}
+already reads the same file for its own purposes.
+}
+
 \section{Security}{
 
 \code{htc.cfg} contains your username and server address. Neither is
@@ -119,6 +159,10 @@ cfg <- htc_config(check_server = FALSE)
 
 # Or turn the probe off for a whole session
 options(submitr.check_server = FALSE)
+
+# Fold in a toolero project's own folder layout and conventions
+cfg <- htc_config(project_config = "_toolero.yml")
+cfg$project$conventions$output_dir
 
 # Use in other functions
 htc_upload(files = c("job.sub", "job.sh"), config = cfg)
