@@ -9,9 +9,12 @@
 #' fixed interval until all jobs in the cluster have completed, printing
 #' a timestamped snapshot after each poll.
 #'
-#' @param cluster_id An integer or character string. The cluster ID returned
-#'   by [htc_submit()], e.g. `6302860`. If `NULL` (the default), shows all
-#'   of your jobs currently in the queue. Required when `watch = TRUE`.
+#' @param cluster_id An integer, character string, or `NULL`. The cluster ID
+#'   returned by [htc_submit()], e.g. `6302860`. When `NULL` (the default),
+#'   resolves to the cluster ID recorded in the job manifest by the most
+#'   recent [htc_submit()] call; if no manifest value is available either,
+#'   shows all of your jobs currently in the queue instead. Required
+#'   (directly or via the manifest) when `watch = TRUE`.
 #' @param config A named list as returned by [htc_config()]. Must contain
 #'   `username` and `server`. If `NULL` (the default), uses the session
 #'   config set by [htc_start()]. If no session config is set,
@@ -25,9 +28,23 @@
 #'   executed without running it. Defaults to `FALSE`.
 #' @param verbose Logical. If `TRUE`, prints progress messages. Defaults to
 #'   `FALSE`.
+#' @param path A character string. Directory holding the job manifest
+#'   (`htc-manifest.yaml`), consulted only when `cluster_id` is `NULL`.
+#'   Defaults to `"."`, matching the default used by [htc_upload()],
+#'   [htc_submit()], and [htc_download()]. If you passed a non-default
+#'   `path` to [htc_submit()], pass that same directory here.
+#' @param show_hold_reason Logical. If `TRUE` (the default), every poll
+#'   automatically follows up with `condor_q -hold` and prints the result
+#'   whenever it shows an actual held job -- nothing is printed when nothing
+#'   is held (S-G2). This is the single most common cause of newcomer
+#'   confusion -- a job held for exceeding its memory or disk request
+#'   otherwise gives no clue why without a separate manual query. Set to
+#'   `FALSE` to skip the follow-up query entirely (for example, in a tight
+#'   `watch = TRUE` polling loop where the extra round trip is unwelcome).
 #'
-#' @return Called for its side effects. Prints the `condor_q` output to the
-#'   console. Returns the most recent output invisibly as a character vector.
+#' @return Called for its side effects. Prints the `condor_q` output (and,
+#'   when applicable, hold reasons) to the console. Returns the most recent
+#'   `condor_q` output invisibly as a character vector.
 #'
 #' @section Job status codes:
 #' HTCondor reports each job's status with a single letter:
@@ -45,6 +62,12 @@
 #' been transferred back to the submit node. Use [htc_download()] to retrieve
 #' completed job output.
 #'
+#' A held (`H`) job is not a lost cause: [htc_status()] surfaces the hold
+#' reason automatically (see `show_hold_reason`), and once the underlying
+#' problem is fixed -- most often the resource request -- [htc_release()]
+#' resumes it without resubmitting. To abandon a job entirely instead, use
+#' [htc_cancel()].
+#'
 #' @section Workflow:
 #' ```r
 #' cfg <- htc_config()
@@ -60,6 +83,9 @@
 #' Each poll in watch mode opens a new SSH connection. Configuring
 #' ControlMaster in your `~/.ssh/config` (see [htc_config()]) is strongly
 #' recommended when using `watch = TRUE` to avoid repeated Duo MFA prompts.
+#'
+#' @seealso [htc_cancel()] to remove a job, and [htc_release()] to resume a
+#'   held one after fixing what caused the hold.
 #'
 #' @export
 #'
@@ -89,15 +115,26 @@
 #' # Watch with a shorter polling interval
 #' htc_status(cluster_id = 6302860, config = cfg, watch = TRUE, interval = 30)
 #' }
-htc_status <- function(cluster_id = NULL,
-                       config     = NULL,
-                       watch      = FALSE,
-                       interval   = 60L,
-                       dry_run    = FALSE,
-                       verbose    = FALSE) {
+htc_status <- function(cluster_id       = NULL,
+                       config            = NULL,
+                       watch             = FALSE,
+                       interval          = 60L,
+                       dry_run           = FALSE,
+                       verbose           = FALSE,
+                       path              = ".",
+                       show_hold_reason  = TRUE) {
 
     # -- 1. Resolve config (explicit argument or session option) ----------------
     config <- .resolve_config(config)
+
+    # -- 1b. Resolve cluster_id from the job manifest if not supplied -----------
+    # Explicit argument > the cluster_id htc_submit() recorded in the job
+    # manifest > NULL (show all jobs in the queue). Without this, the ID
+    # htc_submit() just printed has to be retyped by hand for every status
+    # check and for watch = TRUE.
+    if (is.null(cluster_id)) {
+        cluster_id <- .get_manifest(path = path)$cluster_id
+    }
 
     # -- 2. Validate cluster_id ------------------------------------------------
     if (!is.null(cluster_id)) {
@@ -187,6 +224,47 @@ htc_status <- function(cluster_id = NULL,
         }
 
         cat(result, sep = "\n")
+
+        # -- 6b. Follow up with hold reasons, if any (S-G2) ---------------------
+        # Rather than trying to detect a held job by parsing condor_q's main
+        # table -- whose exact column layout (the grouped batch view versus
+        # -nobatch's per-job ST column) is not a documented contract this
+        # package can rely on -- the follow-up query is simply always run
+        # when requested, and only printed when its own output shows an
+        # actual job ID. condor_q -hold naturally reports nothing to show
+        # when nothing is held, so this is one cheap extra SSH round trip
+        # (multiplexed for free under the ControlMaster setup htc_config()
+        # and htc_ssh_setup() recommend) rather than a second regex to keep
+        # in sync with condor_q's own output format.
+        if (show_hold_reason) {
+            hold_cmd <- if (!is.null(cluster_id)) {
+                .sh_word(paste0("condor_q ", cluster_id, " -hold"))
+            } else {
+                .sh_word("condor_q -hold")
+            }
+
+            hold_ssh_args <- c(
+                "-q",
+                paste0(config$username, "@", config$server),
+                hold_cmd
+            )
+
+            hold_result <- system2(
+                "ssh",
+                args   = hold_ssh_args,
+                stdout = TRUE,
+                stderr = TRUE
+            )
+
+            hold_exit <- attr(hold_result, "status")
+            hold_exit <- if (is.null(hold_exit)) 0L else hold_exit
+
+            if (hold_exit == 0L && .hold_output_looks_populated(hold_result, cluster_id)) {
+                cli::cli_inform(c("!" = "Held job(s) detected. Hold reason(s):"))
+                cat(hold_result, sep = "\n")
+            }
+        }
+
         invisible(result)
     }
 
@@ -265,4 +343,40 @@ htc_status <- function(cluster_id = NULL,
         paste0("(^|[[:space:]])", cluster_id, "\\."),
         output
     ))
+}
+
+
+#' Detect whether a condor_q -hold report actually shows a held job
+#'
+#' Internal helper used by `htc_status()` to decide whether the follow-up
+#' `condor_q -hold` query (S-G2) found anything worth printing. `condor_q`
+#' prints a schedd header (an address, a port, a timestamp) whether or not
+#' any job is actually held, so an empty-but-for-the-header report must not
+#' be mistaken for one describing a held job.
+#'
+#' The check looks for something shaped like a job ID (`ClusterId.ProcId`,
+#' e.g. `6302860.0`), anchored to `cluster_id` when one is known. This is
+#' the same job-ID-pattern approach `.jobs_in_queue()` falls back to, and
+#' for the same reason: it does not depend on `condor_q`'s column layout,
+#' which is not a documented contract this package can rely on.
+#'
+#' @param output A character vector. The lines returned by
+#'   `condor_q -hold`.
+#' @param cluster_id A character string or `NULL`.
+#'
+#' @return A logical scalar.
+#'
+#' @keywords internal
+.hold_output_looks_populated <- function(output, cluster_id) {
+    if (length(output) == 0L) {
+        return(FALSE)
+    }
+
+    pattern <- if (!is.null(cluster_id)) {
+        paste0("(^|[[:space:]])", cluster_id, "\\.[0-9]+")
+    } else {
+        "(^|[[:space:]])[0-9]+\\.[0-9]+"
+    }
+
+    any(grepl(pattern, output))
 }

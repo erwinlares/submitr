@@ -5,12 +5,16 @@
 #' [htc_upload()]. It changes into the remote directory before submitting
 #' so that relative paths in the submit file resolve correctly.
 #'
-#' @param submit_file A character string. Name of the submit file on the
-#'   remote node, e.g. `"job.sub"`. Must end in `".sub"`. Defaults to
-#'   `"job.sub"`.
-#' @param remote_path A character string. The directory on the submit node
-#'   where the submit file was uploaded. Defaults to `"~/"`. Must match the
-#'   `remote_path` used in the preceding call to [htc_upload()].
+#' @param submit_file A character string or `NULL`. Name of the submit file
+#'   on the remote node, e.g. `"job.sub"`. Must end in `".sub"`. When `NULL`
+#'   (the default), resolves to the `submit_file` recorded in the job
+#'   manifest by [htc_gen_submit()], falling back to `"job.sub"` if no
+#'   manifest value is available.
+#' @param remote_path A character string or `NULL`. The directory on the
+#'   submit node where the submit file was uploaded. When `NULL` (the
+#'   default), resolves to the `remote_path` recorded in the job manifest by
+#'   the preceding call to [htc_upload()], falling back to `"~/"` if no
+#'   manifest value is available.
 #' @param config A named list as returned by [htc_config()]. Must contain
 #'   `username` and `server`. If `NULL` (the default), uses the session
 #'   config set by [htc_start()]. If no session config is set,
@@ -92,8 +96,8 @@
 #'   verbose     = TRUE
 #' )
 #' }
-htc_submit <- function(submit_file = "job.sub",
-                       remote_path = "~/",
+htc_submit <- function(submit_file = NULL,
+                       remote_path = NULL,
                        config      = NULL,
                        dry_run     = FALSE,
                        verbose     = FALSE,
@@ -102,7 +106,29 @@ htc_submit <- function(submit_file = "job.sub",
     # -- 1. Resolve config (explicit argument or session option) ----------------
     config <- .resolve_config(config)
 
-    # -- 2. Validate submit_file -----------------------------------------------
+    # -- 2. Resolve submit_file and remote_path from the job manifest -----------
+    # Explicit argument > the value recorded in the manifest by an earlier
+    # step in the pipeline (htc_gen_submit() for submit_file, htc_upload()
+    # for remote_path) > the hardcoded default. Without this, deviating from
+    # the default filename or upload directory anywhere upstream silently
+    # breaks condor_submit here.
+    manifest <- .get_manifest(path = path)
+
+    if (is.null(submit_file)) {
+        submit_file <- manifest$submit_file
+    }
+    if (is.null(submit_file)) {
+        submit_file <- "job.sub"
+    }
+
+    if (is.null(remote_path)) {
+        remote_path <- manifest$remote_path
+    }
+    if (is.null(remote_path)) {
+        remote_path <- "~/"
+    }
+
+    # -- 3. Validate submit_file -----------------------------------------------
     if (!grepl("\\.sub$", submit_file)) {
         cli::cli_abort(c(
             "{.arg submit_file} must end in {.val .sub}.",
@@ -110,7 +136,7 @@ htc_submit <- function(submit_file = "job.sub",
         ))
     }
 
-    # -- 3. Validate remote_path -----------------------------------------------
+    # -- 3b. Validate remote_path -----------------------------------------------
     if (!grepl("/$", remote_path)) {
         remote_path <- paste0(remote_path, "/")
     }
@@ -188,11 +214,13 @@ htc_submit <- function(submit_file = "job.sub",
         NULL
     }
 
-    # record cluster ID and the remote directory jobs were submitted from,
-    # so htc_download() can find results without remote_path being repeated
+    # record cluster ID, the submit file, and the remote directory jobs were
+    # submitted from, so htc_status() and htc_download() can find them
+    # without any of the three being repeated
     if (!is.null(cluster_id)) {
         .update_manifest(
             cluster_id  = cluster_id,
+            submit_file = submit_file,
             remote_path = remote_path,
             path        = path
         )

@@ -150,6 +150,129 @@ test_that("htc_upload() dry_run returns invisible NULL", {
 })
 
 # ---------------------------------------------------------------------------
+# Layer 2b — job manifest recording (S-I1)
+# ---------------------------------------------------------------------------
+
+.mock_scp_success <- function() {
+    function(...) 0L
+}
+
+test_that("htc_upload() records remote_path in the job manifest on success", {
+    tmp <- withr::local_tempdir()
+    withr::local_dir(tmp)
+    f   <- file.path(tmp, "job.sub")
+    writeLines("queue 1", f)
+    local_mocked_bindings(system2 = .mock_scp_success(), .package = "base")
+
+    cfg <- list(username = "lares", server = "ap2002.chtc.wisc.edu")
+    htc_upload(files = f, remote_path = "~/projects/", config = cfg)
+
+    m <- .get_manifest()
+    expect_equal(m$remote_path, "~/projects/")
+})
+
+test_that("htc_upload() does not record remote_path in the manifest on dry_run", {
+    tmp <- withr::local_tempdir()
+    withr::local_dir(tmp)
+    f   <- file.path(tmp, "job.sub")
+    writeLines("queue 1", f)
+
+    cfg <- list(username = "lares", server = "ap2002.chtc.wisc.edu")
+    htc_upload(files = f, remote_path = "~/projects/", config = cfg, dry_run = TRUE)
+
+    expect_null(.get_manifest())
+})
+
+test_that("htc_upload() resolves remote_path from the manifest when omitted", {
+    tmp <- withr::local_tempdir()
+    withr::local_dir(tmp)
+    f   <- file.path(tmp, "job.sub")
+    writeLines("queue 1", f)
+    .update_manifest(remote_path = "~/penguins/")
+
+    cfg <- list(username = "lares", server = "ap2002.chtc.wisc.edu")
+    expect_message(
+        htc_upload(files = f, config = cfg, dry_run = TRUE),
+        regexp = "penguins"
+    )
+})
+
+test_that("htc_upload() explicit remote_path overrides the value in the manifest", {
+    tmp <- withr::local_tempdir()
+    withr::local_dir(tmp)
+    f   <- file.path(tmp, "job.sub")
+    writeLines("queue 1", f)
+    .update_manifest(remote_path = "~/penguins/")
+
+    cfg <- list(username = "lares", server = "ap2002.chtc.wisc.edu")
+    msg <- capture_messages(
+        htc_upload(files = f, remote_path = "~/other/", config = cfg, dry_run = TRUE)
+    )
+    expect_true(any(grepl("other", msg)))
+    expect_false(any(grepl("penguins", msg)))
+})
+
+# ---------------------------------------------------------------------------
+# Layer 2c — preflight check integration (S-G4)
+# ---------------------------------------------------------------------------
+
+test_that("htc_upload() aborts before uploading when check = TRUE finds an error", {
+    tmp <- withr::local_tempdir()
+    withr::local_dir(tmp)
+    f <- file.path(tmp, "job.sub")
+    writeLines("queue 1", f)
+    # Not an error about `files` itself -- an error htc_check() would find in
+    # the manifest, to confirm htc_upload() is actually running the check
+    # rather than just re-validating its own files argument.
+    .update_manifest(input_files = file.path(tmp, "missing.R"), path = tmp)
+
+    cfg <- list(username = "lares", server = "ap2002.chtc.wisc.edu")
+    expect_error(
+        suppressWarnings(suppressMessages(
+            htc_upload(files = f, config = cfg, check = TRUE, path = tmp)
+        )),
+        regexp = "Preflight check"
+    )
+})
+
+test_that("htc_upload() proceeds when check = TRUE finds only warnings", {
+    tmp <- withr::local_tempdir()
+    withr::local_dir(tmp)
+    f <- file.path(tmp, "job.sub")
+    writeLines("queue 1", f)
+    # container_image tagged :latest is a warning, not an error -- should not
+    # block the upload.
+    .update_manifest(
+        container_image = "docker://registry.doit.wisc.edu/netid/myimage:latest",
+        path            = tmp
+    )
+    local_mocked_bindings(system2 = .mock_scp_success(), .package = "base")
+
+    cfg <- list(username = "lares", server = "ap2002.chtc.wisc.edu")
+    expect_no_error(
+        suppressWarnings(suppressMessages(
+            htc_upload(files = f, config = cfg, check = TRUE, path = tmp)
+        ))
+    )
+})
+
+test_that("htc_upload() does not run the preflight check when check = FALSE (default)", {
+    tmp <- withr::local_tempdir()
+    withr::local_dir(tmp)
+    f <- file.path(tmp, "job.sub")
+    writeLines("queue 1", f)
+    # Would be an error-level issue if htc_check() ran against this manifest;
+    # since check defaults to FALSE, it should never be evaluated.
+    .update_manifest(input_files = file.path(tmp, "missing.R"), path = tmp)
+    local_mocked_bindings(system2 = .mock_scp_success(), .package = "base")
+
+    cfg <- list(username = "lares", server = "ap2002.chtc.wisc.edu")
+    expect_no_error(
+        htc_upload(files = f, config = cfg, path = tmp)
+    )
+})
+
+# ---------------------------------------------------------------------------
 # Layer 3 — Integration (requires live CHTC connection)
 # ---------------------------------------------------------------------------
 

@@ -10,12 +10,14 @@ read_script <- function(dir, filename = "job.sh") {
 
 test_that("htc_gen_executable() writes a .sh file to the output directory", {
     tmp <- withr::local_tempdir()
+    withr::local_dir(tmp)
     htc_gen_executable(r_script = "analysis.R", output = tmp)
     expect_true(file.exists(file.path(tmp, "job.sh")))
 })
 
 test_that("htc_gen_executable() respects custom output_file name", {
     tmp <- withr::local_tempdir()
+    withr::local_dir(tmp)
     htc_gen_executable(
         r_script    = "analysis.R",
         output_file = "analysis.sh",
@@ -26,6 +28,7 @@ test_that("htc_gen_executable() respects custom output_file name", {
 
 test_that("htc_gen_executable() returns invisible NULL", {
     tmp <- withr::local_tempdir()
+    withr::local_dir(tmp)
     result <- htc_gen_executable(r_script = "analysis.R", output = tmp)
     expect_null(result)
 })
@@ -36,6 +39,7 @@ test_that("htc_gen_executable() returns invisible NULL", {
 
 test_that("htc_gen_executable() errors when output_file does not end in .sh", {
     tmp <- withr::local_tempdir()
+    withr::local_dir(tmp)
     expect_error(
         htc_gen_executable(
             r_script    = "analysis.R",
@@ -55,6 +59,7 @@ test_that("htc_gen_executable() errors when output directory does not exist", {
 
 test_that("htc_gen_executable() errors on invalid mode", {
     tmp <- withr::local_tempdir()
+    withr::local_dir(tmp)
     expect_error(
         htc_gen_executable(r_script = "analysis.R", mode = "batch", output = tmp),
         regexp = "should be one of"
@@ -63,6 +68,7 @@ test_that("htc_gen_executable() errors on invalid mode", {
 
 test_that("htc_gen_executable() errors when r_script is NULL", {
     tmp <- withr::local_tempdir()
+    withr::local_dir(tmp)
     expect_error(
         htc_gen_executable(output = tmp),
         regexp = "r_script"
@@ -75,6 +81,7 @@ test_that("htc_gen_executable() errors when r_script is NULL", {
 
 test_that("script starts with #!/bin/bash", {
     tmp <- withr::local_tempdir()
+    withr::local_dir(tmp)
     htc_gen_executable(r_script = "analysis.R", output = tmp)
     lines <- read_script(tmp)
 
@@ -83,6 +90,7 @@ test_that("script starts with #!/bin/bash", {
 
 test_that("script includes set -euo pipefail after shebang", {
     tmp <- withr::local_tempdir()
+    withr::local_dir(tmp)
     htc_gen_executable(r_script = "analysis.R", output = tmp)
     lines <- read_script(tmp)
 
@@ -96,6 +104,7 @@ test_that("script starts with #!/bin/bash when comments = TRUE", {
     # comments = TRUE is the setting the docs recommend to first-time users,
     # which made this the common path rather than the rare one.
     tmp <- withr::local_tempdir()
+    withr::local_dir(tmp)
     htc_gen_executable(r_script = "analysis.R", comments = TRUE, output = tmp)
     lines <- read_script(tmp)
 
@@ -104,6 +113,7 @@ test_that("script starts with #!/bin/bash when comments = TRUE", {
 
 test_that("shell options comment sits directly above the line it explains", {
     tmp <- withr::local_tempdir()
+    withr::local_dir(tmp)
     htc_gen_executable(r_script = "analysis.R", comments = TRUE, output = tmp)
     lines <- read_script(tmp)
 
@@ -114,6 +124,7 @@ test_that("shell options comment sits directly above the line it explains", {
 
 test_that("set -euo pipefail still follows the shebang when comments = TRUE", {
     tmp <- withr::local_tempdir()
+    withr::local_dir(tmp)
     htc_gen_executable(r_script = "analysis.R", comments = TRUE, output = tmp)
     lines <- read_script(tmp)
 
@@ -127,6 +138,7 @@ test_that("set -euo pipefail still follows the shebang when comments = TRUE", {
 
 test_that("script changes to HTCondor scratch directory", {
     tmp <- withr::local_tempdir()
+    withr::local_dir(tmp)
     htc_gen_executable(r_script = "analysis.R", output = tmp)
     lines <- read_script(tmp)
 
@@ -138,6 +150,7 @@ test_that("script changes to HTCondor scratch directory", {
 
 test_that("scratch cd appears before mkdir", {
     tmp <- withr::local_tempdir()
+    withr::local_dir(tmp)
     htc_gen_executable(r_script = "analysis.R", output = tmp)
     lines <- read_script(tmp)
 
@@ -153,6 +166,7 @@ test_that("scratch cd appears before mkdir", {
 
 test_that("script no longer changes directory to /home", {
     tmp <- withr::local_tempdir()
+    withr::local_dir(tmp)
     htc_gen_executable(r_script = "analysis.R", output = tmp)
     lines <- read_script(tmp)
 
@@ -165,6 +179,7 @@ test_that("script no longer changes directory to /home", {
 
 test_that("script contains mkdir -p for the default output folder", {
     tmp <- withr::local_tempdir()
+    withr::local_dir(tmp)
     htc_gen_executable(r_script = "analysis.R", output = tmp)
     lines <- read_script(tmp)
 
@@ -173,6 +188,7 @@ test_that("script contains mkdir -p for the default output folder", {
 
 test_that("script reflects custom results_folder name", {
     tmp <- withr::local_tempdir()
+    withr::local_dir(tmp)
     htc_gen_executable(
         r_script       = "analysis.R",
         results_folder = "outputs",
@@ -186,6 +202,7 @@ test_that("script reflects custom results_folder name", {
 
 test_that("default output folder is output, not results or results-folder", {
     tmp <- withr::local_tempdir()
+    withr::local_dir(tmp)
     htc_gen_executable(r_script = "analysis.R", output = tmp)
     lines <- read_script(tmp)
 
@@ -197,12 +214,17 @@ test_that("default output folder is output, not results or results-folder", {
 # Script content -- the R/ script convention
 # ---------------------------------------------------------------------------
 
-test_that("an r_script under R/ is read by absolute path inside the container", {
+test_that("an r_script under R/ is read by bare basename, not by its subdirectory", {
+    # r_script is uploaded as a job input file, not baked into the image, and
+    # HTCondor's file transfer does not preserve subdirectories -- it lands
+    # flat, by basename, in the scratch directory.
     tmp <- withr::local_tempdir()
+    withr::local_dir(tmp)
     htc_gen_executable(r_script = "R/analysis.R", output = tmp)
     lines <- read_script(tmp)
 
-    expect_true(any(grepl("^Rscript /home/R/analysis\\.R$", lines)))
+    expect_true(any(grepl("^Rscript analysis\\.R$", lines)))
+    expect_false(any(grepl("R/analysis\\.R", lines, fixed = TRUE)))
 })
 
 test_that("an r_script under R/ does not put a directory in the tarball name", {
@@ -211,6 +233,7 @@ test_that("an r_script under R/ does not put a directory in the tarball name", {
     # HTCondor's scratch directory, so the job does all its work and then
     # fails on the final tar.
     tmp <- withr::local_tempdir()
+    withr::local_dir(tmp)
     htc_gen_executable(r_script = "R/analysis.R", output = tmp)
     lines <- read_script(tmp)
 
@@ -222,34 +245,41 @@ test_that("an r_script under R/ does not put a directory in the tarball name", {
 # Script content -- Rscript execution line
 # ---------------------------------------------------------------------------
 
-test_that("single mode Rscript line uses absolute path and has no positional argument", {
+test_that("single mode Rscript line uses a bare relative path and has no positional argument", {
     tmp <- withr::local_tempdir()
+    withr::local_dir(tmp)
     htc_gen_executable(r_script = "analysis.R", mode = "single", output = tmp)
     lines <- read_script(tmp)
 
-    expect_true(any(grepl("^Rscript /home/analysis\\.R$", lines)))
+    expect_true(any(grepl("^Rscript analysis\\.R$", lines)))
     expect_false(any(grepl("\\$\\{1\\}", lines)))
 })
 
-test_that("multiple mode Rscript line uses absolute path and includes ${1}", {
+test_that("multiple mode Rscript line uses a bare relative path and includes ${1}", {
     tmp <- withr::local_tempdir()
+    withr::local_dir(tmp)
     htc_gen_executable(r_script = "analysis.R", mode = "multiple", output = tmp)
     lines <- read_script(tmp)
 
-    expect_true(any(grepl("^Rscript /home/analysis\\.R \\$\\{1\\}$", lines)))
+    expect_true(any(grepl("^Rscript analysis\\.R \\$\\{1\\}$", lines)))
 })
 
 test_that("Rscript line reflects custom r_script name", {
     tmp <- withr::local_tempdir()
+    withr::local_dir(tmp)
     htc_gen_executable(r_script = "run-model.R", output = tmp)
     lines <- read_script(tmp)
 
-    expect_true(any(grepl("^Rscript /home/run-model\\.R$", lines)))
+    expect_true(any(grepl("^Rscript run-model\\.R$", lines)))
     expect_false(any(grepl("analysis\\.R", lines)))
 })
 
-test_that("Rscript line respects custom home_dir", {
+test_that("Rscript line ignores home_dir -- r_script is not baked into the image", {
+    # home_dir only affects data_files, which are baked into the container.
+    # r_script travels as an uploaded input file and always lands flat in
+    # the scratch directory, regardless of home_dir.
     tmp <- withr::local_tempdir()
+    withr::local_dir(tmp)
     htc_gen_executable(
         r_script = "analysis.R",
         home_dir = "/project",
@@ -257,12 +287,14 @@ test_that("Rscript line respects custom home_dir", {
     )
     lines <- read_script(tmp)
 
-    expect_true(any(grepl("^Rscript /project/analysis\\.R$", lines)))
-    expect_false(any(grepl("^Rscript /home/analysis\\.R$", lines)))
+    expect_true(any(grepl("^Rscript analysis\\.R$", lines)))
+    expect_false(any(grepl("/project/analysis\\.R", lines, fixed = TRUE)))
+    expect_false(any(grepl("/home/analysis\\.R", lines, fixed = TRUE)))
 })
 
 test_that("single mode Rscript line includes one data file argument", {
     tmp <- withr::local_tempdir()
+    withr::local_dir(tmp)
     htc_gen_executable(
         r_script   = "analysis.R",
         data_files = "data-raw/sample.csv",
@@ -271,13 +303,14 @@ test_that("single mode Rscript line includes one data file argument", {
     lines <- read_script(tmp)
 
     expect_true(any(grepl(
-        "^Rscript /home/analysis\\.R /home/data-raw/sample\\.csv$",
+        "^Rscript analysis\\.R /home/data-raw/sample\\.csv$",
         lines
     )))
 })
 
 test_that("single mode Rscript line includes multiple data file arguments", {
     tmp <- withr::local_tempdir()
+    withr::local_dir(tmp)
     htc_gen_executable(
         r_script   = "analysis.R",
         data_files = c("data-raw/train.csv", "data-raw/test.csv"),
@@ -286,13 +319,14 @@ test_that("single mode Rscript line includes multiple data file arguments", {
     lines <- read_script(tmp)
 
     expect_true(any(grepl(
-        "^Rscript /home/analysis\\.R /home/data-raw/train\\.csv /home/data-raw/test\\.csv$",
+        "^Rscript analysis\\.R /home/data-raw/train\\.csv /home/data-raw/test\\.csv$",
         lines
     )))
 })
 
-test_that("data file arguments respect custom home_dir", {
+test_that("data file arguments respect custom home_dir, but r_script does not", {
     tmp <- withr::local_tempdir()
+    withr::local_dir(tmp)
     htc_gen_executable(
         r_script   = "analysis.R",
         data_files = "data-raw/sample.csv",
@@ -302,13 +336,14 @@ test_that("data file arguments respect custom home_dir", {
     lines <- read_script(tmp)
 
     expect_true(any(grepl(
-        "^Rscript /project/analysis\\.R /project/data-raw/sample\\.csv$",
+        "^Rscript analysis\\.R /project/data-raw/sample\\.csv$",
         lines
     )))
 })
 
 test_that("multiple mode ignores data_files and passes only ${1}", {
     tmp <- withr::local_tempdir()
+    withr::local_dir(tmp)
     htc_gen_executable(
         r_script   = "analysis.R",
         data_files = "data-raw/sample.csv",
@@ -317,7 +352,7 @@ test_that("multiple mode ignores data_files and passes only ${1}", {
     )
     lines <- read_script(tmp)
 
-    expect_true(any(grepl("^Rscript /home/analysis\\.R \\$\\{1\\}$", lines)))
+    expect_true(any(grepl("^Rscript analysis\\.R \\$\\{1\\}$", lines)))
     expect_false(any(grepl("data-raw/sample\\.csv", lines)))
 })
 
@@ -327,6 +362,7 @@ test_that("multiple mode ignores data_files and passes only ${1}", {
 
 test_that("single mode compression line uses r_script-derived tarball name", {
     tmp <- withr::local_tempdir()
+    withr::local_dir(tmp)
     htc_gen_executable(r_script = "analysis.R", mode = "single", output = tmp)
     lines <- read_script(tmp)
 
@@ -335,6 +371,7 @@ test_that("single mode compression line uses r_script-derived tarball name", {
 
 test_that("single mode compression line reflects custom r_script name", {
     tmp <- withr::local_tempdir()
+    withr::local_dir(tmp)
     htc_gen_executable(mode = "single", r_script = "run-model.R", output = tmp)
     lines <- read_script(tmp)
 
@@ -343,6 +380,7 @@ test_that("single mode compression line reflects custom r_script name", {
 
 test_that("multiple mode compression line strips the subset extension", {
     tmp <- withr::local_tempdir()
+    withr::local_dir(tmp)
     htc_gen_executable(r_script = "analysis.R", mode = "multiple", output = tmp)
     lines <- read_script(tmp)
 
@@ -351,6 +389,7 @@ test_that("multiple mode compression line strips the subset extension", {
 
 test_that("compression line references the default output folder", {
     tmp <- withr::local_tempdir()
+    withr::local_dir(tmp)
     htc_gen_executable(r_script = "analysis.R", output = tmp)
     lines <- read_script(tmp)
     compress_line <- lines[grepl("^tar", lines)]
@@ -360,6 +399,7 @@ test_that("compression line references the default output folder", {
 
 test_that("compression line reflects custom results_folder name", {
     tmp <- withr::local_tempdir()
+    withr::local_dir(tmp)
     htc_gen_executable(
         r_script       = "analysis.R",
         results_folder = "outputs",
@@ -377,6 +417,7 @@ test_that("compression line reflects custom results_folder name", {
 
 test_that("script sections appear in correct order: shebang, set, cd, mkdir, Rscript, tar", {
     tmp <- withr::local_tempdir()
+    withr::local_dir(tmp)
     htc_gen_executable(r_script = "analysis.R", output = tmp)
     lines <- read_script(tmp)
 
@@ -403,6 +444,7 @@ test_that("script sections appear in correct order: shebang, set, cd, mkdir, Rsc
 
 test_that("comments = TRUE writes comment lines to the script", {
     tmp <- withr::local_tempdir()
+    withr::local_dir(tmp)
     htc_gen_executable(r_script = "analysis.R", comments = TRUE, output = tmp)
     lines <- read_script(tmp)
 
@@ -412,6 +454,7 @@ test_that("comments = TRUE writes comment lines to the script", {
 
 test_that("comments = TRUE documents scratch directory behavior", {
     tmp <- withr::local_tempdir()
+    withr::local_dir(tmp)
     htc_gen_executable(r_script = "analysis.R", comments = TRUE, output = tmp)
     lines <- read_script(tmp)
 
@@ -421,6 +464,7 @@ test_that("comments = TRUE documents scratch directory behavior", {
 
 test_that("comments = FALSE writes no comment lines beyond shebang", {
     tmp <- withr::local_tempdir()
+    withr::local_dir(tmp)
     htc_gen_executable(r_script = "analysis.R", comments = FALSE, output = tmp)
     lines <- read_script(tmp)
 
@@ -432,6 +476,7 @@ test_that("comments = FALSE writes no comment lines beyond shebang", {
 
 test_that("verbose = TRUE produces messages", {
     tmp <- withr::local_tempdir()
+    withr::local_dir(tmp)
 
     expect_message(
         htc_gen_executable(
@@ -444,6 +489,7 @@ test_that("verbose = TRUE produces messages", {
 
 test_that("verbose = FALSE produces no messages", {
     tmp <- withr::local_tempdir()
+    withr::local_dir(tmp)
 
     expect_no_message(
         htc_gen_executable(
@@ -462,6 +508,7 @@ test_that("set_executable = TRUE sets executable permissions on the script", {
     skip_on_os("windows")
 
     tmp <- withr::local_tempdir()
+    withr::local_dir(tmp)
     htc_gen_executable(
         r_script       = "analysis.R",
         set_executable = TRUE,
@@ -476,6 +523,7 @@ test_that("set_executable = TRUE sets executable permissions on the script", {
 
 test_that("set_executable = FALSE does not error and file still exists", {
     tmp <- withr::local_tempdir()
+    withr::local_dir(tmp)
     htc_gen_executable(
         r_script       = "analysis.R",
         set_executable = FALSE,
@@ -489,6 +537,7 @@ test_that("set_executable = TRUE is the default", {
     skip_on_os("windows")
 
     tmp <- withr::local_tempdir()
+    withr::local_dir(tmp)
     htc_gen_executable(r_script = "analysis.R", output = tmp)
 
     path <- file.path(tmp, "job.sh")
@@ -501,9 +550,9 @@ test_that("set_executable = TRUE is the default", {
 # Job manifest recording
 # ---------------------------------------------------------------------------
 
-test_that("htc_gen_executable() writes the job manifest to the output directory", {
+test_that("htc_gen_executable() writes the job manifest to path", {
     tmp <- withr::local_tempdir()
-    htc_gen_executable(r_script = "analysis.R", output = tmp)
+    htc_gen_executable(r_script = "analysis.R", output = tmp, path = tmp)
     expect_true(file.exists(file.path(tmp, "htc-manifest.yaml")))
 })
 
@@ -512,7 +561,8 @@ test_that("htc_gen_executable() records the executable file in the manifest", {
     htc_gen_executable(
         r_script    = "analysis.R",
         output_file = "run.sh",
-        output      = tmp
+        output      = tmp,
+        path        = tmp
     )
     m <- .get_manifest(path = tmp)
     expect_equal(m$executable_file, "run.sh")
@@ -523,17 +573,118 @@ test_that("htc_gen_executable() records executable_path pointing at the written 
     htc_gen_executable(
         r_script    = "analysis.R",
         output_file = "run.sh",
-        output      = tmp
+        output      = tmp,
+        path        = tmp
     )
     m <- .get_manifest(path = tmp)
     expect_equal(m$executable_path, file.path(tmp, "run.sh"))
     expect_true(file.exists(m$executable_path))
 })
 
-test_that("htc_gen_executable() writes the manifest to path when it differs from output", {
+test_that("htc_gen_executable() defaults path to the working directory, independent of output", {
+    # S-I2: path used to default to output, so tidying generated files into a
+    # subfolder silently moved the manifest there too. It now defaults to
+    # "." regardless of where output points.
+    out <- withr::local_tempdir()
+    wd  <- withr::local_tempdir()
+    withr::local_dir(wd)
+    htc_gen_executable(r_script = "analysis.R", output = out)
+    expect_true(file.exists(file.path(wd, "htc-manifest.yaml")))
+    expect_false(file.exists(file.path(out, "htc-manifest.yaml")))
+})
+
+test_that("htc_gen_executable() writes the manifest to an explicit path, independent of output", {
     out  <- withr::local_tempdir()
     proj <- withr::local_tempdir()
     htc_gen_executable(r_script = "analysis.R", output = out, path = proj)
     expect_true(file.exists(file.path(proj, "htc-manifest.yaml")))
     expect_false(file.exists(file.path(out, "htc-manifest.yaml")))
+})
+
+# ---------------------------------------------------------------------------
+# output_file coordinated with htc_gen_submit() via the manifest (S-I3)
+# ---------------------------------------------------------------------------
+
+test_that("htc_gen_executable() defaults output_file from a prior htc_gen_submit() call", {
+    tmp <- withr::local_tempdir()
+    withr::local_dir(tmp)
+    htc_gen_submit(executable = "analysis.sh", output = tmp)
+
+    htc_gen_executable(r_script = "analysis.R", output = tmp)
+
+    expect_true(file.exists(file.path(tmp, "analysis.sh")))
+    expect_false(file.exists(file.path(tmp, "job.sh")))
+})
+
+test_that("htc_gen_executable() explicit output_file overrides the manifest silently when they agree", {
+    tmp <- withr::local_tempdir()
+    withr::local_dir(tmp)
+    htc_gen_submit(executable = "analysis.sh", output = tmp)
+
+    expect_no_warning(
+        htc_gen_executable(r_script = "analysis.R", output_file = "analysis.sh", output = tmp)
+    )
+})
+
+test_that("htc_gen_executable() warns when output_file disagrees with the manifest", {
+    tmp <- withr::local_tempdir()
+    withr::local_dir(tmp)
+    htc_gen_submit(executable = "analysis.sh", output = tmp)
+
+    expect_warning(
+        htc_gen_executable(r_script = "analysis.R", output_file = "other.sh", output = tmp),
+        regexp = "does not match"
+    )
+    # The explicit value still wins -- this is a warning, not a correction.
+    expect_true(file.exists(file.path(tmp, "other.sh")))
+})
+
+test_that("htc_gen_executable() falls back to job.sh when nothing else resolves output_file", {
+    tmp <- withr::local_tempdir()
+    withr::local_dir(tmp)
+    htc_gen_executable(r_script = "analysis.R", output = tmp)
+    expect_true(file.exists(file.path(tmp, "job.sh")))
+})
+
+# ---------------------------------------------------------------------------
+# results_folder default from project conventions (S-G5)
+# ---------------------------------------------------------------------------
+
+test_that("htc_gen_executable() defaults results_folder from config$project$conventions", {
+    tmp <- withr::local_tempdir()
+    withr::local_dir(tmp)
+    cfg <- list(project = list(conventions = list(output_dir = "results")))
+
+    htc_gen_executable(r_script = "analysis.R", output = tmp, config = cfg)
+
+    lines <- readLines(file.path(tmp, "job.sh"))
+    expect_true(any(grepl("mkdir -p results", lines, fixed = TRUE)))
+})
+
+test_that("htc_gen_executable() explicit results_folder overrides config", {
+    tmp <- withr::local_tempdir()
+    withr::local_dir(tmp)
+    cfg <- list(project = list(conventions = list(output_dir = "results")))
+
+    htc_gen_executable(
+        r_script       = "analysis.R",
+        results_folder = "out",
+        output         = tmp,
+        config         = cfg
+    )
+
+    lines <- readLines(file.path(tmp, "job.sh"))
+    expect_true(any(grepl("mkdir -p out", lines, fixed = TRUE)))
+})
+
+test_that("htc_gen_executable() records data_files in the job manifest", {
+    tmp <- withr::local_tempdir()
+    htc_gen_executable(
+        r_script   = "analysis.R",
+        data_files = c("data-raw/sample.csv"),
+        output     = tmp,
+        path       = tmp
+    )
+    m <- .get_manifest(path = tmp)
+    expect_equal(m$data_files, "data-raw/sample.csv")
 })

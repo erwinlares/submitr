@@ -5,28 +5,43 @@
 \title{Generate an HTCondor executable shell script for an R job}
 \usage{
 htc_gen_executable(
-  output_file = "job.sh",
+  output_file = NULL,
   r_script = NULL,
   data_files = NULL,
-  results_folder = "output",
+  results_folder = NULL,
   home_dir = "/home",
   mode = "single",
   set_executable = TRUE,
   verbose = FALSE,
   comments = FALSE,
   output = ".",
-  path = output
+  config = NULL,
+  path = "."
 )
 }
 \arguments{
-\item{output_file}{A character string. Name of the shell script to write.
-Must end in \code{".sh"}. Defaults to \code{"job.sh"}.}
+\item{output_file}{A character string or \code{NULL}. Name of the shell script
+to write. Must end in \code{".sh"}. When \code{NULL} (the default), resolves to
+the \code{executable_file} recorded in the job manifest by a previous
+\code{\link[=htc_gen_submit]{htc_gen_submit()}} call (S-I3), so the name only has to be typed once
+regardless of which of the two generators runs first. Falls back to
+\code{"job.sh"} if neither an explicit value nor a manifest value is
+available. If the resolved value disagrees with an \code{executable_file}
+already in the manifest, warns rather than silently preferring one
+over the other.}
 
 \item{r_script}{A character string. Name of the R script that HTCondor
-will run inside the container, e.g. \code{"analysis.R"}. Must be supplied
-explicitly -- there is no default. If you used
-\code{toolero::create_qmd(use_purl = TRUE)}, the script is the \code{.R} file
-produced by \code{purl.R} after rendering.}
+will run, e.g. \code{"analysis.R"}. Must be supplied explicitly -- there is
+no default. If you used \code{toolero::create_qmd(use_purl = TRUE)}, the
+script is the \code{.R} file produced by \code{purl.R} after rendering. The
+script itself is \strong{not} baked into the container image -- it travels
+to the execute node as an uploaded job input file (see
+\code{transfer_input_files} in \code{\link[=htc_gen_submit]{htc_gen_submit()}}), so editing it only
+requires re-uploading and resubmitting, never a container rebuild.
+Because HTCondor's file transfer does not preserve subdirectories,
+only the file's basename is used inside the script; if you pass
+\code{r_script = "R/analysis.R"}, make sure \code{"analysis.R"} (not the \verb{R/}
+path) is what actually lands in \code{input_files} for \code{\link[=htc_gen_submit]{htc_gen_submit()}}.}
 
 \item{data_files}{A character vector or \code{NULL}. Paths to data files
 baked into the container that should be passed to the R script as
@@ -35,17 +50,23 @@ the container (e.g. \code{"data-raw/sample.csv"} becomes
 \code{"/home/data-raw/sample.csv"}). The R script receives them via
 \code{commandArgs(trailingOnly = TRUE)}. Defaults to \code{NULL}.}
 
-\item{results_folder}{A character string. Name of the folder created
-in the scratch directory to hold job outputs before compression.
-Defaults to \code{"output"}, the output folder used across the toolero
-family. Note that only this folder is created: if your analysis writes
-to \verb{output/figures/}, the R script must create that subfolder itself,
-which \code{toolero::save_output()} does and a bare \code{ggsave()} does not.}
+\item{results_folder}{A character string or \code{NULL}. Name of the folder
+created in the scratch directory to hold job outputs before
+compression. When \code{NULL} (the default), resolves to
+\code{config$project$conventions$output_dir} when \code{config} is supplied
+(S-G5), falling back to \code{"output"}, the output folder used across the
+toolero family, when neither is available. Note that only this folder
+is created: if your analysis writes to \verb{output/figures/}, the R script
+must create that subfolder itself, which \code{toolero::save_output()} does
+and a bare \code{ggsave()} does not.}
 
 \item{home_dir}{A character string. The working directory inside the
-container where baked-in files live. Used to construct absolute paths
-for \code{Rscript} and data file arguments. Must match the \code{home_dir}
-used in \code{containr::generate_dockerfile()}. Defaults to \code{"/home"}.}
+container where baked-in \code{data_files} live. Used to construct
+absolute paths for data file arguments only -- it has no effect on
+where \code{r_script} is read from, since the R script is not baked into
+the image. Must match the \code{home_dir} used in
+\code{containr::generate_dockerfile()} for \code{data_files}. Defaults to
+\code{"/home"}.}
 
 \item{mode}{A character string. Execution mode. \code{"single"} (the default)
 runs the R script with only the data file arguments (if any),
@@ -74,11 +95,19 @@ Defaults to \code{FALSE}.}
 \item{output}{A character string. Directory where the shell script will
 be written. Defaults to \code{"."} (current working directory).}
 
+\item{config}{A named list as returned by \code{\link[=htc_config]{htc_config()}}, or \code{NULL} (the
+default). When supplied with a \code{project} element (via
+\code{htc_config(project_config = )}), \code{config$project$conventions$output_dir}
+is used to default \code{results_folder} (S-G5). Not required -- everything
+here can still be passed explicitly.}
+
 \item{path}{A character string. Directory where the job manifest
-(\code{htc-manifest.yaml}) is read from and written to. Defaults to whatever
-\code{output} is set to, so the manifest travels with the files it describes.
-Must match the \code{path} given to \code{\link[=htc_gen_submit]{htc_gen_submit()}}, \code{\link[=htc_upload]{htc_upload()}},
-\code{\link[=htc_submit]{htc_submit()}}, and \code{\link[=htc_download]{htc_download()}}.}
+(\code{htc-manifest.yaml}) is read from and written to. Defaults to \code{"."}
+(the current working directory), matching the default used by
+\code{\link[=htc_upload]{htc_upload()}}, \code{\link[=htc_submit]{htc_submit()}}, and \code{\link[=htc_download]{htc_download()}}. This is
+independent of \code{output}: if you write generated files to a subfolder
+with \code{output}, pass the same \code{path} explicitly to every function in
+the pipeline so they all find the same manifest.}
 }
 \value{
 Called for its side effects. Writes a bash script to
@@ -89,19 +118,32 @@ Called for its side effects. Writes a bash script to
 \code{htc_gen_executable()} writes a ready-to-use bash script (\code{.sh}) that
 HTCondor runs inside the container for each job. The script changes to
 HTCondor's writable scratch directory, creates an output folder, runs
-the R script via \code{Rscript} using absolute paths to the baked-in files,
-and compresses the results into a tarball for transfer back to the
-submit node.
+the R script via \code{Rscript}, and compresses the results into a tarball
+for transfer back to the submit node.
 }
 \section{How file paths work inside the container}{
 
-The generated script uses two directories:
+The generated script draws on two different sources for its inputs,
+and reads each one a different way:
 
-\strong{Reading} -- the R script and data files are baked into the container
-at build time by \code{containr::generate_dockerfile()}. They live under
-\code{home_dir} (default \code{"/home"}). The \code{Rscript} line uses an absolute
-path (e.g. \code{Rscript /home/analysis.R}) so the script is found
-regardless of the working directory.
+\strong{The R script} -- \code{r_script} is not baked into the container image.
+It travels to the execute node as an uploaded job input file, listed in
+\code{transfer_input_files} by \code{\link[=htc_gen_submit]{htc_gen_submit()}}. HTCondor's file transfer
+does not preserve subdirectories, so whatever you pass as \code{r_script}
+lands flat, by basename, in the scratch directory alongside the
+executable script itself. The \code{Rscript} line therefore refers to it by
+a bare relative name (e.g. \verb{Rscript analysis.R}), not an absolute,
+\code{home_dir}-prefixed path. This is deliberate: editing the analysis
+script only requires re-uploading it and resubmitting the job, with no
+container rebuild or registry push in between.
+
+\strong{Data files} -- \code{data_files} are the opposite case: they are baked
+into the container at build time by \code{containr::generate_dockerfile()}
+and live under \code{home_dir} (default \code{"/home"}). The \code{Rscript} line
+passes these as absolute paths (e.g. \verb{/home/data-raw/sample.csv}) so
+they are found regardless of the working directory. Baking data in
+rather than uploading it keeps large or unchanging reference data out
+of every job's file transfer.
 
 \strong{Writing} -- the script changes to HTCondor's scratch directory
 (\verb{_CONDOR_SCRATCH_DIR}) before creating the output folder. This
@@ -135,18 +177,27 @@ input_file <- switch(context,
 }
 
 \examples{
+# output writes the generated .sh file; path is where the job manifest
+# (htc-manifest.yaml) gets read from and written to. The two are
+# independent arguments (see @param path), so both must point at the
+# same scratch directory here to keep the manifest out of the current
+# working directory.
+tmp <- tempdir()
+
 # Single-job executable script with baked-in data
 htc_gen_executable(
   r_script   = "R/analysis.R",
   data_files = "data-raw/sample.csv",
-  output     = tempdir()
+  output     = tmp,
+  path       = tmp
 )
 
 # Multiple-job executable script
 htc_gen_executable(
   r_script = "R/analysis.R",
   mode     = "multiple",
-  output   = tempdir()
+  output   = tmp,
+  path     = tmp
 )
 
 # Custom names with annotations
@@ -156,6 +207,7 @@ htc_gen_executable(
   data_files  = c("data-raw/train.csv", "data-raw/test.csv"),
   comments    = TRUE,
   verbose     = TRUE,
-  output      = tempdir()
+  output      = tmp,
+  path        = tmp
 )
 }

@@ -117,13 +117,21 @@ cfg$project$conventions$output_dir
 #> [1] "output"
 }\if{html}{\out{</div>}}
 
-Nothing in \code{submitr} requires this yet -- \code{htc_gen_executable()}'s
-\code{results_folder} argument still has to be set (or left at its own
-\code{"output"} default) independently. What \code{project_config} buys you today
-is one place to read a project's own folder layout from R, and a
-foundation for \code{submitr} functions to default to the project's own
-conventions in a future release, the way \code{containr::generate_dockerfile()}
-already reads the same file for its own purposes.
+As of this release (S-G5), passing the returned config's \code{project}
+element on to \code{\link[=htc_gen_executable]{htc_gen_executable()}} and \code{\link[=htc_gen_submit]{htc_gen_submit()}} via their own
+\code{config} argument lets \code{results_folder} and \code{queue_from} default from
+\code{conventions$output_dir} and \code{conventions$split_dir}, the way
+\code{containr::generate_dockerfile()} already reads the same file for its own
+purposes:
+
+\if{html}{\out{<div class="sourceCode r">}}\preformatted{cfg <- htc_config(project_config = "_toolero.yml")
+htc_gen_executable(r_script = "R/analysis.R", config = cfg)
+htc_gen_submit(mode = "multiple", config = cfg)
+}\if{html}{\out{</div>}}
+
+\code{r_script} itself is not defaulted from \code{conventions$script_dir}: the
+convention names a directory, not a file, and the script's own filename
+is project-specific information \verb{_toolero.yml} has no way to record.
 }
 
 \section{Security}{

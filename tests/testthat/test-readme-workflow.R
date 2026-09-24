@@ -35,16 +35,18 @@
 
 test_that("the first-workflow example generates a consistent submit file and executable", {
     tmp <- withr::local_tempdir()
+    withr::local_dir(tmp)
 
-    htc_gen_submit(
+    expect_no_warning(htc_gen_submit(
         output_file     = "analysis.sub",
         container_image = "registry.doit.wisc.edu/your.netid/my-analysis:1.0.0",
         executable      = "analysis.sh",
         r_script        = "R/analysis.R",
+        input_files     = "R/analysis.R",
         resources       = "small",
         comments        = TRUE,
         output          = tmp
-    )
+    ))
     htc_gen_executable(
         r_script    = "R/analysis.R",
         output_file = "analysis.sh",
@@ -77,12 +79,14 @@ test_that("the first-workflow example generates a consistent submit file and exe
 
 test_that("the job manifest after steps 2-3 matches the fields README's example shows", {
     tmp <- withr::local_tempdir()
+    withr::local_dir(tmp)
 
     htc_gen_submit(
         output_file     = "analysis.sub",
         container_image = "registry.doit.wisc.edu/your.netid/my-analysis:1.0.0",
         executable      = "analysis.sh",
         r_script        = "R/analysis.R",
+        input_files     = "R/analysis.R",
         resources       = "small",
         comments        = TRUE,
         output          = tmp
@@ -113,17 +117,29 @@ test_that("the job manifest after steps 2-3 matches the fields README's example 
 
 test_that("htc_upload() resolves step 4 with no arguments, per the README's claim", {
     tmp <- withr::local_tempdir()
+    withr::local_dir(tmp)
+
+    # Under S-I4, r_script travels to the execute node as an uploaded job
+    # input rather than being baked into the image, so htc_upload() now
+    # correctly expects it to exist on disk and includes it in the resolved
+    # file list. Create the fixture the README's own workflow assumes is
+    # already there by the time step 4 runs.
+    dir.create("R")
+    writeLines("# analysis script", file.path("R", "analysis.R"))
 
     htc_gen_submit(
         output_file = "analysis.sub",
         executable  = "analysis.sh",
         r_script    = "R/analysis.R",
-        output      = tmp
+        input_files = "R/analysis.R",
+        output      = tmp,
+        path        = tmp
     )
     htc_gen_executable(
         r_script    = "R/analysis.R",
         output_file = "analysis.sh",
-        output      = tmp
+        output      = tmp,
+        path        = tmp
     )
 
     cfg <- list(username = "your.netid", server = "ap2002.chtc.wisc.edu")
@@ -133,6 +149,7 @@ test_that("htc_upload() resolves step 4 with no arguments, per the README's clai
     cmd <- paste(msg, collapse = " ")
     expect_true(grepl("analysis.sub", cmd, fixed = TRUE))
     expect_true(grepl("analysis.sh", cmd, fixed = TRUE))
+    expect_true(grepl("analysis.R", cmd, fixed = TRUE))
 })
 
 test_that("htc_download() resolves step 7 with no arguments, per the README's claim", {
@@ -142,12 +159,15 @@ test_that("htc_download() resolves step 7 with no arguments, per the README's cl
         output_file = "analysis.sub",
         executable  = "analysis.sh",
         r_script    = "R/analysis.R",
-        output      = tmp
+        input_files = "R/analysis.R",
+        output      = tmp,
+        path        = tmp
     )
     htc_gen_executable(
         r_script    = "R/analysis.R",
         output_file = "analysis.sh",
-        output      = tmp
+        output      = tmp,
+        path        = tmp
     )
     # Stand in for htc_submit(), which needs a live connection: record what
     # it would have written, using the same cluster ID as the README's own
@@ -169,6 +189,7 @@ test_that("htc_download() resolves step 7 with no arguments, per the README's cl
 
 test_that("the scaling-up example produces matching submit and executable files", {
     tmp <- withr::local_tempdir()
+    withr::local_dir(tmp)
     manifest_csv <- file.path(tmp, "manifest.csv")
     readr::write_csv(
         data.frame(file_path = file.path(tmp, c("adelie.csv", "gentoo.csv"))),
@@ -244,13 +265,23 @@ test_that("the resource preset table matches the shipped htc-resources.yaml", {
 test_that("every function named in the quick function reference table still exists", {
     fns <- c(
         "htc_start", "htc_config", "htc_gen_submit", "htc_gen_executable",
-        "htc_upload", "htc_submit", "htc_status", "htc_download"
+        "htc_upload", "htc_submit", "htc_status", "htc_download",
+        "htc_check", "htc_cancel", "htc_release", "htc_collect",
+        "htc_ssh_setup"
     )
     for (fn in fns) {
         expect_true(exists(fn, mode = "function"), info = fn)
     }
 })
 
-test_that("htc_gen_executable()'s results_folder still defaults to output/", {
-    expect_equal(formals(htc_gen_executable)$results_folder, "output")
+test_that("htc_gen_executable()'s results_folder still resolves to output/ with no config", {
+    # Under S-G5, results_folder's literal formal default became NULL so it
+    # can be overridden by config$project$conventions$output_dir; "output"
+    # is now the fallback the function resolves to internally when neither
+    # an explicit value nor a config value is supplied. Check the resolved
+    # behavior via a real call rather than the (now NULL) formal.
+    tmp <- withr::local_tempdir()
+    htc_gen_executable(r_script = "analysis.R", output = tmp, path = tmp)
+    sh_lines <- readLines(file.path(tmp, "job.sh"))
+    expect_true(any(grepl("mkdir -p output", sh_lines, fixed = TRUE)))
 })

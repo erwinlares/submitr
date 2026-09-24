@@ -280,6 +280,60 @@ test_that("htc_submit() writes the cluster ID to the manifest at path", {
     expect_null(.get_manifest(path = project))
 })
 
+test_that("htc_submit() resolves submit_file and remote_path from the manifest", {
+    # As htc_gen_submit() and htc_upload() would have recorded them on
+    # earlier calls in the pipeline.
+    tmp <- withr::local_tempdir()
+    withr::local_dir(tmp)
+    .update_manifest(submit_file = "analysis.sub", remote_path = "~/penguins/")
+    local_mocked_bindings(system2 = .mock_condor_submit("42"), .package = "base")
+
+    cfg <- list(username = "lares", server = "ap2002.chtc.wisc.edu")
+    msg <- capture_messages(htc_submit(config = cfg, verbose = TRUE))
+    expect_true(any(grepl("analysis.sub", msg, fixed = TRUE)))
+    expect_true(any(grepl("penguins", msg, fixed = TRUE)))
+})
+
+test_that("htc_submit() explicit submit_file and remote_path override the manifest", {
+    tmp <- withr::local_tempdir()
+    withr::local_dir(tmp)
+    .update_manifest(submit_file = "analysis.sub", remote_path = "~/penguins/")
+    local_mocked_bindings(system2 = .mock_condor_submit("42"), .package = "base")
+
+    cfg <- list(username = "lares", server = "ap2002.chtc.wisc.edu")
+    suppressMessages(htc_submit(
+        submit_file = "job.sub",
+        remote_path = "~/other/",
+        config      = cfg
+    ))
+
+    m <- .get_manifest()
+    expect_equal(m$submit_file, "job.sub")
+    expect_equal(m$remote_path, "~/other/")
+})
+
+test_that("htc_submit() falls back to hardcoded defaults with no manifest", {
+    withr::local_dir(withr::local_tempdir())
+    cfg <- list(username = "lares", server = "ap2002.chtc.wisc.edu")
+    msg <- capture_messages(
+        htc_submit(config = cfg, dry_run = TRUE)
+    )
+    expect_true(any(grepl("job.sub", msg, fixed = TRUE)))
+    expect_true(any(grepl("~/", msg, fixed = TRUE)))
+})
+
+test_that("htc_submit() records submit_file in the manifest after a successful submission", {
+    tmp <- withr::local_tempdir()
+    withr::local_dir(tmp)
+    local_mocked_bindings(system2 = .mock_condor_submit("42"), .package = "base")
+
+    cfg <- list(username = "lares", server = "ap2002.chtc.wisc.edu")
+    suppressMessages(htc_submit(submit_file = "analysis.sub", config = cfg))
+
+    m <- .get_manifest()
+    expect_equal(m$submit_file, "analysis.sub")
+})
+
 test_that("htc_submit() appends to the manifest without disturbing job metadata", {
     tmp <- withr::local_tempdir()
     withr::local_dir(tmp)

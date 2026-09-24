@@ -184,6 +184,164 @@ test_that(".jobs_in_queue() treats empty output as an empty queue", {
 })
 
 # ---------------------------------------------------------------------------
+# Layer 2b -- cluster_id resolution from the job manifest (S-I1)
+# ---------------------------------------------------------------------------
+
+test_that("htc_status() resolves cluster_id from the job manifest when omitted", {
+    tmp <- withr::local_tempdir()
+    withr::local_dir(tmp)
+    .update_manifest(cluster_id = "6302860")
+    cfg <- list(username = "lares", server = "ap2002.chtc.wisc.edu")
+
+    expect_message(
+        htc_status(config = cfg, dry_run = TRUE),
+        regexp = "6302860"
+    )
+})
+
+test_that("htc_status() explicit cluster_id overrides the manifest", {
+    tmp <- withr::local_tempdir()
+    withr::local_dir(tmp)
+    .update_manifest(cluster_id = "6302860")
+    cfg <- list(username = "lares", server = "ap2002.chtc.wisc.edu")
+
+    msg <- capture_messages(
+        htc_status(cluster_id = "111", config = cfg, dry_run = TRUE)
+    )
+    expect_true(any(grepl("111", msg)))
+    expect_false(any(grepl("6302860", msg)))
+})
+
+test_that("htc_status() reads the manifest from a non-default path", {
+    proj <- withr::local_tempdir()
+    .update_manifest(cluster_id = "42", path = proj)
+    cfg <- list(username = "lares", server = "ap2002.chtc.wisc.edu")
+
+    expect_message(
+        htc_status(config = cfg, dry_run = TRUE, path = proj),
+        regexp = "42"
+    )
+})
+
+test_that("htc_status() falls back to plain condor_q with no cluster_id and no manifest", {
+    withr::local_dir(withr::local_tempdir())
+    cfg <- list(username = "lares", server = "ap2002.chtc.wisc.edu")
+    msg <- capture_messages(
+        htc_status(config = cfg, dry_run = TRUE)
+    )
+    expect_false(any(grepl("[0-9]{5,}", msg)))
+})
+
+# ---------------------------------------------------------------------------
+# .hold_output_looks_populated() -- deciding whether condor_q -hold found
+# anything worth printing (S-G2)
+# ---------------------------------------------------------------------------
+
+make_hold_header <- function() {
+    c(
+        "",
+        paste0("-- Schedd: ap2002.chtc.wisc.edu : <128.104.101.92:9618?addrs=..",
+               "> @ 09/24/26 14:23:01")
+    )
+}
+
+test_that(".hold_output_looks_populated() is FALSE for a header-only report", {
+    expect_false(.hold_output_looks_populated(make_hold_header(), "6302860"))
+    expect_false(.hold_output_looks_populated(character(0), "6302860"))
+    expect_false(.hold_output_looks_populated(character(0), NULL))
+})
+
+test_that(".hold_output_looks_populated() is TRUE when a matching job ID appears", {
+    out <- c(
+        make_hold_header(),
+        " ID       OWNER    HELD_SINCE  HOLD_REASON",
+        " 6302860.0 lares   9/24 10:01  Memory usage exceeded request_memory"
+    )
+    expect_true(.hold_output_looks_populated(out, "6302860"))
+})
+
+test_that(".hold_output_looks_populated() anchors to the requested cluster_id", {
+    out <- c(
+        make_hold_header(),
+        " 111.0 lares   9/24 10:01  Some other job's hold reason"
+    )
+    expect_false(.hold_output_looks_populated(out, "6302860"))
+    expect_true(.hold_output_looks_populated(out, "111"))
+})
+
+test_that(".hold_output_looks_populated() matches any job ID when cluster_id is NULL", {
+    out <- c(
+        make_hold_header(),
+        " 111.0 lares   9/24 10:01  held for some reason"
+    )
+    expect_true(.hold_output_looks_populated(out, NULL))
+})
+
+# ---------------------------------------------------------------------------
+# htc_status() -- hold-reason follow-up query (S-G2)
+# ---------------------------------------------------------------------------
+
+.mock_condor_q_then_hold <- function(main_result, hold_result) {
+    calls <- 0L
+    function(...) {
+        calls <<- calls + 1L
+        result <- if (calls == 1L) main_result else hold_result
+        attr(result, "status") <- 0L
+        result
+    }
+}
+
+test_that("htc_status() prints hold reasons when the follow-up query finds a held job", {
+    main <- make_condor_q(n_jobs = 1L)
+    hold <- c(
+        make_hold_header(),
+        " 6302860.0 lares   9/24 10:01  Memory usage exceeded request_memory"
+    )
+    local_mocked_bindings(
+        system2 = .mock_condor_q_then_hold(main, hold),
+        .package = "base"
+    )
+
+    cfg <- list(username = "lares", server = "ap2002.chtc.wisc.edu")
+    msg <- capture_messages(
+        htc_status(cluster_id = "6302860", config = cfg)
+    )
+    expect_true(any(grepl("Held job", msg)))
+})
+
+test_that("htc_status() prints nothing extra when the follow-up query finds no held job", {
+    main <- make_condor_q(n_jobs = 1L)
+    hold <- make_hold_header()
+    local_mocked_bindings(
+        system2 = .mock_condor_q_then_hold(main, hold),
+        .package = "base"
+    )
+
+    cfg <- list(username = "lares", server = "ap2002.chtc.wisc.edu")
+    msg <- capture_messages(
+        htc_status(cluster_id = "6302860", config = cfg)
+    )
+    expect_false(any(grepl("Held job", msg)))
+})
+
+test_that("htc_status() skips the follow-up query when show_hold_reason = FALSE", {
+    calls <- 0L
+    local_mocked_bindings(
+        system2 = function(...) {
+            calls <<- calls + 1L
+            result <- make_condor_q(n_jobs = 1L)
+            attr(result, "status") <- 0L
+            result
+        },
+        .package = "base"
+    )
+
+    cfg <- list(username = "lares", server = "ap2002.chtc.wisc.edu")
+    htc_status(cluster_id = "6302860", config = cfg, show_hold_reason = FALSE)
+    expect_equal(calls, 1L)
+})
+
+# ---------------------------------------------------------------------------
 # Layer 3 -- Integration (requires live CHTC connection)
 # ---------------------------------------------------------------------------
 

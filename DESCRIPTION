@@ -37,7 +37,9 @@ Depends:
 Imports:
     cli,
     glue,
+    jsonlite,
     readr,
+    tibble,
     yaml
 VignetteBuilder: knitr
 URL: https://erwinlares.github.io/submitr/

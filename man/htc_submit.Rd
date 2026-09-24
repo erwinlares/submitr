@@ -5,8 +5,8 @@
 \title{Submit an HTCondor job from a remote submit node}
 \usage{
 htc_submit(
-  submit_file = "job.sub",
-  remote_path = "~/",
+  submit_file = NULL,
+  remote_path = NULL,
   config = NULL,
   dry_run = FALSE,
   verbose = FALSE,
@@ -14,13 +14,17 @@ htc_submit(
 )
 }
 \arguments{
-\item{submit_file}{A character string. Name of the submit file on the
-remote node, e.g. \code{"job.sub"}. Must end in \code{".sub"}. Defaults to
-\code{"job.sub"}.}
+\item{submit_file}{A character string or \code{NULL}. Name of the submit file
+on the remote node, e.g. \code{"job.sub"}. Must end in \code{".sub"}. When \code{NULL}
+(the default), resolves to the \code{submit_file} recorded in the job
+manifest by \code{\link[=htc_gen_submit]{htc_gen_submit()}}, falling back to \code{"job.sub"} if no
+manifest value is available.}
 
-\item{remote_path}{A character string. The directory on the submit node
-where the submit file was uploaded. Defaults to \code{"~/"}. Must match the
-\code{remote_path} used in the preceding call to \code{\link[=htc_upload]{htc_upload()}}.}
+\item{remote_path}{A character string or \code{NULL}. The directory on the
+submit node where the submit file was uploaded. When \code{NULL} (the
+default), resolves to the \code{remote_path} recorded in the job manifest by
+the preceding call to \code{\link[=htc_upload]{htc_upload()}}, falling back to \code{"~/"} if no
+manifest value is available.}
 
 \item{config}{A named list as returned by \code{\link[=htc_config]{htc_config()}}. Must contain
 \code{username} and \code{server}. If \code{NULL} (the default), uses the session

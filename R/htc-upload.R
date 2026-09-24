@@ -13,9 +13,13 @@
 #'   [htc_gen_executable()]: the submit file, the executable script, any
 #'   shared input files, and -- in `"multiple"` mode -- the subdatasets
 #'   manifest and the individual subset data files.
-#' @param remote_path A character string. The destination directory on the
-#'   submit node. Defaults to `"~/"` (the user's home directory). This should
-#'   match the path used in the subsequent call to [htc_submit()].
+#' @param remote_path A character string or `NULL`. The destination directory
+#'   on the submit node. When `NULL` (the default), resolves to the
+#'   `remote_path` recorded in the job manifest by a previous call to
+#'   `htc_upload()`, falling back to `"~/"` if no manifest value is
+#'   available. On a successful (non-`dry_run`) upload, the resolved value is
+#'   recorded back to the manifest, so [htc_submit()] and [htc_download()]
+#'   can pick it up automatically without retyping it.
 #' @param config A named list as returned by [htc_config()]. Must contain
 #'   `username` and `server`. If `NULL` (the default), uses the session
 #'   config set by [htc_start()]. If no session config is set,
@@ -30,6 +34,12 @@
 #'   to `"."`, which matches the generator functions' own default. If you
 #'   passed a non-default `output` or `path` to [htc_gen_submit()] and
 #'   [htc_gen_executable()], pass that same directory here.
+#' @param check Logical. If `TRUE`, runs [htc_check()] before uploading and
+#'   aborts if it finds an `"error"`-level issue (a missing file, or a
+#'   `"multiple"`-mode subset mismatch) -- catching it here rather than an
+#'   hour later as a held job on the cluster (S-G4). Warning-level issues
+#'   (a resource request that looks large, an unconfirmed image) are
+#'   reported but do not block the upload. Defaults to `FALSE`.
 #'
 #' @return Called for its side effects. Returns `invisible(NULL)`.
 #'
@@ -109,18 +119,39 @@
 #' )
 #' }
 htc_upload <- function(files       = NULL,
-                       remote_path = "~/",
+                       remote_path = NULL,
                        config      = NULL,
                        dry_run     = FALSE,
                        verbose     = FALSE,
-                       path        = ".") {
+                       path        = ".",
+                       check       = FALSE) {
 
     # -- 1. Resolve config (explicit argument or session option) ----------------
     config <- .resolve_config(config)
 
-    # -- 2. Resolve files from the job manifest if not supplied ----------------
+    # -- 1b. Run the preflight check if requested (S-G4) -------------------------
+    # Only "error"-level issues (missing files, a subset mismatch) block the
+    # upload; warnings (a large resource request, an unconfirmed image) are
+    # reported by htc_check() itself and are not fatal here.
+    if (check) {
+        check_result <- htc_check(path = path, verbose = verbose)
+        if (any(check_result$severity == "error")) {
+            cli::cli_abort(c(
+                "Preflight check found {sum(check_result$severity == 'error')} \\
+                 error{?s}; aborting before upload.",
+                "i" = "Run {.fn htc_check} directly for the full report, or",
+                " " = "  pass {.code check = FALSE} to skip this and upload anyway."
+            ))
+        }
+    }
+
+    # -- 2. Read the job manifest ------------------------------------------------
+    # Read unconditionally (not just when files is NULL): the remote_path
+    # fallback below needs it regardless of how files was resolved.
+    manifest <- .get_manifest(path = path)
+
+    # -- 3. Resolve files from the job manifest if not supplied -----------------
     if (is.null(files)) {
-        manifest <- .get_manifest(path = path)
         files <- .resolve_upload_files(manifest)
 
         if (length(files) > 0 && verbose) {
@@ -130,7 +161,7 @@ htc_upload <- function(files       = NULL,
         }
     }
 
-    # -- 3. Validate files -------------------------------------------------------
+    # -- 4. Validate files -------------------------------------------------------
     if (length(files) == 0) {
         cli::cli_abort(c(
             "{.arg files} must be supplied and cannot be empty.",
@@ -149,12 +180,20 @@ htc_upload <- function(files       = NULL,
         ))
     }
 
-    # -- 4. Validate remote_path -----------------------------------------------
+    # -- 5. Resolve and validate remote_path -------------------------------------
+    # Explicit argument > the remote_path a previous htc_upload() recorded in
+    # the job manifest > the hardcoded default.
+    if (is.null(remote_path)) {
+        remote_path <- manifest$remote_path
+    }
+    if (is.null(remote_path)) {
+        remote_path <- "~/"
+    }
     if (!grepl("/$", remote_path)) {
         remote_path <- paste0(remote_path, "/")
     }
 
-    # -- 5. Build scp command --------------------------------------------------
+    # -- 6. Build scp command --------------------------------------------------
     # Directories are copied recursively via -r flag
     has_dirs <- any(file.info(files)$isdir)
     scp_flags <- if (has_dirs) c("-r") else character(0)
@@ -163,7 +202,7 @@ htc_upload <- function(files       = NULL,
 
     scp_args <- c(scp_flags, files, destination)
 
-    # -- 6. dry_run or execute -------------------------------------------------
+    # -- 7. dry_run or execute -------------------------------------------------
     if (dry_run) {
         cmd <- paste("scp", paste(scp_args, collapse = " "))
         cli::cli_inform(c(
@@ -193,6 +232,11 @@ htc_upload <- function(files       = NULL,
     cli::cli_alert_success(
         "Uploaded {length(files)} file{?s} to {.val {config$server}}:{remote_path}"
     )
+
+    # -- 8. Record remote_path in the manifest -----------------------------------
+    # So htc_submit() and htc_download() can resolve it automatically without
+    # it being retyped at every step of the pipeline.
+    .update_manifest(remote_path = remote_path, path = path)
 
     invisible(NULL)
 }

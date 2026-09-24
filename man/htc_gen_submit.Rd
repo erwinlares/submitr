@@ -21,7 +21,8 @@ htc_gen_submit(
   verbose = FALSE,
   comments = FALSE,
   output = ".",
-  path = output
+  config = NULL,
+  path = "."
 )
 }
 \arguments{
@@ -33,9 +34,16 @@ e.g. \code{"registry.doit.wisc.edu/netid/myimage"}. The \verb{docker://} prefix
 is added automatically if not already present. Defaults to \code{NULL},
 which writes a placeholder comment in the submit file.}
 
-\item{executable}{A character string. The shell script that HTCondor will
-run inside the container, e.g. \code{"analysis.sh"}. Defaults to \code{NULL},
-which writes a placeholder comment in the submit file.}
+\item{executable}{A character string or \code{NULL}. The shell script that
+HTCondor will run inside the container, e.g. \code{"analysis.sh"}. When
+\code{NULL} (the default), resolves to the \code{executable_file} recorded in the
+job manifest by a previous \code{\link[=htc_gen_executable]{htc_gen_executable()}} call (S-I3), so the
+name only has to be typed once regardless of which of the two
+generators runs first. If neither an explicit value nor a manifest
+value is available, writes a placeholder comment in the submit file
+instead. If the resolved value here disagrees with an
+\code{executable_file} already in the manifest, warns rather than silently
+preferring one over the other.}
 
 \item{r_script}{A character string. The R script the job runs, e.g.
 \code{"R/analysis.R"}. Used only to derive the default \code{output_files} name,
@@ -45,13 +53,20 @@ Dockerfile, so the script's name cannot be inferred and has to be given
 here. If omitted, the value recorded in the job manifest by a previous
 \code{\link[=htc_gen_executable]{htc_gen_executable()}} call is used; note that the documented workflow
 calls this function first, in which case there is nothing recorded yet.
-Ignored when \code{output_files} is supplied. Defaults to \code{NULL}.}
+Ignored when \code{output_files} is supplied. Note that supplying \code{r_script}
+here does not transfer it -- the script is not baked into the container
+image (see \code{\link[=htc_gen_executable]{htc_gen_executable()}}), so its basename must also appear in
+\code{input_files} or HTCondor will not send it to the execute node; this
+function warns when it does not. Defaults to \code{NULL}.}
 
 \item{input_files}{A character vector. Files to transfer to the job's
 working directory before execution, e.g. \code{c("analysis.R", "data.csv")}.
-In \code{"multiple"} mode, the per-job subset file is added automatically
-from the manifest; use this argument for files shared across all jobs
-(e.g. the analysis script). Defaults to \code{NULL}.}
+This must include the R script named by \code{r_script} (by basename) --
+the script travels to the execute node as an uploaded input file, not
+as part of the container image. In \code{"multiple"} mode, the per-job
+subset file is added automatically from the manifest; use this
+argument for files shared across all jobs (e.g. the analysis script).
+Defaults to \code{NULL}.}
 
 \item{output_files}{A character vector. Files to transfer back from the
 job's working directory after execution. When not supplied, it is
@@ -72,11 +87,15 @@ argument to the executable via \verb{arguments = $(file)}.}
 \item{queue}{A positive integer. Number of identical jobs to submit.
 Only used when \code{mode = "single"}. Defaults to \code{1}.}
 
-\item{queue_from}{A character string. Path to the manifest file produced
-by \code{toolero::write_by_group(manifest = TRUE)}. Required when
-\code{mode = "multiple"}. The \code{file_path} column is extracted and written
-alongside the submit file as \code{subdatasets.csv}, which HTCondor reads
-to generate one job per subset file.}
+\item{queue_from}{A character string or \code{NULL}. Path to the manifest file
+produced by \code{toolero::write_by_group(manifest = TRUE)}. Required when
+\code{mode = "multiple"}, unless it can be resolved from \code{config} (S-G5):
+when \code{NULL} and \code{config$project$conventions$split_dir} is set, defaults
+to \code{file.path(split_dir, "manifest.csv")} -- \code{write_by_group()} always
+names its manifest \code{manifest.csv}, so the convention's directory is
+enough to reconstruct the full path. The \code{file_path} column is
+extracted and written alongside the submit file as \code{subdatasets.csv},
+which HTCondor reads to generate one job per subset file.}
 
 \item{resources}{A character string. Compute resource preset. One of
 \code{"small"}, \code{"medium"}, \code{"large"}, or \code{"custom"} (requires
@@ -112,13 +131,19 @@ Defaults to \code{FALSE}.}
 in \code{"multiple"} mode, \code{subdatasets.csv}) will be written. Defaults to
 \code{"."} (current working directory).}
 
+\item{config}{A named list as returned by \code{\link[=htc_config]{htc_config()}}, or \code{NULL} (the
+default). When supplied with a \code{project} element (via
+\code{htc_config(project_config = )}), \code{config$project$conventions$split_dir}
+is used to default \code{queue_from} (S-G5). Not required -- everything here
+can still be passed explicitly.}
+
 \item{path}{A character string. Directory where the job manifest
-(\code{htc-manifest.yaml}) is read from and written to. Defaults to whatever
-\code{output} is set to, so the manifest travels with the files it describes.
-Pass \code{path = "."} to keep the manifest in the project root while writing
-generated files elsewhere. Whatever you choose, \code{\link[=htc_upload]{htc_upload()}},
-\code{\link[=htc_submit]{htc_submit()}}, and \code{\link[=htc_download]{htc_download()}} must be given the same directory,
-since that is where they look for the manifest.}
+(\code{htc-manifest.yaml}) is read from and written to. Defaults to \code{"."}
+(the current working directory), matching the default used by
+\code{\link[=htc_upload]{htc_upload()}}, \code{\link[=htc_submit]{htc_submit()}}, and \code{\link[=htc_download]{htc_download()}}. This is
+independent of \code{output}: if you write generated files to a subfolder
+with \code{output}, pass the same \code{path} explicitly to every function in
+the pipeline so they all find the same manifest.}
 }
 \value{
 Called for its side effects. Writes an HTCondor submit file to

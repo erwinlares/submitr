@@ -6,11 +6,12 @@
 \usage{
 htc_upload(
   files = NULL,
-  remote_path = "~/",
+  remote_path = NULL,
   config = NULL,
   dry_run = FALSE,
   verbose = FALSE,
-  path = "."
+  path = ".",
+  check = FALSE
 )
 }
 \arguments{
@@ -23,9 +24,13 @@ to upload from the job manifest built up by \code{\link[=htc_gen_submit]{htc_gen
 shared input files, and -- in \code{"multiple"} mode -- the subdatasets
 manifest and the individual subset data files.}
 
-\item{remote_path}{A character string. The destination directory on the
-submit node. Defaults to \code{"~/"} (the user's home directory). This should
-match the path used in the subsequent call to \code{\link[=htc_submit]{htc_submit()}}.}
+\item{remote_path}{A character string or \code{NULL}. The destination directory
+on the submit node. When \code{NULL} (the default), resolves to the
+\code{remote_path} recorded in the job manifest by a previous call to
+\code{htc_upload()}, falling back to \code{"~/"} if no manifest value is
+available. On a successful (non-\code{dry_run}) upload, the resolved value is
+recorded back to the manifest, so \code{\link[=htc_submit]{htc_submit()}} and \code{\link[=htc_download]{htc_download()}}
+can pick it up automatically without retyping it.}
 
 \item{config}{A named list as returned by \code{\link[=htc_config]{htc_config()}}. Must contain
 \code{username} and \code{server}. If \code{NULL} (the default), uses the session
@@ -44,6 +49,13 @@ transferring files. Defaults to \code{FALSE}.}
 to \code{"."}, which matches the generator functions' own default. If you
 passed a non-default \code{output} or \code{path} to \code{\link[=htc_gen_submit]{htc_gen_submit()}} and
 \code{\link[=htc_gen_executable]{htc_gen_executable()}}, pass that same directory here.}
+
+\item{check}{Logical. If \code{TRUE}, runs \code{\link[=htc_check]{htc_check()}} before uploading and
+aborts if it finds an \code{"error"}-level issue (a missing file, or a
+\code{"multiple"}-mode subset mismatch) -- catching it here rather than an
+hour later as a held job on the cluster (S-G4). Warning-level issues
+(a resource request that looks large, an unconfirmed image) are
+reported but do not block the upload. Defaults to \code{FALSE}.}
 }
 \value{
 Called for its side effects. Returns \code{invisible(NULL)}.

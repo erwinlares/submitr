@@ -1,553 +1,802 @@
-# tests/testthat/test-htc-gen-submit.R
+#' Generate an HTCondor submit file for a containerized R job
+#'
+#' `htc_gen_submit()` writes a ready-to-use HTCondor submit file (`.sub`)
+#' for running a containerized R job on an HTC cluster such as CHTC. It
+#' supports both single-job and multiple-job submission modes.
+#' @param output_file A character string. Name of the submit file to write.
+#'   Must end in `".sub"`. Defaults to `"job.sub"`.
+#' @param container_image A character string. The container image to use,
+#'   e.g. `"registry.doit.wisc.edu/netid/myimage"`. The `docker://` prefix
+#'   is added automatically if not already present. Defaults to `NULL`,
+#'   which writes a placeholder comment in the submit file.
+#' @param executable A character string or `NULL`. The shell script that
+#'   HTCondor will run inside the container, e.g. `"analysis.sh"`. When
+#'   `NULL` (the default), resolves to the `executable_file` recorded in the
+#'   job manifest by a previous [htc_gen_executable()] call (S-I3), so the
+#'   name only has to be typed once regardless of which of the two
+#'   generators runs first. If neither an explicit value nor a manifest
+#'   value is available, writes a placeholder comment in the submit file
+#'   instead. If the resolved value here disagrees with an
+#'   `executable_file` already in the manifest, warns rather than silently
+#'   preferring one over the other.
+#' @param r_script A character string. The R script the job runs, e.g.
+#'   `"R/analysis.R"`. Used only to derive the default `output_files` name,
+#'   which must match the tarball [htc_gen_executable()] tells the job to
+#'   build. This function never reads the executable script or the
+#'   Dockerfile, so the script's name cannot be inferred and has to be given
+#'   here. If omitted, the value recorded in the job manifest by a previous
+#'   [htc_gen_executable()] call is used; note that the documented workflow
+#'   calls this function first, in which case there is nothing recorded yet.
+#'   Ignored when `output_files` is supplied. Note that supplying `r_script`
+#'   here does not transfer it -- the script is not baked into the container
+#'   image (see [htc_gen_executable()]), so its basename must also appear in
+#'   `input_files` or HTCondor will not send it to the execute node; this
+#'   function warns when it does not. Defaults to `NULL`.
+#' @param input_files A character vector. Files to transfer to the job's
+#'   working directory before execution, e.g. `c("analysis.R", "data.csv")`.
+#'   This must include the R script named by `r_script` (by basename) --
+#'   the script travels to the execute node as an uploaded input file, not
+#'   as part of the container image. In `"multiple"` mode, the per-job
+#'   subset file is added automatically from the manifest; use this
+#'   argument for files shared across all jobs (e.g. the analysis script).
+#'   Defaults to `NULL`.
+#' @param output_files A character vector. Files to transfer back from the
+#'   job's working directory after execution. When not supplied, it is
+#'   derived from `r_script` following the family convention
+#'   `<script stem>[-<subset stem>]-results.tar.gz`, giving for example
+#'   `analysis-results.tar.gz` in `"single"` mode and
+#'   `analysis-$Fn(file)-results.tar.gz` in `"multiple"` mode. `$Fn()` is an
+#'   HTCondor submit macro that strips a value's directory and extension, so
+#'   a subset named `adelie.csv` yields `analysis-adelie-results.tar.gz`.
+#'   Supplying this argument overrides the derivation entirely. Defaults to
+#'   `NULL`.
+#' @param mode A character string. Submission mode. `"single"` (the default)
+#'   submits one job. `"multiple"` submits one job per row in the manifest
+#'   supplied to `queue_from`, passing each subset file as a positional
+#'   argument to the executable via `arguments = $(file)`.
+#' @param queue A positive integer. Number of identical jobs to submit.
+#'   Only used when `mode = "single"`. Defaults to `1`.
+#' @param queue_from A character string or `NULL`. Path to the manifest file
+#'   produced by `toolero::write_by_group(manifest = TRUE)`. Required when
+#'   `mode = "multiple"`, unless it can be resolved from `config` (S-G5):
+#'   when `NULL` and `config$project$conventions$split_dir` is set, defaults
+#'   to `file.path(split_dir, "manifest.csv")` -- `write_by_group()` always
+#'   names its manifest `manifest.csv`, so the convention's directory is
+#'   enough to reconstruct the full path. The `file_path` column is
+#'   extracted and written alongside the submit file as `subdatasets.csv`,
+#'   which HTCondor reads to generate one job per subset file.
+#' @param resources A character string. Compute resource preset. One of
+#'   `"small"`, `"medium"`, `"large"`, or `"custom"` (requires
+#'   `custom_resources`). Default preset values reflect CHTC recommendations
+#'   and are loaded from `inst/extdata/htc-resources.yaml`. A local
+#'   `htc-resources.yaml` in the working directory takes precedence over the
+#'   package default, allowing per-project customization. Defaults to
+#'   `"small"`.
+#' @param custom_resources A named list. Required when `resources = "custom"`.
+#'   Must contain `cpus` (integer), `memory` (character, e.g. `"8GB"`), and
+#'   `disk` (character, e.g. `"4GB"`). Ignored when `resources` is not
+#'   `"custom"`.
+#' @param gpu Logical. If `TRUE`, adds GPU resource requests to the submit
+#'   file. Defaults to `FALSE`.
+#' @param gpu_options A named list or `NULL`. Fine-grained GPU options applied
+#'   when `gpu = TRUE`. Supported keys: `request_gpus` (integer, default
+#'   `1`), `want_gpu_lab` (logical, default `TRUE`), `min_capability`
+#'   (numeric, e.g. `8.0` for A100; `NULL` to omit), `min_memory_mb`
+#'   (integer in MB, e.g. `40000`; `NULL` to omit). When `gpu = TRUE` and
+#'   `gpu_options = NULL`, CHTC defaults are used.
+#' @param verbose Logical. If `TRUE`, prints progress messages as each
+#'   section of the submit file is written. Defaults to `FALSE`.
+#' @param comments Logical. If `TRUE`, annotates each section with an
+#'   explanatory comment describing what the section does and how to use it.
+#'   Defaults to `FALSE`.
+#' @param output A character string. Directory where the submit file (and,
+#'   in `"multiple"` mode, `subdatasets.csv`) will be written. Defaults to
+#'   `"."` (current working directory).
+#' @param config A named list as returned by [htc_config()], or `NULL` (the
+#'   default). When supplied with a `project` element (via
+#'   `htc_config(project_config = )`), `config$project$conventions$split_dir`
+#'   is used to default `queue_from` (S-G5). Not required -- everything here
+#'   can still be passed explicitly.
+#' @param path A character string. Directory where the job manifest
+#'   (`htc-manifest.yaml`) is read from and written to. Defaults to `"."`
+#'   (the current working directory), matching the default used by
+#'   [htc_upload()], [htc_submit()], and [htc_download()]. This is
+#'   independent of `output`: if you write generated files to a subfolder
+#'   with `output`, pass the same `path` explicitly to every function in
+#'   the pipeline so they all find the same manifest.
+#'
+#' @return Called for its side effects. Writes an HTCondor submit file to
+#'   `file.path(output, output_file)`. In `"multiple"` mode also writes
+#'   `subdatasets.csv` to `output`. Returns `invisible(NULL)`.
+#'
+#' @section Multiple-job mode and positional arguments:
+#' When `mode = "multiple"`, HTCondor passes each subset filename to the
+#' executable as a positional argument via `arguments = $(file)`. Your R
+#' script must be written to accept and use this argument. The recommended
+#' approach is to use `toolero::detect_execution_context()` in your analysis
+#' script, which resolves the input file path correctly across interactive,
+#' Quarto, and Rscript execution contexts:
+#'
+#' ```r
+#' context <- toolero::detect_execution_context()
+#'
+#' input_file <- switch(context,
+#'   interactive = "data/penguins.csv",
+#'   quarto      = params$input_file,
+#'   rscript     = commandArgs(trailingOnly = TRUE)[1]
+#' )
+#'
+#' data <- readr::read_csv(input_file)
+#' ```
+#'
+#' The typical workflow is:
+#' 1. Write and develop your analysis in `analysis.qmd` using
+#'    `toolero::detect_execution_context()` for data loading.
+#' 2. Split your dataset with `toolero::write_by_group(manifest = TRUE)` to
+#'    produce subset CSV files and a `manifest.csv`.
+#' 3. Strip `analysis.qmd` to `R/analysis.R` with `knitr::purl()`.
+#' 4. Call `htc_gen_submit(mode = "multiple", queue_from = "manifest.csv")`
+#'    to produce the submit file and `subdatasets.csv`.
+#' 5. Copy `R/analysis.R`, the subset data files, `analysis.sub`,
+#'    `analysis.sh`, and `subdatasets.csv` to CHTC and submit.
+#'
+#' @section Resource presets:
+#' Resource presets are loaded at runtime from `inst/extdata/htc-resources.yaml`.
+#' To customize presets for a specific project, copy that file to your project
+#' directory as `htc-resources.yaml` and edit the values. `htc_gen_submit()`
+#' checks for a local `htc-resources.yaml` in the working directory first,
+#' falling back to the package default if none is found.
+#'
+#' @export
+#'
+#' @examples
+#' # output writes the generated .sub file; path is where the job manifest
+#' # (htc-manifest.yaml) gets read from and written to. The two are
+#' # independent arguments (see @param path), so both must point at the
+#' # same scratch directory here to keep the manifest out of the current
+#' # working directory.
+#' tmp <- tempdir()
+#'
+#' # Single-job submit file with default resource preset
+#' htc_gen_submit(output = tmp, path = tmp)
+#'
+#' # Single-job submit file with medium resources and file transfer
+#' htc_gen_submit(
+#'   output_file     = "analysis.sub",
+#'   container_image = "docker://registry.doit.wisc.edu/netid/myimage",
+#'   executable      = "analysis.sh",
+#'   r_script        = "R/analysis.R",
+#'   input_files     = "R/analysis.R",
+#'   resources       = "medium",
+#'   output          = tmp,
+#'   path            = tmp
+#' )
+#'
+#' # Annotated submit file useful for learning HTCondor syntax
+#' htc_gen_submit(
+#'   output_file = "annotated.sub",
+#'   comments    = TRUE,
+#'   verbose     = TRUE,
+#'   output      = tmp,
+#'   path        = tmp
+#' )
+#'
+#' # Custom resource request
+#' htc_gen_submit(
+#'   resources        = "custom",
+#'   custom_resources = list(cpus = 2, memory = "8GB", disk = "4GB"),
+#'   output           = tmp,
+#'   path             = tmp
+#' )
+#'
+#' \dontrun{
+#' # Multiple-job submit file driven by a write_by_group() manifest
+#' htc_gen_submit(
+#'   output_file     = "analysis.sub",
+#'   container_image = "docker://registry.doit.wisc.edu/netid/myimage",
+#'   executable      = "analysis.sh",
+#'   input_files     = "analysis.R",
+#'   mode            = "multiple",
+#'   queue_from      = "data/manifest.csv",
+#'   resources       = "medium",
+#'   output          = "."
+#' )
+#' }
+htc_gen_submit <- function(output_file      = "job.sub",
+                           container_image  = NULL,
+                           executable       = NULL,
+                           r_script         = NULL,
+                           input_files      = NULL,
+                           output_files     = NULL,
+                           mode             = "single",
+                           queue            = 1L,
+                           queue_from       = NULL,
+                           resources        = "small",
+                           custom_resources = NULL,
+                           gpu              = FALSE,
+                           gpu_options      = NULL,
+                           verbose          = FALSE,
+                           comments         = FALSE,
+                           output           = ".",
+                           config           = NULL,
+                           path             = ".") {
 
-# ---------------------------------------------------------------------------
-# Fixture helpers
-# ---------------------------------------------------------------------------
+    # -- 1. Validate output_file -----------------------------------------------
+    if (!grepl("\\.sub$", output_file)) {
+        cli::cli_abort(c(
+            "{.arg output_file} must end in {.val .sub}.",
+            "i" = "Got {.val {output_file}}."
+        ))
+    }
 
-read_subfile <- function(dir, filename = "job.sub") {
-    readLines(file.path(dir, filename))
-}
+    # -- 2. Validate output directory ------------------------------------------
+    if (!dir.exists(output)) {
+        cli::cli_abort(
+            "Output directory {.path {output}} does not exist."
+        )
+    }
 
-# Writes a manifest.csv to dir in the format produced by
-# toolero::write_by_group(manifest = TRUE) and returns the manifest path.
-.write_manifest <- function(dir,
-                            filenames = c("adelie.csv", "gentoo.csv")) {
-    manifest_path <- file.path(dir, "manifest.csv")
-    readr::write_csv(
-        data.frame(
-            group_value = tools::file_path_sans_ext(filenames),
-            n_rows      = rep(100L, length(filenames)),
-            file_path   = file.path(dir, filenames)
+    # -- 2b. Prepend docker:// to container_image if missing -------------------
+    if (!is.null(container_image) && !grepl("^docker://", container_image)) {
+        container_image <- paste0("docker://", container_image)
+    }
+
+    # -- 2c. Read the job manifest once, up front -------------------------------
+    # Feeds the executable default (S-I3) below and the r_script fallback
+    # further down (10b), so it is read once rather than twice.
+    manifest <- .get_manifest(path = path)
+
+    # -- 2d. Resolve executable from the job manifest if not supplied (S-I3) ---
+    # Explicit argument > the executable_file a previous htc_gen_executable()
+    # call recorded in the manifest > NULL (placeholder comment). Without
+    # this, the script's name has to be retyped identically in both
+    # generators, and nothing catches it if they drift apart.
+    if (is.null(executable)) {
+        executable <- manifest$executable_file
+    } else if (!is.null(manifest$executable_file) &&
+               !identical(executable, manifest$executable_file)) {
+        cli::cli_warn(c(
+            "{.arg executable} ({.val {executable}}) does not match the",
+            " " = "  executable script name already recorded in the job",
+            " " = "  manifest ({.val {manifest$executable_file}}).",
+            "i" = "That name came from an earlier {.fn htc_gen_executable} call.",
+            "i" = "If this is deliberate, ignore this warning -- the submit",
+            " " = "  file will use {.val {executable}}. Otherwise, check that",
+            " " = "  the two calls agree on the script's name."
+        ))
+    }
+
+    # -- 2e. Resolve queue_from from project conventions if not supplied (S-G5) -
+    # Only attempted when mode = "multiple" is already the intent (checked
+    # below); write_by_group() always names its manifest "manifest.csv", so
+    # knowing split_dir is enough to reconstruct the full path.
+    if (is.null(queue_from) && !is.null(config$project$conventions$split_dir)) {
+        queue_from <- file.path(
+            config$project$conventions$split_dir, "manifest.csv"
+        )
+    }
+
+    # -- 3. Validate mode ------------------------------------------------------
+    mode <- match.arg(mode, choices = c("single", "multiple"))
+
+    if (mode == "multiple" && is.null(queue_from)) {
+        cli::cli_abort(c(
+            "{.arg queue_from} must be supplied when {.arg mode} is {.val multiple}.",
+            "i" = "Pass the path to a manifest file produced by {.fn toolero::write_by_group},",
+            " " = "  or supply {.arg config} with {.code project$conventions$split_dir} set."
+        ))
+    }
+
+    if (mode == "single" && !is.null(queue_from)) {
+        cli::cli_warn(c(
+            "{.arg queue_from} is ignored when {.arg mode} is {.val single}.",
+            "i" = "Set {.code mode = \"multiple\"} to submit one job per row in the manifest."
+        ))
+        queue_from <- NULL
+    }
+
+    # -- 4. Validate and process queue_from ------------------------------------
+    subset_filenames  <- NULL
+    subset_full_paths <- NULL
+    subdatasets_path  <- NULL
+
+    if (!is.null(queue_from)) {
+        if (!file.exists(queue_from)) {
+            cli::cli_abort(
+                "Manifest file {.path {queue_from}} does not exist."
+            )
+        }
+        # queue_manifest is the dataset-splitting manifest produced by
+        # toolero::write_by_group(), not submitr's own job manifest. The two
+        # are distinct: this one is read once, here, and never written to.
+        queue_manifest <- readr::read_csv(queue_from, show_col_types = FALSE)
+        if (!"file_path" %in% names(queue_manifest)) {
+            cli::cli_abort(c(
+                "Manifest file {.path {queue_from}} must contain a {.val file_path} column.",
+                "i" = "Use {.fn toolero::write_by_group} with {.code manifest = TRUE} to produce a compatible manifest."
+            ))
+        }
+        # Keep the full local paths (for htc_upload() to resolve later) as
+        # well as the bare filenames (for subdatasets.csv, which HTCondor
+        # reads relative to the remote working directory).
+        subset_full_paths <- queue_manifest[["file_path"]]
+        subset_filenames  <- basename(subset_full_paths)
+
+        # Write subdatasets.csv alongside the submit file
+        subdatasets_path <- .join_output_path(output, "subdatasets.csv")
+        readr::write_csv(
+            data.frame(file = subset_filenames),
+            subdatasets_path,
+            col_names = FALSE
+        )
+        if (verbose) {
+            cli::cli_inform(
+                "Wrote {length(subset_filenames)} subset filename{?s} to {.path {subdatasets_path}}"
+            )
+        }
+    }
+
+    # -- 5. Validate queue (single mode only) ----------------------------------
+    if (mode == "single") {
+        if (!is.numeric(queue) || length(queue) != 1 || queue < 1) {
+            cli::cli_abort(
+                "{.arg queue} must be a positive integer. Got {.val {queue}}."
+            )
+        }
+        queue <- as.integer(queue)
+    }
+
+    # -- 6. Validate custom_resources ------------------------------------------
+    if (resources == "custom") {
+        if (is.null(custom_resources)) {
+            cli::cli_abort(c(
+                "{.arg custom_resources} must be supplied when {.arg resources} is {.val custom}.",
+                "i" = "Provide a named list with {.val cpus}, {.val memory}, and {.val disk}."
+            ))
+        }
+        missing_keys <- setdiff(c("cpus", "memory", "disk"), names(custom_resources))
+        if (length(missing_keys) > 0) {
+            cli::cli_abort(c(
+                "{.arg custom_resources} is missing required key{?s}: {.val {missing_keys}}.",
+                "i" = "Supply a named list with {.val cpus}, {.val memory}, and {.val disk}."
+            ))
+        }
+    }
+
+    if (resources != "custom" && !is.null(custom_resources)) {
+        cli::cli_warn(c(
+            "{.arg custom_resources} is ignored when {.arg resources} is not {.val custom}.",
+            "i" = "Set {.code resources = \"custom\"} to use custom resource values."
+        ))
+    }
+
+    # -- 7. Validate gpu_options -----------------------------------------------
+    if (!is.null(gpu_options) && !gpu) {
+        cli::cli_warn(c(
+            "{.arg gpu_options} is ignored when {.arg gpu} is {.val FALSE}.",
+            "i" = "Set {.code gpu = TRUE} to enable GPU resource requests."
+        ))
+    }
+
+    # -- 8. Resolve resource values --------------------------------------------
+    # Check for a local htc-resources.yaml in the working directory first,
+    # falling back to the package default in inst/extdata/.
+    local_resources_file <- file.path(getwd(), "htc-resources.yaml")
+    package_resources_file <- system.file(
+        "extdata", "htc-resources.yaml",
+        package  = "submitr",
+        mustWork = TRUE
+    )
+    resources_file <- if (file.exists(local_resources_file)) {
+        local_resources_file
+    } else {
+        package_resources_file
+    }
+
+    resource_map <- yaml::read_yaml(resources_file)
+
+    resolved_resources <- if (resources == "custom") {
+        custom_resources
+    } else {
+        if (!resources %in% names(resource_map)) {
+            cli::cli_abort(c(
+                "{.val {resources}} is not a valid resource preset.",
+                "i" = "Available presets: {.val {names(resource_map)}}.",
+                "i" = "Use {.arg resources = 'custom'} and supply",
+                " " = "  {.arg custom_resources} for non-standard values."
+            ))
+        }
+        r <- resource_map[[resources]]
+        list(
+            cpus   = as.integer(r$cpus),
+            memory = r$memory,
+            disk   = r$disk
+        )
+    }
+
+    # -- 9. Resolve GPU options ------------------------------------------------
+    resolved_gpu <- if (gpu) {
+        defaults <- list(
+            request_gpus   = 1L,
+            want_gpu_lab   = TRUE,
+            min_capability = NULL,
+            min_memory_mb  = NULL
+        )
+        if (!is.null(gpu_options)) {
+            for (key in names(gpu_options)) {
+                defaults[[key]] <- gpu_options[[key]]
+            }
+        }
+        defaults
+    } else {
+        NULL
+    }
+
+    # -- 10. Resolve transfer lines based on mode ------------------------------
+    # In multiple mode, $(file) is the per-job variable HTCondor substitutes
+    # from subdatasets.csv. Shared input files (e.g. analysis.R) are listed
+    # alongside the per-job file.
+    resolved_input_files <- if (mode == "multiple") {
+        shared <- if (!is.null(input_files)) {
+            paste(input_files, collapse = ", ")
+        } else {
+            NULL
+        }
+        if (!is.null(shared)) {
+            paste0(shared, ", $(file)")
+        } else {
+            "$(file)"
+        }
+    } else {
+        if (!is.null(input_files)) paste(input_files, collapse = ", ") else NULL
+    }
+
+    # -- 10b. Resolve the results tarball name ---------------------------------
+    # This must match the name htc_gen_executable() tells the job to build.
+    # The script stem comes from r_script, or failing that from whatever a
+    # previous htc_gen_executable() call recorded in the job manifest.
+    if (is.null(r_script)) {
+        r_script <- manifest$r_script
+    }
+    script_stem <- if (!is.null(r_script)) .script_stem(r_script) else NULL
+
+    # -- 10c. Warn if r_script is known but not listed as a transferred input --
+    # The R script travels to the execute node as an uploaded job input file
+    # (see htc_gen_executable()) -- it is not baked into the container image.
+    # If its basename is not in input_files, HTCondor will not transfer it
+    # and the job will fail looking for a file that was never sent.
+    if (!is.null(r_script)) {
+        r_script_base   <- basename(r_script)
+        input_basenames <- if (!is.null(input_files)) basename(input_files) else character(0)
+        if (!r_script_base %in% input_basenames) {
+            cli::cli_warn(c(
+                "{.arg r_script} ({.val {r_script_base}}) is not listed in {.arg input_files}.",
+                "i" = "The R script is not baked into the container image -- it must be",
+                " " = "  transferred to the execute node as a job input file, or HTCondor",
+                " " = "  will not find it there.",
+                "i" = "Pass {.code input_files = \"{r_script_base}\"} (or add it alongside",
+                " " = "  any other shared files)."
+            ))
+        }
+    }
+
+    if (is.null(output_files) && is.null(script_stem) && mode == "multiple") {
+        cli::cli_warn(c(
+            "No {.arg r_script} supplied, so {.arg output_files} cannot include the script stem.",
+            "i" = "{.fn htc_gen_executable} names each tarball after the script
+                   and its subset, so the two files will disagree and HTCondor
+                   will not find the results.",
+            "i" = "Pass {.arg r_script} here, or set {.arg output_files} explicitly."
+        ))
+    }
+
+    resolved_output_files <- if (!is.null(output_files)) {
+        paste(output_files, collapse = ", ")
+    } else if (mode == "multiple") {
+        # $Fn() is an HTCondor submit macro: it strips the directory and the
+        # extension from the queue variable, so adelie.csv becomes adelie.
+        .tarball_name(script_stem, "$Fn(file)")
+    } else if (!is.null(script_stem)) {
+        .tarball_name(script_stem)
+    } else {
+        NULL
+    }
+
+    # -- 11. Assemble submit file sections -------------------------------------
+    sections <- list(
+
+        title = list(
+            verbose_msg = "Writing submit file header",
+            comment     = NULL,
+            lines       = c(
+                "# HTC Submit File",
+                glue::glue("# Generated by submitr on {Sys.Date()}"),
+                glue::glue("# Mode: {mode}"),
+                ""
+            )
         ),
-        manifest_path
-    )
-    manifest_path
-}
 
-# ---------------------------------------------------------------------------
-# File creation
-# ---------------------------------------------------------------------------
-
-test_that("htc_gen_submit() writes a .sub file to the output directory", {
-    tmp <- withr::local_tempdir()
-    htc_gen_submit(output = tmp)
-    expect_true(file.exists(file.path(tmp, "job.sub")))
-})
-
-test_that("htc_gen_submit() respects custom output_file name", {
-    tmp <- withr::local_tempdir()
-    htc_gen_submit(output_file = "analysis.sub", output = tmp)
-    expect_true(file.exists(file.path(tmp, "analysis.sub")))
-})
-
-test_that("htc_gen_submit() returns invisible NULL", {
-    tmp <- withr::local_tempdir()
-    result <- htc_gen_submit(output = tmp)
-    expect_null(result)
-})
-
-# ---------------------------------------------------------------------------
-# Argument validation
-# ---------------------------------------------------------------------------
-
-test_that("htc_gen_submit() errors when output_file does not end in .sub", {
-    tmp <- withr::local_tempdir()
-    expect_error(
-        htc_gen_submit(output_file = "job.txt", output = tmp),
-        regexp = "\\.sub"
-    )
-})
-
-test_that("htc_gen_submit() errors when output directory does not exist", {
-    expect_error(
-        htc_gen_submit(output = "/nonexistent/path"),
-        regexp = "does not exist"
-    )
-})
-
-test_that("htc_gen_submit() errors on invalid mode", {
-    tmp <- withr::local_tempdir()
-    expect_error(
-        htc_gen_submit(mode = "batch", output = tmp),
-        regexp = "should be one of"
-    )
-})
-
-test_that("htc_gen_submit() errors on invalid resources preset", {
-    tmp <- withr::local_tempdir()
-    expect_error(
-        htc_gen_submit(resources = "huge", output = tmp),
-        regexp = "not a valid"
-    )
-})
-
-test_that("htc_gen_submit() errors when mode = 'multiple' and queue_from is NULL", {
-    tmp <- withr::local_tempdir()
-    expect_error(
-        htc_gen_submit(mode = "multiple", output = tmp),
-        regexp = "queue_from"
-    )
-})
-
-test_that("htc_gen_submit() errors when queue_from file does not exist", {
-    tmp <- withr::local_tempdir()
-    expect_error(
-        htc_gen_submit(mode       = "multiple",
-                       queue_from = file.path(tmp, "missing.csv"),
-                       output     = tmp),
-        regexp = "does not exist"
-    )
-})
-
-test_that("htc_gen_submit() errors when queue_from lacks file_path column", {
-    tmp      <- withr::local_tempdir()
-    bad_path <- file.path(tmp, "bad.csv")
-    readr::write_csv(data.frame(group_value = "a", n_rows = 1), bad_path)
-    expect_error(
-        htc_gen_submit(mode = "multiple", queue_from = bad_path, output = tmp),
-        regexp = "file_path"
-    )
-})
-
-test_that("htc_gen_submit() errors when custom_resources is NULL with resources = 'custom'", {
-    tmp <- withr::local_tempdir()
-    expect_error(
-        htc_gen_submit(resources = "custom", output = tmp),
-        regexp = "custom_resources"
-    )
-})
-
-test_that("htc_gen_submit() errors when custom_resources is missing required keys", {
-    tmp <- withr::local_tempdir()
-    expect_error(
-        htc_gen_submit(resources        = "custom",
-                       custom_resources = list(cpus = 2),
-                       output           = tmp),
-        regexp = "missing"
-    )
-})
-
-test_that("htc_gen_submit() warns when queue_from supplied with mode = 'single'", {
-    tmp      <- withr::local_tempdir()
-    manifest <- .write_manifest(tmp)
-    expect_warning(
-        htc_gen_submit(mode = "single", queue_from = manifest, output = tmp),
-        regexp = "ignored"
-    )
-})
-
-test_that("htc_gen_submit() warns when custom_resources supplied without resources = 'custom'", {
-    tmp <- withr::local_tempdir()
-    expect_warning(
-        htc_gen_submit(resources        = "small",
-                       custom_resources = list(cpus = 2, memory = "8GB",
-                                               disk = "4GB"),
-                       output           = tmp),
-        regexp = "ignored"
-    )
-})
-
-test_that("htc_gen_submit() warns when gpu_options supplied without gpu = TRUE", {
-    tmp <- withr::local_tempdir()
-    expect_warning(
-        htc_gen_submit(gpu_options = list(request_gpus = 2), output = tmp),
-        regexp = "ignored"
-    )
-})
-
-# ---------------------------------------------------------------------------
-# Submit file content — single mode
-# ---------------------------------------------------------------------------
-
-test_that("submit file starts with HTC Submit File comment", {
-    tmp <- withr::local_tempdir()
-    htc_gen_submit(output = tmp)
-    lines <- read_subfile(tmp)
-    expect_true(any(grepl("^# HTC Submit File", lines)))
-})
-
-test_that("submit file contains universe = container", {
-    tmp <- withr::local_tempdir()
-    htc_gen_submit(output = tmp)
-    lines <- read_subfile(tmp)
-    expect_true(any(grepl("universe = container", lines, fixed = TRUE)))
-})
-
-test_that("submit file contains container_image when supplied", {
-    tmp <- withr::local_tempdir()
-    htc_gen_submit(
-        container_image = "docker://registry.doit.wisc.edu/netid/myimage",
-        output          = tmp
-    )
-    lines <- read_subfile(tmp)
-    expect_true(any(grepl("container_image = docker://", lines, fixed = TRUE)))
-})
-
-test_that("submit file contains placeholder comment when container_image is NULL", {
-    tmp <- withr::local_tempdir()
-    htc_gen_submit(output = tmp)
-    lines <- read_subfile(tmp)
-    expect_true(any(grepl("# container_image", lines, fixed = TRUE)))
-})
-
-test_that("submit file prepends docker:// when container_image lacks prefix", {
-    tmp <- withr::local_tempdir()
-    htc_gen_submit(
-        container_image = "registry.doit.wisc.edu/netid/myimage",
-        output          = tmp
-    )
-    lines <- read_subfile(tmp)
-    expect_true(any(grepl(
-        "container_image = docker://registry.doit.wisc.edu/netid/myimage",
-        lines, fixed = TRUE
-    )))
-})
-
-test_that("submit file does not double-prepend docker:// when already present", {
-    tmp <- withr::local_tempdir()
-    htc_gen_submit(
-        container_image = "docker://registry.doit.wisc.edu/netid/myimage",
-        output          = tmp
-    )
-    lines <- read_subfile(tmp)
-    expect_false(any(grepl("docker://docker://", lines, fixed = TRUE)))
-})
-
-test_that("submit file contains executable when supplied", {
-    tmp <- withr::local_tempdir()
-    htc_gen_submit(executable = "analysis.sh", output = tmp)
-    lines <- read_subfile(tmp)
-    expect_true(any(grepl("executable = analysis.sh", lines, fixed = TRUE)))
-})
-
-test_that("submit file contains $(ClusterID)-$(ProcID) in logging lines", {
-    tmp <- withr::local_tempdir()
-    htc_gen_submit(output = tmp)
-    lines <- read_subfile(tmp)
-    expect_true(any(grepl("$(ClusterID)-$(ProcID)", lines, fixed = TRUE)))
-})
-
-test_that("submit file contains log, error, and output logging lines", {
-    tmp <- withr::local_tempdir()
-    htc_gen_submit(output = tmp)
-    lines <- read_subfile(tmp)
-    expect_true(any(grepl("^log ", lines)))
-    expect_true(any(grepl("^error ", lines)))
-    expect_true(any(grepl("^output ", lines)))
-})
-
-test_that("submit file contains should_transfer_files = YES", {
-    tmp <- withr::local_tempdir()
-    htc_gen_submit(output = tmp)
-    lines <- read_subfile(tmp)
-    expect_true(any(grepl("should_transfer_files   = YES", lines, fixed = TRUE)))
-})
-
-test_that("submit file contains when_to_transfer_output = ON_EXIT", {
-    tmp <- withr::local_tempdir()
-    htc_gen_submit(output = tmp)
-    lines <- read_subfile(tmp)
-    expect_true(any(grepl("when_to_transfer_output = ON_EXIT", lines, fixed = TRUE)))
-})
-
-test_that("submit file contains queue 1 in single mode", {
-    tmp <- withr::local_tempdir()
-    htc_gen_submit(output = tmp)
-    lines <- read_subfile(tmp)
-    expect_true(any(grepl("^queue 1$", lines)))
-})
-
-test_that("submit file queue reflects custom queue value", {
-    tmp <- withr::local_tempdir()
-    htc_gen_submit(queue = 5, output = tmp)
-    lines <- read_subfile(tmp)
-    expect_true(any(grepl("^queue 5$", lines)))
-})
-
-# ---------------------------------------------------------------------------
-# Resource presets
-# ---------------------------------------------------------------------------
-
-test_that("small preset writes correct resource values", {
-    tmp     <- withr::local_tempdir()
-    htc_gen_submit(resources = "small", output = tmp)
-    content <- paste(read_subfile(tmp), collapse = "\n")
-    expect_match(content, "request_cpus   = 1",   fixed = TRUE)
-    expect_match(content, "request_memory = 4GB", fixed = TRUE)
-    expect_match(content, "request_disk   = 4GB", fixed = TRUE)
-})
-
-test_that("medium preset writes correct resource values", {
-    tmp     <- withr::local_tempdir()
-    htc_gen_submit(resources = "medium", output = tmp)
-    content <- paste(read_subfile(tmp), collapse = "\n")
-    expect_match(content, "request_cpus   = 4",    fixed = TRUE)
-    expect_match(content, "request_memory = 16GB", fixed = TRUE)
-    expect_match(content, "request_disk   = 15GB",  fixed = TRUE)
-})
-
-test_that("large preset writes correct resource values", {
-    tmp     <- withr::local_tempdir()
-    htc_gen_submit(resources = "large", output = tmp)
-    content <- paste(read_subfile(tmp), collapse = "\n")
-    expect_match(content, "request_cpus   = 8",    fixed = TRUE)
-    expect_match(content, "request_memory = 64GB", fixed = TRUE)
-    expect_match(content, "request_disk   = 32GB", fixed = TRUE)
-})
-
-test_that("custom preset writes supplied resource values", {
-    tmp <- withr::local_tempdir()
-    htc_gen_submit(
-        resources        = "custom",
-        custom_resources = list(cpus = 3, memory = "12GB", disk = "6GB"),
-        output           = tmp
-    )
-    content <- paste(read_subfile(tmp), collapse = "\n")
-    expect_match(content, "request_cpus   = 3",    fixed = TRUE)
-    expect_match(content, "request_memory = 12GB", fixed = TRUE)
-    expect_match(content, "request_disk   = 6GB",  fixed = TRUE)
-})
-
-# ---------------------------------------------------------------------------
-# GPU section
-# ---------------------------------------------------------------------------
-
-test_that("GPU section absent when gpu = FALSE", {
-    tmp <- withr::local_tempdir()
-    htc_gen_submit(output = tmp)
-    lines <- read_subfile(tmp)
-    expect_false(any(grepl("request_gpus", lines, fixed = TRUE)))
-})
-
-test_that("GPU section present when gpu = TRUE", {
-    tmp <- withr::local_tempdir()
-    htc_gen_submit(gpu = TRUE, output = tmp)
-    lines <- read_subfile(tmp)
-    expect_true(any(grepl("request_gpus = 1",    lines, fixed = TRUE)))
-    expect_true(any(grepl("+WantGPULab = true",  lines, fixed = TRUE)))
-})
-
-test_that("GPU section reflects custom gpu_options", {
-    tmp <- withr::local_tempdir()
-    htc_gen_submit(
-        gpu         = TRUE,
-        gpu_options = list(
-            request_gpus   = 2,
-            want_gpu_lab   = FALSE,
-            min_capability = 8.0
+        container = list(
+            verbose_msg = "Writing container section",
+            comment     = paste0(
+                "# The container section tells HTCondor which Docker image to use.\n",
+                "# The image must be accessible from the execute node. For CHTC,\n",
+                "# use the registry prefix docker:// followed by the full image path.\n",
+                "# Example: docker://registry.doit.wisc.edu/your-netid/your-image\n",
+                "# universe = container tells HTCondor this is a container job."
+            ),
+            lines       = c(
+                "# Container section",
+                if (!is.null(container_image)) {
+                    glue::glue("container_image = {container_image}")
+                } else {
+                    "# container_image = docker://registry.doit.wisc.edu/netid/myimage"
+                },
+                "universe = container",
+                ""
+            )
         ),
-        output = tmp
+
+        executable = list(
+            verbose_msg = "Writing executable section",
+            comment     = paste0(
+                "# The executable section tells HTCondor which script to run inside\n",
+                "# the container. This is typically a bash script (.sh) that calls\n",
+                "# your R script. The script must be present in the job's working\n",
+                "# directory at runtime."
+            ),
+            lines       = c(
+                "# Executable section",
+                if (!is.null(executable)) {
+                    glue::glue("executable = {executable}")
+                } else {
+                    "# executable = myjob.sh"
+                },
+                ""
+            )
+        ),
+
+        arguments = list(
+            verbose_msg = "Writing arguments section",
+            comment     = if (mode == "multiple") {
+                paste0(
+                    "# The arguments section passes each subset filename to the executable\n",
+                    "# as a positional argument. HTCondor substitutes $(file) with each\n",
+                    "# value from subdatasets.csv, one per job.\n",
+                    "# Your R script must read this argument. The recommended approach is\n",
+                    "# toolero::detect_execution_context(), which resolves the input file\n",
+                    "# correctly whether the script runs interactively, via Quarto, or via\n",
+                    "# Rscript on the execute node:\n",
+                    "#\n",
+                    "#   context <- toolero::detect_execution_context()\n",
+                    "#   input_file <- switch(context,\n",
+                    "#     interactive = \"data/penguins.csv\",\n",
+                    "#     quarto      = params$input_file,\n",
+                    "#     rscript     = commandArgs(trailingOnly = TRUE)[1]\n",
+                    "#   )"
+                )
+            } else {
+                NULL
+            },
+            lines       = if (mode == "multiple") {
+                c("# Arguments section", "arguments = $(file)", "")
+            } else {
+                NULL
+            }
+        ),
+
+        transfer = list(
+            verbose_msg = "Writing file transfer section",
+            comment     = paste0(
+                "# The transfer section tells HTCondor which files to move between\n",
+                "# the submit node and the execute node.\n",
+                "# transfer_input_files: files to send TO the job before it runs.\n",
+                if (mode == "multiple") {
+                    paste0(
+                        "#   $(file) is substituted per job from subdatasets.csv.\n",
+                        "#   List any shared files (e.g. analysis.R) before $(file).\n"
+                    )
+                } else {
+                    "#   Include your R script, data files, and any other inputs.\n"
+                },
+                "# transfer_output_files: files to retrieve AFTER the job finishes.\n",
+                "#   Packaging outputs as a .tar.gz before job completion is recommended."
+            ),
+            lines       = c(
+                "# Transfer section",
+                "should_transfer_files   = YES",
+                "when_to_transfer_output = ON_EXIT",
+                "",
+                if (!is.null(resolved_input_files)) {
+                    glue::glue("transfer_input_files = {resolved_input_files}")
+                } else {
+                    "# transfer_input_files = file1, file2"
+                },
+                if (!is.null(resolved_output_files)) {
+                    glue::glue("transfer_output_files = {resolved_output_files}")
+                } else {
+                    "# transfer_output_files = analysis-results.tar.gz"
+                },
+                ""
+            )
+        ),
+
+        logging = list(
+            verbose_msg = "Writing logging section",
+            comment     = paste0(
+                "# The logging section tells HTCondor where to write job information.\n",
+                "# $(ClusterID) and $(ProcID) are HTCondor macros that uniquely identify\n",
+                "# each job submission and job instance. Using them in filenames prevents\n",
+                "# log files from being overwritten across resubmissions.\n",
+                "# log    -- job lifecycle events, timing, and resource usage summary.\n",
+                "#           This is your primary debugging tool.\n",
+                "# error  -- standard error (stderr) from your executable, including\n",
+                "#           R warnings and error messages.\n",
+                "# output -- standard output (stdout) from your executable, including\n",
+                "#           print() statements from your R script."
+            ),
+            lines       = c(
+                "# Logging section",
+                "log    = $(ClusterID)-$(ProcID)-job.log",
+                "error  = $(ClusterID)-$(ProcID)-job.err",
+                "output = $(ClusterID)-$(ProcID)-job.out",
+                ""
+            )
+        ),
+
+        resources = list(
+            verbose_msg = glue::glue(
+                "Writing resources section ({resources} preset: ",
+                "{resolved_resources$cpus} CPU / ",
+                "{resolved_resources$memory} RAM / ",
+                "{resolved_resources$disk} disk)"
+            ),
+            comment     = paste0(
+                "# The resources section tells HTCondor how much compute to allocate.\n",
+                "# Request only what your job actually needs -- over-requesting wastes\n",
+                "# shared resources and may increase your wait time in the queue.\n",
+                "# The log file reports actual usage after each run, which is the best\n",
+                "# way to tune these values over time.\n",
+                "# request_cpus   -- number of CPU cores\n",
+                "# request_memory -- RAM (use GB or MB, e.g. 4GB or 512MB)\n",
+                "# request_disk   -- scratch disk space for all files during the job,\n",
+                "#                   including executable, inputs, outputs, and temp files"
+            ),
+            lines       = c(
+                glue::glue("# Resources section ({resources} preset)"),
+                glue::glue("request_cpus   = {resolved_resources$cpus}"),
+                glue::glue("request_memory = {resolved_resources$memory}"),
+                glue::glue("request_disk   = {resolved_resources$disk}"),
+                ""
+            )
+        ),
+
+        gpu = list(
+            verbose_msg = "Writing GPU section",
+            comment     = paste0(
+                "# The GPU section requests GPU hardware for your job.\n",
+                "# request_gpus           -- number of GPUs to allocate (typically 1)\n",
+                "# +WantGPULab            -- opt in to CHTC's shared GPU Lab pool\n",
+                "# gpus_minimum_capability -- minimum CUDA compute capability\n",
+                "#   (e.g. 8.0 targets A100-class GPUs and newer)\n",
+                "# gpus_minimum_memory    -- minimum GPU VRAM in MB\n",
+                "#   (e.g. 40000 requests at least 40 GB VRAM)\n",
+                "# Note: GPU jobs require a CUDA-enabled container image."
+            ),
+            lines       = if (!is.null(resolved_gpu)) {
+                gpu_lines <- c(
+                    "# GPU section",
+                    glue::glue("request_gpus = {resolved_gpu$request_gpus}")
+                )
+                if (isTRUE(resolved_gpu$want_gpu_lab)) {
+                    gpu_lines <- c(gpu_lines, "+WantGPULab = true")
+                }
+                if (!is.null(resolved_gpu$min_capability)) {
+                    gpu_lines <- c(
+                        gpu_lines,
+                        glue::glue("gpus_minimum_capability = {resolved_gpu$min_capability}")
+                    )
+                }
+                if (!is.null(resolved_gpu$min_memory_mb)) {
+                    gpu_lines <- c(
+                        gpu_lines,
+                        glue::glue("gpus_minimum_memory = {resolved_gpu$min_memory_mb}")
+                    )
+                }
+                c(gpu_lines, "")
+            } else {
+                NULL
+            }
+        ),
+
+        queue = list(
+            verbose_msg = if (mode == "single") {
+                glue::glue("Writing queue section ({queue} job{ifelse(queue == 1, '', 's')})")
+            } else {
+                glue::glue(
+                    "Writing queue section ({length(subset_filenames)} job{ifelse(length(subset_filenames) == 1, '', 's')} from manifest)"
+                )
+            },
+            comment     = if (mode == "single") {
+                paste0(
+                    "# The queue section tells HTCondor how many jobs to submit.\n",
+                    "# queue 1 submits a single job. Increase this number to submit\n",
+                    "# multiple identical jobs using the $(Process) macro to differentiate\n",
+                    "# output files (e.g. output = job.$(Process).out)."
+                )
+            } else {
+                paste0(
+                    "# The queue section submits one job per line in subdatasets.csv.\n",
+                    "# HTCondor reads each filename into the $(file) variable and\n",
+                    "# substitutes it throughout the submit file -- in arguments,\n",
+                    "# transfer_input_files, and transfer_output_files.\n",
+                    "# subdatasets.csv was generated from the manifest produced by\n",
+                    "# toolero::write_by_group(manifest = TRUE)."
+                )
+            },
+            lines       = if (mode == "single") {
+                c(
+                    "# Queue section",
+                    glue::glue("queue {queue}"),
+                    ""
+                )
+            } else {
+                c(
+                    "# Queue section",
+                    "queue file from subdatasets.csv",
+                    ""
+                )
+            }
+        )
     )
-    content <- paste(read_subfile(tmp), collapse = "\n")
-    expect_match(content, "request_gpus = 2",              fixed = TRUE)
-    expect_false(grepl("+WantGPULab",                      content, fixed = TRUE))
-    expect_match(content, "gpus_minimum_capability = 8",   fixed = TRUE)
-})
 
-# ---------------------------------------------------------------------------
-# Multiple mode
-# ---------------------------------------------------------------------------
+    # -- 12. Write submit file -------------------------------------------------
+    subfile_path <- file.path(output, output_file)
+    first <- TRUE
 
-test_that("multiple mode writes queue file from subdatasets.csv", {
-    tmp      <- withr::local_tempdir()
-    manifest <- .write_manifest(tmp)
-    htc_gen_submit(mode = "multiple", queue_from = manifest,
-                   r_script = "analysis.R", output = tmp)
-    lines <- read_subfile(tmp)
-    expect_true(any(grepl("queue file from subdatasets.csv", lines,
-                          fixed = TRUE)))
-})
+    for (section in sections) {
+        if (is.null(section$lines)) next
 
-test_that("multiple mode writes subdatasets.csv with bare filenames", {
-    tmp      <- withr::local_tempdir()
-    manifest <- .write_manifest(tmp, filenames = c("adelie.csv", "gentoo.csv"))
-    htc_gen_submit(mode = "multiple", queue_from = manifest,
-                   r_script = "analysis.R", output = tmp)
-    expect_true(file.exists(file.path(tmp, "subdatasets.csv")))
-    sub_df <- readr::read_csv(file.path(tmp, "subdatasets.csv"),
-                              col_names      = FALSE,
-                              show_col_types = FALSE)
-    expect_equal(sub_df[[1]], c("adelie.csv", "gentoo.csv"))
-})
+        if (verbose && !is.null(section$verbose_msg)) {
+            cli::cli_inform(section$verbose_msg)
+        }
 
-test_that("multiple mode includes arguments = $(file)", {
-    tmp      <- withr::local_tempdir()
-    manifest <- .write_manifest(tmp, filenames = "adelie.csv")
-    htc_gen_submit(mode = "multiple", queue_from = manifest,
-                   r_script = "analysis.R", output = tmp)
-    lines <- read_subfile(tmp)
-    expect_true(any(grepl("arguments = $(file)", lines, fixed = TRUE)))
-})
+        if (comments && !is.null(section$comment)) {
+            readr::write_lines(section$comment,
+                               file   = subfile_path,
+                               append = !first)
+            first <- FALSE
+        }
 
-test_that("multiple mode includes $(file) in transfer_input_files", {
-    tmp      <- withr::local_tempdir()
-    manifest <- .write_manifest(tmp, filenames = "adelie.csv")
-    htc_gen_submit(mode        = "multiple",
-                   queue_from  = manifest,
-                   input_files = "analysis.R",
-                   r_script    = "analysis.R",
-                   output      = tmp)
-    lines <- read_subfile(tmp)
-    expect_true(any(grepl("$(file)", lines, fixed = TRUE)))
-})
+        readr::write_lines(section$lines,
+                           file   = subfile_path,
+                           append = !first)
+        first <- FALSE
+    }
 
-# ---------------------------------------------------------------------------
-# transfer_output_files derivation from r_script
-#
-# htc_gen_submit() never reads the executable script or the Dockerfile, so
-# the script's name cannot be inferred and has to be supplied. The name it
-# derives must match the tarball htc_gen_executable() tells the job to build.
-# ---------------------------------------------------------------------------
-
-test_that("single mode derives transfer_output_files from r_script", {
-    tmp <- withr::local_tempdir()
-    htc_gen_submit(r_script = "analysis.R", output = tmp)
-    lines <- read_subfile(tmp)
-    expect_true(any(grepl("transfer_output_files = analysis-results.tar.gz",
-                          lines, fixed = TRUE)))
-})
-
-test_that("the script stem drops a leading directory", {
-    tmp <- withr::local_tempdir()
-    htc_gen_submit(r_script = "R/analysis.R", output = tmp)
-    lines <- read_subfile(tmp)
-    expect_true(any(grepl("transfer_output_files = analysis-results.tar.gz",
-                          lines, fixed = TRUE)))
-    expect_false(any(grepl("R/analysis-results", lines, fixed = TRUE)))
-})
-
-test_that("explicit output_files overrides the derivation", {
-    tmp <- withr::local_tempdir()
-    htc_gen_submit(
-        r_script     = "analysis.R",
-        output_files = "custom.tar.gz",
-        output       = tmp
+    if (verbose) {
+        cli::cli_alert_success(
+            "Submit file written to {.path {file.path(output, output_file)}}"
+        )
+    }
+    # Record everything htc_upload() and htc_download() need to resolve files
+    # automatically later in the workflow. Bare names (submit_file, subsets)
+    # are what HTCondor sees on the submit node; the *_path fields are where
+    # the same files live on this machine, which is what htc_upload() needs.
+    .update_manifest(
+        submit_file      = output_file,
+        submit_path      = .join_output_path(output, output_file),
+        executable_file  = executable,
+        container_image  = container_image,
+        resources        = resolved_resources,
+        input_files      = input_files,
+        mode             = mode,
+        output_files     = resolved_output_files,
+        script_stem      = script_stem,
+        subsets          = subset_filenames,
+        subdatasets_path = subdatasets_path,
+        subset_files     = subset_full_paths,
+        path             = path
     )
-    lines <- read_subfile(tmp)
-    expect_true(any(grepl("transfer_output_files = custom.tar.gz",
-                          lines, fixed = TRUE)))
-    expect_false(any(grepl("analysis-results.tar.gz", lines, fixed = TRUE)))
-})
-
-test_that("single mode without r_script writes the placeholder, as before", {
-    tmp <- withr::local_tempdir()
-    htc_gen_submit(output = tmp)
-    lines <- read_subfile(tmp)
-    expect_true(any(grepl("# transfer_output_files", lines, fixed = TRUE)))
-})
-
-test_that("multiple mode without r_script warns that the names will disagree", {
-    tmp      <- withr::local_tempdir()
-    manifest <- .write_manifest(tmp)
-    expect_warning(
-        htc_gen_submit(mode = "multiple", queue_from = manifest, output = tmp),
-        regexp = "r_script"
-    )
-})
-
-test_that("htc_gen_submit() falls back to the r_script in the job manifest", {
-    tmp <- withr::local_tempdir()
-    # As htc_gen_executable() would have recorded it on an earlier call.
-    .update_manifest(r_script = "R/analysis.R", path = tmp)
-
-    htc_gen_submit(output = tmp)
-    lines <- read_subfile(tmp)
-    expect_true(any(grepl("transfer_output_files = analysis-results.tar.gz",
-                          lines, fixed = TRUE)))
-})
-
-test_that("htc_gen_submit() records the script stem in the manifest", {
-    tmp <- withr::local_tempdir()
-    htc_gen_submit(r_script = "R/run-model.R", output = tmp)
-    expect_equal(.get_manifest(path = tmp)$script_stem, "run-model")
-})
-
-test_that("multiple mode derives transfer_output_files from r_script", {
-    tmp      <- withr::local_tempdir()
-    manifest <- .write_manifest(tmp, filenames = "adelie.csv")
-    htc_gen_submit(mode = "multiple", queue_from = manifest,
-                   r_script = "analysis.R", output = tmp)
-    lines <- read_subfile(tmp)
-    expect_true(any(grepl("analysis-$Fn(file)-results.tar.gz", lines, fixed = TRUE)))
-})
-
-# ---------------------------------------------------------------------------
-# comments and verbose
-# ---------------------------------------------------------------------------
-
-test_that("comments = TRUE writes comment lines to the submit file", {
-    tmp <- withr::local_tempdir()
-    htc_gen_submit(comments = TRUE, output = tmp)
-    lines <- read_subfile(tmp)
-    expect_true(sum(grepl("^#", lines)) > 2)
-})
-
-test_that("verbose = TRUE produces messages", {
-    tmp <- withr::local_tempdir()
-    expect_message(htc_gen_submit(verbose = TRUE, output = tmp))
-})
-
-test_that("verbose = FALSE produces no messages", {
-    tmp <- withr::local_tempdir()
-    expect_no_message(htc_gen_submit(verbose = FALSE, output = tmp))
-})
-
-# ---------------------------------------------------------------------------
-# Job manifest recording
-# ---------------------------------------------------------------------------
-
-test_that("htc_gen_submit() writes the job manifest to the output directory", {
-    tmp <- withr::local_tempdir()
-    htc_gen_submit(output = tmp)
-    expect_true(file.exists(file.path(tmp, "htc-manifest.yaml")))
-})
-
-test_that("htc_gen_submit() records the submit file and input files in the manifest", {
-    tmp <- withr::local_tempdir()
-    htc_gen_submit(
-        output_file = "analysis.sub",
-        input_files = "analysis.R",
-        output      = tmp
-    )
-    m <- .get_manifest(path = tmp)
-    expect_equal(m$submit_file, "analysis.sub")
-    expect_equal(m$input_files, "analysis.R")
-})
-
-test_that("htc_gen_submit() records submit_path pointing at the written file", {
-    tmp <- withr::local_tempdir()
-    htc_gen_submit(output_file = "analysis.sub", output = tmp)
-    m <- .get_manifest(path = tmp)
-    # submit_file is the bare name HTCondor sees; submit_path is where the
-    # file actually is on this machine, which is what htc_upload() needs.
-    expect_equal(m$submit_path, file.path(tmp, "analysis.sub"))
-    expect_true(file.exists(m$submit_path))
-})
-
-test_that("htc_gen_submit() writes the manifest to path when it differs from output", {
-    out  <- withr::local_tempdir()
-    proj <- withr::local_tempdir()
-    htc_gen_submit(output = out, path = proj)
-    expect_true(file.exists(file.path(proj, "htc-manifest.yaml")))
-    expect_false(file.exists(file.path(out, "htc-manifest.yaml")))
-    expect_equal(.get_manifest(path = proj)$submit_path,
-                 file.path(out, "job.sub"))
-})
-
-test_that("htc_gen_submit() records subdatasets_path and subset_files in multiple mode", {
-    tmp      <- withr::local_tempdir()
-    manifest <- .write_manifest(tmp, filenames = c("adelie.csv", "gentoo.csv"))
-    htc_gen_submit(mode = "multiple", queue_from = manifest,
-                   r_script = "analysis.R", output = tmp)
-    m <- .get_manifest(path = tmp)
-    expect_equal(m$subdatasets_path, file.path(tmp, "subdatasets.csv"))
-    expect_equal(m$subset_files, file.path(tmp, c("adelie.csv", "gentoo.csv")))
-})
-
-test_that("htc_gen_submit() does not record subdatasets_path or subset_files in single mode", {
-    tmp <- withr::local_tempdir()
-    htc_gen_submit(output = tmp)
-    m <- .get_manifest(path = tmp)
-    expect_null(m$subdatasets_path)
-    expect_null(m$subset_files)
-})
+    invisible(NULL)
+}

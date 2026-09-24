@@ -10,13 +10,18 @@ htc_status(
   watch = FALSE,
   interval = 60L,
   dry_run = FALSE,
-  verbose = FALSE
+  verbose = FALSE,
+  path = ".",
+  show_hold_reason = TRUE
 )
 }
 \arguments{
-\item{cluster_id}{An integer or character string. The cluster ID returned
-by \code{\link[=htc_submit]{htc_submit()}}, e.g. \code{6302860}. If \code{NULL} (the default), shows all
-of your jobs currently in the queue. Required when \code{watch = TRUE}.}
+\item{cluster_id}{An integer, character string, or \code{NULL}. The cluster ID
+returned by \code{\link[=htc_submit]{htc_submit()}}, e.g. \code{6302860}. When \code{NULL} (the default),
+resolves to the cluster ID recorded in the job manifest by the most
+recent \code{\link[=htc_submit]{htc_submit()}} call; if no manifest value is available either,
+shows all of your jobs currently in the queue instead. Required
+(directly or via the manifest) when \code{watch = TRUE}.}
 
 \item{config}{A named list as returned by \code{\link[=htc_config]{htc_config()}}. Must contain
 \code{username} and \code{server}. If \code{NULL} (the default), uses the session
@@ -35,10 +40,26 @@ executed without running it. Defaults to \code{FALSE}.}
 
 \item{verbose}{Logical. If \code{TRUE}, prints progress messages. Defaults to
 \code{FALSE}.}
+
+\item{path}{A character string. Directory holding the job manifest
+(\code{htc-manifest.yaml}), consulted only when \code{cluster_id} is \code{NULL}.
+Defaults to \code{"."}, matching the default used by \code{\link[=htc_upload]{htc_upload()}},
+\code{\link[=htc_submit]{htc_submit()}}, and \code{\link[=htc_download]{htc_download()}}. If you passed a non-default
+\code{path} to \code{\link[=htc_submit]{htc_submit()}}, pass that same directory here.}
+
+\item{show_hold_reason}{Logical. If \code{TRUE} (the default), every poll
+automatically follows up with \code{condor_q -hold} and prints the result
+whenever it shows an actual held job -- nothing is printed when nothing
+is held (S-G2). This is the single most common cause of newcomer
+confusion -- a job held for exceeding its memory or disk request
+otherwise gives no clue why without a separate manual query. Set to
+\code{FALSE} to skip the follow-up query entirely (for example, in a tight
+\code{watch = TRUE} polling loop where the extra round trip is unwelcome).}
 }
 \value{
-Called for its side effects. Prints the \code{condor_q} output to the
-console. Returns the most recent output invisibly as a character vector.
+Called for its side effects. Prints the \code{condor_q} output (and,
+when applicable, hold reasons) to the console. Returns the most recent
+\code{condor_q} output invisibly as a character vector.
 }
 \description{
 \code{htc_status()} connects to an HTC submit node via SSH and runs
@@ -67,6 +88,12 @@ HTCondor reports each job's status with a single letter:\tabular{ll}{
 Jobs disappear from \code{condor_q} once they complete and their output has
 been transferred back to the submit node. Use \code{\link[=htc_download]{htc_download()}} to retrieve
 completed job output.
+
+A held (\code{H}) job is not a lost cause: \code{\link[=htc_status]{htc_status()}} surfaces the hold
+reason automatically (see \code{show_hold_reason}), and once the underlying
+problem is fixed -- most often the resource request -- \code{\link[=htc_release]{htc_release()}}
+resumes it without resubmitting. To abandon a job entirely instead, use
+\code{\link[=htc_cancel]{htc_cancel()}}.
 }
 
 \section{Workflow}{
@@ -115,4 +142,8 @@ htc_status(cluster_id = 6302860, config = cfg, watch = TRUE)
 # Watch with a shorter polling interval
 htc_status(cluster_id = 6302860, config = cfg, watch = TRUE, interval = 30)
 }
+}
+\seealso{
+\code{\link[=htc_cancel]{htc_cancel()}} to remove a job, and \code{\link[=htc_release]{htc_release()}} to resume a
+held one after fixing what caused the hold.
 }

@@ -94,13 +94,22 @@
 #' #> [1] "output"
 #' ```
 #'
-#' Nothing in `submitr` requires this yet -- `htc_gen_executable()`'s
-#' `results_folder` argument still has to be set (or left at its own
-#' `"output"` default) independently. What `project_config` buys you today
-#' is one place to read a project's own folder layout from R, and a
-#' foundation for `submitr` functions to default to the project's own
-#' conventions in a future release, the way `containr::generate_dockerfile()`
-#' already reads the same file for its own purposes.
+#' As of this release (S-G5), passing the returned config's `project`
+#' element on to [htc_gen_executable()] and [htc_gen_submit()] via their own
+#' `config` argument lets `results_folder` and `queue_from` default from
+#' `conventions$output_dir` and `conventions$split_dir`, the way
+#' `containr::generate_dockerfile()` already reads the same file for its own
+#' purposes:
+#'
+#' ```r
+#' cfg <- htc_config(project_config = "_toolero.yml")
+#' htc_gen_executable(r_script = "R/analysis.R", config = cfg)
+#' htc_gen_submit(mode = "multiple", config = cfg)
+#' ```
+#'
+#' `r_script` itself is not defaulted from `conventions$script_dir`: the
+#' convention names a directory, not a file, and the script's own filename
+#' is project-specific information `_toolero.yml` has no way to record.
 #'
 #' @section Security:
 #' `htc.cfg` contains your username and server address. Neither is
