@@ -2,6 +2,190 @@
 
 ## submitr (development version)
 
+#### Breaking changes
+
+- `r_script` is no longer baked into the container image.
+  [`htc_gen_executable()`](https://erwinlares.github.io/submitr/reference/htc_gen_executable.md)
+  now runs it by bare relative name (e.g. `Rscript analysis.R`) rather
+  than by an absolute, `home_dir`-prefixed path, because HTCondor’s file
+  transfer does not preserve subdirectories – a script listed in
+  `transfer_input_files` always lands flat in the scratch directory. The
+  script now travels to the execute node as an uploaded job input file
+  instead: list its basename in `input_files` when calling
+  [`htc_gen_submit()`](https://erwinlares.github.io/submitr/reference/htc_gen_submit.md),
+  and
+  [`htc_upload()`](https://erwinlares.github.io/submitr/reference/htc_upload.md)
+  will send it along with everything else.
+  [`htc_gen_submit()`](https://erwinlares.github.io/submitr/reference/htc_gen_submit.md)
+  now warns when `r_script` is known but its basename is missing from
+  `input_files`. `data_files` are unaffected – they remain baked into
+  the image under `home_dir` and are still referenced by absolute path.
+  This resolves a standing ambiguity (previously flagged as S-I4) where
+  the documented
+  [`htc_upload()`](https://erwinlares.github.io/submitr/reference/htc_upload.md)
+  workflow uploaded the analysis script as an input file that the
+  executable script never actually read, because it was reading a
+  baked-in copy instead. The practical benefit: editing the analysis
+  script now only requires re-uploading and resubmitting, not a
+  container rebuild and registry push. Existing calls that rely on the
+  script being baked in under `home_dir` (for example, a Dockerfile
+  built with `containr::generate_dockerfile(code_file = r_script)`)
+  should drop that argument and add the script to `input_files` instead;
+  see the updated vignettes.
+
+- [`htc_gen_executable()`](https://erwinlares.github.io/submitr/reference/htc_gen_executable.md)
+  and
+  [`htc_gen_submit()`](https://erwinlares.github.io/submitr/reference/htc_gen_submit.md)
+  now default `path = "."` rather than `path = output`. Previously,
+  writing generated files to a non-default `output` directory silently
+  moved the job manifest there too, while
+  [`htc_upload()`](https://erwinlares.github.io/submitr/reference/htc_upload.md),
+  [`htc_submit()`](https://erwinlares.github.io/submitr/reference/htc_submit.md),
+  and
+  [`htc_download()`](https://erwinlares.github.io/submitr/reference/htc_download.md)
+  kept looking for it in the project root – so tidying generated files
+  into a subfolder (the exact organizational habit the family otherwise
+  encourages) broke the pipeline the moment `output` and `path` diverged
+  (previously flagged as S-I2). All five pipeline functions now share
+  the same `"."` default, and the manifest’s location is fully decoupled
+  from `output`: pass `path` explicitly to every function in the
+  pipeline if you want the manifest to travel with files written
+  elsewhere.
+
+### Bug fixes
+
+- [`htc_gen_submit()`](https://erwinlares.github.io/submitr/reference/htc_gen_submit.md)‘s
+  and
+  [`htc_gen_executable()`](https://erwinlares.github.io/submitr/reference/htc_gen_executable.md)’s
+  `@examples` no longer write `htc-manifest.yaml` into the current
+  working directory during `R CMD check`. Both functions’ runnable
+  examples set `output = tempdir()` but left `path` at its default –
+  harmless while `path` defaulted to `output`, but S-I2 decoupled the
+  two arguments (`path` now always defaults to `"."`), and the examples
+  were never updated to match. Every example that generates a submit
+  file or executable script now passes a shared `tmp <- tempdir()` as
+  both `output` and `path` (S22).
+
+- [`htc_upload()`](https://erwinlares.github.io/submitr/reference/htc_upload.md)
+  now records the resolved `remote_path` in the job manifest after a
+  successful (non-`dry_run`) upload, and `remote_path` defaults to
+  `NULL`, resolving to that recorded value on a later call before
+  falling back to `"~/"`.
+  [`htc_submit()`](https://erwinlares.github.io/submitr/reference/htc_submit.md)
+  now reads the job manifest for its own defaults: `submit_file` and
+  `remote_path` both default to `NULL` and resolve, in order, from an
+  explicit argument, the value the manifest already holds, and finally
+  the old hardcoded literal.
+  [`htc_status()`](https://erwinlares.github.io/submitr/reference/htc_status.md)
+  gains a `path` argument and resolves `cluster_id` from the manifest
+  when omitted. Previously,
+  [`htc_submit()`](https://erwinlares.github.io/submitr/reference/htc_submit.md)
+  did not consult the manifest at all and
+  [`htc_status()`](https://erwinlares.github.io/submitr/reference/htc_status.md)
+  neither read nor wrote it, so any deviation from the default filenames
+  or paths (previously flagged as S-I1) – for instance, uploading to a
+  non-default `remote_path` – broke
+  [`htc_submit()`](https://erwinlares.github.io/submitr/reference/htc_submit.md)
+  silently, and the cluster ID
+  [`htc_submit()`](https://erwinlares.github.io/submitr/reference/htc_submit.md)
+  had just printed had to be retyped by hand for every
+  [`htc_status()`](https://erwinlares.github.io/submitr/reference/htc_status.md)
+  call.
+
+#### New features
+
+- [`htc_cancel()`](https://erwinlares.github.io/submitr/reference/htc_cancel.md)
+  and
+  [`htc_release()`](https://erwinlares.github.io/submitr/reference/htc_release.md)
+  – cancel a submitted cluster with `condor_rm`, or release jobs held by
+  HTCondor back into the queue with `condor_release` (S-G2). Both
+  resolve `cluster_id` from the job manifest when not supplied, but –
+  unlike
+  [`htc_status()`](https://erwinlares.github.io/submitr/reference/htc_status.md)
+  – refuse to proceed when no `cluster_id` can be resolved, rather than
+  falling back to acting on every job in the queue: canceling or
+  releasing everything is a much more consequential default than merely
+  showing everything.
+  [`htc_cancel()`](https://erwinlares.github.io/submitr/reference/htc_cancel.md)
+  additionally accepts a `reason` argument recorded against the removed
+  jobs. Both support `dry_run` and `verbose`.
+
+- [`htc_status()`](https://erwinlares.github.io/submitr/reference/htc_status.md)
+  gains a `show_hold_reason` argument (default `TRUE`). When any held
+  jobs are present, it now automatically runs a follow-up
+  `condor_q -hold` query and prints the hold reason, so diagnosing a
+  held job no longer requires leaving R to run `condor_q -hold` by hand.
+  Set `show_hold_reason = FALSE` to skip the extra query.
+
+- [`htc_check()`](https://erwinlares.github.io/submitr/reference/htc_check.md)
+  – a preflight check that catches, locally and in seconds, several
+  problems that would otherwise only surface an hour later as a held or
+  failed job on the cluster (S-G4): a missing input or data file, a
+  `"multiple"`-mode job whose subset files no longer match
+  `subdatasets.csv`, an implausible resource request, and a
+  `container_image` tagged `latest` (or carrying no tag at all). When a
+  container tool (`podman` or `docker`) is available locally, it also
+  makes a best-effort attempt to confirm the image is pullable. Every
+  argument resolves from the job manifest, so the common case is
+  [`htc_check()`](https://erwinlares.github.io/submitr/reference/htc_check.md)
+  with no arguments, run after the generators and before
+  [`htc_upload()`](https://erwinlares.github.io/submitr/reference/htc_upload.md).
+  Returns a tibble of issues (possibly zero rows), each tagged `"error"`
+  or `"warning"`.
+
+- [`htc_upload()`](https://erwinlares.github.io/submitr/reference/htc_upload.md)
+  gains a `check` argument (default `FALSE`). When `TRUE`, it runs
+  [`htc_check()`](https://erwinlares.github.io/submitr/reference/htc_check.md)
+  before uploading and aborts if any `"error"`-level issue is found;
+  `"warning"`-level issues are reported but do not block the upload.
+
+- [`htc_collect()`](https://erwinlares.github.io/submitr/reference/htc_collect.md)
+  – stitch the tarballs from one or more completed jobs back into a
+  single tibble (S-G1), the HTC-side counterpart to
+  [`toolero::run_by_group()`](https://erwinlares.github.io/toolero/reference/run_by_group.html)’s
+  local return value. Resolves the tarballs to collect from the job
+  manifest (or accepts an explicit named `tarballs` vector), extracts
+  each into its own subdirectory, and reads the `project-manifest.json`
+  that `toolero::generate_manifest()` writes inside each one (falling
+  back to `accumulator.csv` with a warning) to assemble a combined
+  tibble carrying a `group_id` column for `"multiple"`-mode jobs.
+  Deliberately does not attempt to load the saved R objects themselves,
+  since their type varies by analysis – it returns metadata plus a
+  `local_path` column so you can read each one yourself.
+
+- [`htc_ssh_setup()`](https://erwinlares.github.io/submitr/reference/htc_ssh_setup.md)
+  – write the ControlMaster block described in
+  [`htc_config()`](https://erwinlares.github.io/submitr/reference/htc_config.md)’s
+  own setup guidance to `~/.ssh/config`, and create the connections
+  directory it references, without leaving R (S-G3). Leaves the file
+  untouched if a matching `Host` block already exists. Supports
+  `dry_run = TRUE` to preview the change first.
+
+- [`htc_gen_submit()`](https://erwinlares.github.io/submitr/reference/htc_gen_submit.md)’s
+  `executable` argument and
+  [`htc_gen_executable()`](https://erwinlares.github.io/submitr/reference/htc_gen_executable.md)’s
+  `output_file` argument now default to the `executable_file` the other
+  generator already recorded in the job manifest (S-I3), so the
+  executable script’s name only has to be typed once regardless of which
+  of the two generators is called first. If an explicit value disagrees
+  with the one already recorded, both warn rather than silently
+  preferring one over the other – the explicit value is still used.
+
+- [`htc_gen_submit()`](https://erwinlares.github.io/submitr/reference/htc_gen_submit.md)
+  and
+  [`htc_gen_executable()`](https://erwinlares.github.io/submitr/reference/htc_gen_executable.md)
+  gain a `config` argument (a named list as returned by
+  [`htc_config()`](https://erwinlares.github.io/submitr/reference/htc_config.md)).
+  When `config` was built with `project_config` set,
+  [`htc_gen_submit()`](https://erwinlares.github.io/submitr/reference/htc_gen_submit.md)’s
+  `queue_from` defaults to
+  `file.path(config$project$conventions$split_dir, "manifest.csv")` and
+  [`htc_gen_executable()`](https://erwinlares.github.io/submitr/reference/htc_gen_executable.md)’s
+  `results_folder` defaults to `config$project$conventions$output_dir`
+  (S-G5) – the `_toolero.yml` hook `htc_config(project_config = )` has
+  parsed since Phase 3, previously unused by anything in `submitr`. Both
+  remain fully optional: everything can still be passed explicitly.
+
 ## submitr 0.1.0.9000
 
 - Development version following initial release.

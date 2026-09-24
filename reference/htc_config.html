@@ -172,13 +172,18 @@ returns it under <code>config$project</code>:</p>
 <p></p><div class="sourceCode r"><pre><code><span><span class="va">cfg</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/htc_config.html">htc_config</a></span><span class="op">(</span>project_config <span class="op">=</span> <span class="st">"_toolero.yml"</span><span class="op">)</span></span>
 <span><span class="va">cfg</span><span class="op">$</span><span class="va">project</span><span class="op">$</span><span class="va">conventions</span><span class="op">$</span><span class="va">output_dir</span></span>
 <span><span class="co">#&gt; [1] "output"</span></span></code></pre><p></p></div>
-<p>Nothing in <code>submitr</code> requires this yet – <code><a href="htc_gen_executable.html">htc_gen_executable()</a></code>'s
-<code>results_folder</code> argument still has to be set (or left at its own
-<code>"output"</code> default) independently. What <code>project_config</code> buys you today
-is one place to read a project's own folder layout from R, and a
-foundation for <code>submitr</code> functions to default to the project's own
-conventions in a future release, the way <code><a href="https://erwinlares.github.io/containr/reference/generate_dockerfile.html" class="external-link">containr::generate_dockerfile()</a></code>
-already reads the same file for its own purposes.</p>
+<p>As of this release (S-G5), passing the returned config's <code>project</code>
+element on to <code><a href="htc_gen_executable.html">htc_gen_executable()</a></code> and <code><a href="htc_gen_submit.html">htc_gen_submit()</a></code> via their own
+<code>config</code> argument lets <code>results_folder</code> and <code>queue_from</code> default from
+<code>conventions$output_dir</code> and <code>conventions$split_dir</code>, the way
+<code><a href="https://erwinlares.github.io/containr/reference/generate_dockerfile.html" class="external-link">containr::generate_dockerfile()</a></code> already reads the same file for its own
+purposes:</p>
+<p></p><div class="sourceCode r"><pre><code><span><span class="va">cfg</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/htc_config.html">htc_config</a></span><span class="op">(</span>project_config <span class="op">=</span> <span class="st">"_toolero.yml"</span><span class="op">)</span></span>
+<span><span class="fu"><a href="../reference/htc_gen_executable.html">htc_gen_executable</a></span><span class="op">(</span>r_script <span class="op">=</span> <span class="st">"R/analysis.R"</span>, config <span class="op">=</span> <span class="va">cfg</span><span class="op">)</span></span>
+<span><span class="fu"><a href="../reference/htc_gen_submit.html">htc_gen_submit</a></span><span class="op">(</span>mode <span class="op">=</span> <span class="st">"multiple"</span>, config <span class="op">=</span> <span class="va">cfg</span><span class="op">)</span></span></code></pre><p></p></div>
+<p><code>r_script</code> itself is not defaulted from <code>conventions$script_dir</code>: the
+convention names a directory, not a file, and the script's own filename
+is project-specific information <code>_toolero.yml</code> has no way to record.</p>
     </div>
     <div class="section level2">
     <h2 id="security">Security<a class="anchor" aria-label="anchor" href="#security"></a></h2>

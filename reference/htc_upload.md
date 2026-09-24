@@ -12,11 +12,12 @@ can run `condor_submit`.
 ``` r
 htc_upload(
   files = NULL,
-  remote_path = "~/",
+  remote_path = NULL,
   config = NULL,
   dry_run = FALSE,
   verbose = FALSE,
-  path = "."
+  path = ".",
+  check = FALSE
 )
 ```
 
@@ -38,10 +39,16 @@ htc_upload(
 
 - remote_path:
 
-  A character string. The destination directory on the submit node.
-  Defaults to `"~/"` (the user's home directory). This should match the
-  path used in the subsequent call to
-  [`htc_submit()`](https://erwinlares.github.io/submitr/reference/htc_submit.md).
+  A character string or `NULL`. The destination directory on the submit
+  node. When `NULL` (the default), resolves to the `remote_path`
+  recorded in the job manifest by a previous call to `htc_upload()`,
+  falling back to `"~/"` if no manifest value is available. On a
+  successful (non-`dry_run`) upload, the resolved value is recorded back
+  to the manifest, so
+  [`htc_submit()`](https://erwinlares.github.io/submitr/reference/htc_submit.md)
+  and
+  [`htc_download()`](https://erwinlares.github.io/submitr/reference/htc_download.md)
+  can pick it up automatically without retyping it.
 
 - config:
 
@@ -72,6 +79,17 @@ htc_upload(
   and
   [`htc_gen_executable()`](https://erwinlares.github.io/submitr/reference/htc_gen_executable.md),
   pass that same directory here.
+
+- check:
+
+  Logical. If `TRUE`, runs
+  [`htc_check()`](https://erwinlares.github.io/submitr/reference/htc_check.md)
+  before uploading and aborts if it finds an `"error"`-level issue (a
+  missing file, or a `"multiple"`-mode subset mismatch) – catching it
+  here rather than an hour later as a held job on the cluster (S-G4).
+  Warning-level issues (a resource request that looks large, an
+  unconfirmed image) are reported but do not block the upload. Defaults
+  to `FALSE`.
 
 ## Value
 
@@ -125,7 +143,7 @@ tmp <- tempfile(fileext = ".sub")
 writeLines("queue 1", tmp)
 htc_upload(files = tmp, config = cfg, dry_run = TRUE)
 #> ✔ Dry run -- command that would be executed:
-#>   `scp /tmp/RtmpteSnTz/file4a2c6d2e30e3.sub netid@ap2002.chtc.wisc.edu:~/`
+#>   `scp /tmp/Rtmpye778X/file4a034ca033aa.sub netid@ap2002.chtc.wisc.edu:~/`
 # }
 
 if (FALSE) { # \dontrun{

@@ -64,7 +64,7 @@
       <img src="../logo.png" class="logo" alt=""><h1>From the Notebook to the Cluster: Your First CHTC Job with submitr</h1>
             
             <h4 data-toc-skip class="date">Created 2026-04-30 | Last
-updated 2026-09-22</h4>
+updated 2026-09-24</h4>
       
       <small class="dont-index">Source: <a href="https://github.com/erwinlares/submitr/blob/main/vignettes/from-notebook-to-cluster.Rmd" class="external-link"><code>vignettes/from-notebook-to-cluster.Rmd</code></a></small>
       <div class="d-none name"><code>from-notebook-to-cluster.Rmd</code></div>
@@ -388,10 +388,24 @@ starts, what commands should run?</p>
 <ol style="list-style-type: decimal">
 <li>move to HTCondor’s writable scratch directory;</li>
 <li>create the <code>output/</code> folder;</li>
-<li>run the R script with <code>Rscript</code>, using an absolute path
-to the copy baked into the container;</li>
+<li>run the R script with <code>Rscript</code>, by its bare name – your
+analysis script is not baked into the container image, it travels to the
+execute node as an uploaded job input file (the <code>input_files</code>
+you listed in Step 2), the same way <code>data.csv</code> did;</li>
 <li>archive the folder as <code>analysis-results.tar.gz</code>.</li>
 </ol>
+<p>Because HTCondor’s file transfer does not preserve subdirectories,
+the script lands flat in the scratch directory regardless of the
+<code>R/</code> prefix on <code>r_script</code>, so the generated line
+reads <code>Rscript analysis.R</code>, not
+<code>Rscript R/analysis.R</code>. This is also why editing your
+analysis script only means re-uploading it and resubmitting the job – no
+container rebuild, no registry push. Reference data that genuinely
+belongs in the image (large or unchanging files you do not expect to
+edit) is a different case: pass it to
+<code><a href="../reference/htc_gen_executable.html">htc_gen_executable()</a></code>’s <code>data_files</code> argument
+instead, and it keeps the absolute, <code>home_dir</code>-prefixed path
+that a baked-in file needs.</p>
 <p>That last name is derived from <code>r_script</code>, with the
 directory and extension stripped, which is why <code>R/analysis.R</code>
 gives <code>analysis-results.tar.gz</code> rather than something
@@ -500,10 +514,12 @@ long.</p>
 beside <code>htc.cfg</code>. <code><a href="../reference/htc_gen_submit.html">htc_gen_submit()</a></code> records the
 submit file, the mode and the derived results name.
 <code><a href="../reference/htc_gen_executable.html">htc_gen_executable()</a></code> records the analysis script and the
-executable it wrote. <code><a href="../reference/htc_submit.html">htc_submit()</a></code> records the cluster ID
-and the remote directory. By the time you reach
-<code><a href="../reference/htc_download.html">htc_download()</a></code>, the manifest holds everything needed to
-work out what to ask the submit node for.</p>
+executable it wrote. <code><a href="../reference/htc_upload.html">htc_upload()</a></code> records the remote
+directory it sent files to. <code><a href="../reference/htc_submit.html">htc_submit()</a></code> resolves the
+submit file and remote directory from those records when you do not
+supply them, and records the cluster ID HTCondor assigned. By the time
+you reach <code><a href="../reference/htc_download.html">htc_download()</a></code>, the manifest holds everything
+needed to work out what to ask the submit node for.</p>
 <p>It is ordinary YAML, and reading it is often the quickest way to see
 what <code>submitr</code> thinks the state of your job is:</p>
 <div class="sourceCode" id="cb19"><pre class="sourceCode yaml"><code class="sourceCode yaml"><span id="cb19-1"><a href="#cb19-1" tabindex="-1"></a><span class="fu">submit_file</span><span class="kw">:</span><span class="at"> analysis.sub</span></span>
@@ -577,11 +593,15 @@ Your laptop may have the right R packages installed, but the execute
 node will not automatically have the same setup. A container image
 solves that problem by packaging the R version, packages, and system
 libraries needed to run the analysis.</p>
-<p><code>containr</code> handles that step:</p>
+<p><code>containr</code> handles that step. Notice that
+<code>generate_dockerfile()</code> is not given your analysis script
+here – as Step 3 explained, the script travels to CHTC as an uploaded
+job input file rather than as part of the image, so the image only needs
+to carry the R version and packages your <code>renv.lock</code>
+records:</p>
 <div class="sourceCode" id="cb22"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu">containr</span><span class="fu">::</span><span class="fu"><a href="https://erwinlares.github.io/containr/reference/generate_dockerfile.html" class="external-link">generate_dockerfile</a></span><span class="op">(</span></span>
 <span>  r_version <span class="op">=</span> <span class="st">"4.4.0"</span>,</span>
-<span>  code_file <span class="op">=</span> <span class="st">"R/analysis.R"</span>,</span>
 <span>  output    <span class="op">=</span> <span class="st">"."</span></span>
 <span><span class="op">)</span></span>
 <span><span class="fu">containr</span><span class="fu">::</span><span class="fu">build_image</span><span class="op">(</span>verbose <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
@@ -611,7 +631,8 @@ software environment was used for a particular analysis.</p>
 <li>ControlMaster is configured and the session is authenticated.</li>
 <li>The container image is pushed to a registry CHTC can access.</li>
 <li>The image tag is explicit, not <code>"latest"</code>.</li>
-<li>The submit file lists the correct executable and input files.</li>
+<li>The submit file lists the correct executable and input files,
+including your analysis script – it is not baked into the image.</li>
 <li>
 <code>r_script</code> is the same in both generator calls, so the
 tarball the job builds is the one the submit file asks for.</li>

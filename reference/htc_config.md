@@ -133,15 +133,24 @@ returns it under `config$project`:
     cfg$project$conventions$output_dir
     #> [1] "output"
 
-Nothing in `submitr` requires this yet –
-[`htc_gen_executable()`](https://erwinlares.github.io/submitr/reference/htc_gen_executable.md)'s
-`results_folder` argument still has to be set (or left at its own
-`"output"` default) independently. What `project_config` buys you today
-is one place to read a project's own folder layout from R, and a
-foundation for `submitr` functions to default to the project's own
-conventions in a future release, the way
+As of this release (S-G5), passing the returned config's `project`
+element on to
+[`htc_gen_executable()`](https://erwinlares.github.io/submitr/reference/htc_gen_executable.md)
+and
+[`htc_gen_submit()`](https://erwinlares.github.io/submitr/reference/htc_gen_submit.md)
+via their own `config` argument lets `results_folder` and `queue_from`
+default from `conventions$output_dir` and `conventions$split_dir`, the
+way
 [`containr::generate_dockerfile()`](https://erwinlares.github.io/containr/reference/generate_dockerfile.html)
-already reads the same file for its own purposes.
+already reads the same file for its own purposes:
+
+    cfg <- htc_config(project_config = "_toolero.yml")
+    htc_gen_executable(r_script = "R/analysis.R", config = cfg)
+    htc_gen_submit(mode = "multiple", config = cfg)
+
+`r_script` itself is not defaulted from `conventions$script_dir`: the
+convention names a directory, not a file, and the script's own filename
+is project-specific information `_toolero.yml` has no way to record.
 
 ## Security
 

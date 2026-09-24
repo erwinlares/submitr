@@ -1,0 +1,8 @@
+submit_file: job.sub
+submit_path: /tmp/Rtmpye778X/job.sub
+resources:
+  cpus: 2.0
+  memory: 8GB
+  disk: 4GB
+mode: single
+executable_file: analysis.sh

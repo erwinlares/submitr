@@ -127,13 +127,15 @@ library(submitr)
 htc_start()
 
 # 2. Generate the submit file
-#    r_script is how submitr derives the results tarball name; it never
-#    reads the executable script or the Dockerfile, so it cannot infer it
+#    r_script names the results tarball and, via input_files, tells
+#    HTCondor to transfer the analysis script itself -- it is not baked
+#    into the container image
 htc_gen_submit(
   output_file     = "analysis.sub",
   container_image = "registry.doit.wisc.edu/your.netid/my-analysis:1.0.0",
   executable      = "analysis.sh",
   r_script        = "R/analysis.R",
+  input_files     = "R/analysis.R",
   resources       = "small",
   comments        = TRUE
 )
@@ -229,8 +231,20 @@ Both are documented under
 
 ### Setting up SSH connection reuse
 
-Before continuing, take two minutes to set up ControlMaster. Add this
-block to `~/.ssh/config`:
+Before continuing, take two minutes to set up ControlMaster. The
+quickest way is
+[`htc_ssh_setup()`](https://erwinlares.github.io/submitr/reference/htc_ssh_setup.md),
+which writes the block below and creates the directory it references
+without leaving R:
+
+``` r
+
+htc_ssh_setup()
+#> v Added a ControlMaster block for "*.chtc.wisc.edu" to "~/.ssh/config"
+```
+
+That writes the same block you would otherwise add to `~/.ssh/config` by
+hand:
 
 ``` bash
 Host *.chtc.wisc.edu
@@ -239,11 +253,16 @@ Host *.chtc.wisc.edu
   ControlPath ~/.ssh/connections/%r@%h:%p
 ```
 
-Then create the directory used by `ControlPath`:
+and creates the directory used by `ControlPath`:
 
 ``` bash
 mkdir -p ~/.ssh/connections
 ```
+
+[`htc_ssh_setup()`](https://erwinlares.github.io/submitr/reference/htc_ssh_setup.md)
+leaves the file alone if a matching `Host` block is already there, so it
+is safe to call again later, and `dry_run = TRUE` previews the change
+first if you would rather see it before it is written.
 
 With ControlMaster in place, all subsequent SSH connections, whether
 uploads, submits, status checks or downloads, reuse the same
@@ -275,12 +294,49 @@ Use `comments = TRUE` on a first submission. The generated file includes
 explanations of each section, making it useful both as a working submit
 file and as a learning document.
 
-`r_script` is not used to run anything here. It is how the function
-works out what to name the results tarball, so that the name matches the
-one
+[`htc_gen_submit()`](https://erwinlares.github.io/submitr/reference/htc_gen_submit.md)
+itself only uses `r_script` to name the results tarball, so that the
+name matches the one
 [`htc_gen_executable()`](https://erwinlares.github.io/submitr/reference/htc_gen_executable.md)
-tells the job to build. Pass `output_files` yourself if you want a
-different name.
+tells the job to build; pass `output_files` yourself if you want a
+different name. But your analysis script is not baked into the container
+image, so it still has to reach the execute node somehow – list its
+basename in `input_files`, as above, so
+[`htc_upload()`](https://erwinlares.github.io/submitr/reference/htc_upload.md)
+sends it and HTCondor transfers it alongside the executable.
+[`htc_gen_submit()`](https://erwinlares.github.io/submitr/reference/htc_gen_submit.md)
+warns if `r_script` is supplied but its basename is missing from
+`input_files`.
+
+`executable` does not have to be typed here if you are about to call
+[`htc_gen_executable()`](https://erwinlares.github.io/submitr/reference/htc_gen_executable.md)
+next (or already have): the two generators share the job manifest, so
+whichever one runs second picks up the executable script’s name from
+whichever one ran first. Passing `executable` explicitly to both still
+works as before, and if the two ever disagree, both generators warn
+rather than silently picking one – your explicit value is still used, so
+the warning is a nudge to check, not a blocker.
+
+If your project has a `_toolero.yml` (written by
+[`toolero::init_project()`](https://erwinlares.github.io/toolero/reference/init_project.html)),
+pass it through `htc_config(project_config = )` and on to `config` here,
+and `queue_from` in multiple-job mode can be left out entirely – it
+defaults to `manifest.csv` inside
+`config$project$conventions$split_dir`, since
+[`toolero::write_by_group()`](https://erwinlares.github.io/toolero/reference/write_by_group.html)
+always uses that filename:
+
+``` r
+
+cfg <- htc_config(project_config = "_toolero.yml")
+
+htc_gen_submit(
+  mode        = "multiple",
+  config      = cfg,
+  r_script    = "R/analysis.R",
+  input_files = "R/analysis.R"
+)
+```
 
 **Resource presets:**
 
@@ -319,10 +375,73 @@ Only `output/` itself is created. If your analysis writes to
 `output/figures/`, the R script has to create that subfolder, which
 `toolero::save_output()` does and a bare `ggsave()` does not.
 
+Your analysis script is **not** baked into the container image. It
+travels to the execute node as an uploaded job input file, the same way
+`data.csv` would, so the generated script runs it by bare name
+(`Rscript analysis.R`) rather than by an absolute, in-container path.
+Because HTCondor’s file transfer does not preserve subdirectories,
+`r_script = "R/analysis.R"` still resolves to `analysis.R` at the
+execute node – see [the job manifest](#the-job-manifest) for how
+`input_files` on
+[`htc_gen_submit()`](https://erwinlares.github.io/submitr/reference/htc_gen_submit.md)
+has to name it. Data files passed via `data_files` are the opposite
+case: those are baked into the image under `home_dir` at build time, and
+the script reads them by absolute path. Editing your analysis script
+therefore only requires re-uploading it and resubmitting – no container
+rebuild, no registry push.
+
 With `comments = TRUE`, each section of the generated script is preceded
 by an explanation of the line beneath it. `containr` annotates its
 Dockerfiles the same way round, so a reader moving between the two files
 reads them the same way: explanation first, instruction second.
+
+`output_file` here shares the same manifest-based defaulting as
+`executable` in
+[`htc_gen_submit()`](https://erwinlares.github.io/submitr/reference/htc_gen_submit.md):
+if you called
+[`htc_gen_submit()`](https://erwinlares.github.io/submitr/reference/htc_gen_submit.md)
+first, its `executable` value is already recorded, so `output_file` can
+be left off. `results_folder` follows the same `config` pattern as
+`queue_from` above – with a `_toolero.yml` passed through `config`, it
+defaults to `config$project$conventions$output_dir` instead of the
+hardcoded `"output"`:
+
+``` r
+
+cfg <- htc_config(project_config = "_toolero.yml")
+
+htc_gen_executable(r_script = "R/analysis.R", config = cfg)
+```
+
+------------------------------------------------------------------------
+
+### `htc_check()`
+
+Runs a preflight check, locally and in seconds, for the things that
+otherwise only surface an hour later as a held or failed job on the
+cluster: a missing input or data file, a `"multiple"`-mode job whose
+subset files no longer match `subdatasets.csv`, a resource request that
+looks implausible, and a `container_image` tagged `latest` or carrying
+no tag at all. Every argument resolves from the job manifest, so the
+common case is no arguments at all, run right after the two generators:
+
+``` r
+
+htc_check()
+#> v Preflight check passed -- no issues found.
+
+# Or catch problems before they happen
+htc_check()
+#> ! Preflight check found 1 error and 1 warning.
+#> x ERROR [input_files]: 1 input file(s) not found: R/analysis.R
+#> ! WARNING [container_image]: container_image resolves to the "latest" tag
+```
+
+It returns a tibble of issues (zero rows means nothing was found), each
+tagged `"error"` (the job will not run without it) or `"warning"` (worth
+a second look, not necessarily wrong). `htc_upload(check = TRUE)` runs
+this automatically and aborts on an `"error"`; warnings never block
+anything.
 
 ------------------------------------------------------------------------
 
@@ -331,7 +450,12 @@ reads them the same way: explanation first, instruction second.
 Copies files to the CHTC submit node via `scp`. Called with no `files`
 argument, it sends what the job manifest recorded: the submit file, the
 executable, any shared input files, and in multiple-job mode the subsets
-and their manifest.
+and their manifest. On success, the remote directory it uploaded to is
+written back to the manifest, so
+[`htc_submit()`](https://erwinlares.github.io/submitr/reference/htc_submit.md)
+and
+[`htc_download()`](https://erwinlares.github.io/submitr/reference/htc_download.md)
+can pick it up without it being retyped.
 
 ``` r
 
@@ -345,36 +469,57 @@ htc_upload(dry_run = TRUE)
 
 # Or name the files yourself, which bypasses the manifest entirely
 htc_upload(files = c("analysis.sub", "analysis.sh", "R/analysis.R", "data.csv"))
+
+# Uploading somewhere other than ~/ is remembered for later steps
+htc_upload(remote_path = "~/projects/penguins/")
+
+# Run htc_check() first and abort the upload if it finds a real problem
+htc_upload(check = TRUE)
 ```
+
+`check = TRUE` runs
+[`htc_check()`](https://erwinlares.github.io/submitr/reference/htc_check.md)
+(described just above) before the transfer and aborts if it finds a
+missing file or a similar problem worth catching before it becomes a
+held job on the cluster. It is `FALSE` by default so existing calls
+behave exactly as before; turn it on while you are still shaking out a
+new job.
 
 ------------------------------------------------------------------------
 
 ### `htc_submit()`
 
 Runs `condor_submit` on the remote server via SSH and returns the
-cluster ID.
+cluster ID. Both `submit_file` and `remote_path` default to `NULL` and
+resolve from the job manifest – the submit file
+[`htc_gen_submit()`](https://erwinlares.github.io/submitr/reference/htc_gen_submit.md)
+wrote and the directory
+[`htc_upload()`](https://erwinlares.github.io/submitr/reference/htc_upload.md)
+sent it to – so a call with no arguments at all works once those two
+steps have run:
 
 ``` r
 
-cluster_id <- htc_submit(
-  submit_file = "analysis.sub",
-  verbose     = TRUE
-)
+cluster_id <- htc_submit(verbose = TRUE)
 #> Submitting "analysis.sub" on "ap2002.chtc.wisc.edu"...
 #> 1 job(s) submitted to cluster 6302860.
 #> v Job submitted successfully.
 ```
 
-The cluster ID and the directory the job was submitted from are both
-written to the job manifest, so neither has to be repeated when you come
-back to collect the results.
+The cluster ID, the submit file, and the directory the job was submitted
+from are all written to the job manifest, so none of them has to be
+repeated when you come back to collect the results.
 
 ------------------------------------------------------------------------
 
 ### `htc_status()`
 
 Runs `condor_q` on the remote server. Use `watch = TRUE` to poll until
-all jobs in the cluster leave the queue.
+all jobs in the cluster leave the queue. `cluster_id` defaults to `NULL`
+and resolves from the job manifest – the ID
+[`htc_submit()`](https://erwinlares.github.io/submitr/reference/htc_submit.md)
+just returned – so you rarely have to pass it explicitly right after
+submitting:
 
 ``` r
 
@@ -383,7 +528,61 @@ htc_status(cluster_id = cluster_id)
 
 # Watch until complete
 htc_status(cluster_id = cluster_id, watch = TRUE)
+
+# Or let it resolve cluster_id from the manifest
+htc_status(watch = TRUE)
 ```
+
+When any jobs in the cluster are held,
+[`htc_status()`](https://erwinlares.github.io/submitr/reference/htc_status.md)
+automatically runs a follow-up query and prints the hold reason, so you
+do not have to leave R to find out why:
+
+``` r
+
+htc_status(cluster_id = cluster_id)
+#> ! Held job(s) detected. Hold reason(s):
+#> 6302860.3  Error from slot1@execute-node: Failed to access user log
+```
+
+Set `show_hold_reason = FALSE` to skip that extra query.
+
+------------------------------------------------------------------------
+
+### `htc_cancel()` and `htc_release()`
+
+Job control from R:
+[`htc_cancel()`](https://erwinlares.github.io/submitr/reference/htc_cancel.md)
+removes a submitted cluster with `condor_rm`, and
+[`htc_release()`](https://erwinlares.github.io/submitr/reference/htc_release.md)
+puts held jobs back into the queue with `condor_release`. Both resolve
+`cluster_id` from the job manifest, the same way
+[`htc_status()`](https://erwinlares.github.io/submitr/reference/htc_status.md)
+does:
+
+``` r
+
+# Cancel the cluster htc_submit() just returned
+htc_cancel(cluster_id = cluster_id, reason = "wrong container image")
+
+# Release jobs that HTCondor put on hold
+htc_release(cluster_id = cluster_id)
+
+# Or resolve cluster_id from the manifest, same as htc_status()
+htc_cancel()
+```
+
+Unlike
+[`htc_status()`](https://erwinlares.github.io/submitr/reference/htc_status.md),
+which shows every job in the queue when `cluster_id` is omitted and
+nothing can be resolved,
+[`htc_cancel()`](https://erwinlares.github.io/submitr/reference/htc_cancel.md)
+and
+[`htc_release()`](https://erwinlares.github.io/submitr/reference/htc_release.md)
+refuse to proceed in that situation rather than falling back to acting
+on everything – removing or releasing every job you have queued is a
+much larger mistake than an unfiltered status check. Both support
+`dry_run` to preview the `condor_rm`/`condor_release` command first.
 
 ------------------------------------------------------------------------
 
@@ -419,21 +618,68 @@ whole category of “my figures did not come back”.
 
 ------------------------------------------------------------------------
 
+### `htc_collect()`
+
+The counterpart to
+[`toolero::run_by_group()`](https://erwinlares.github.io/toolero/reference/run_by_group.html)
+on the HTC side of the arc:
+[`htc_collect()`](https://erwinlares.github.io/submitr/reference/htc_collect.md)
+stitches the tarballs
+[`htc_download()`](https://erwinlares.github.io/submitr/reference/htc_download.md)
+brought back into a single tibble, rather than leaving you with a pile
+of extracted folders to sort through by hand. Like the other pipeline
+functions, it resolves what it needs from the job manifest:
+
+``` r
+
+results <- htc_collect()
+results
+#> # A tibble: 2 x 9
+#>   file_path            r_class  ...  group_id local_path         ...
+#>   <chr>                <chr>    ...  <chr>    <chr>              ...
+#> 1 output/adelie-fit.rds lm      ...  adelie   .../adelie/output/...
+#> 2 output/gentoo-fit.rds lm      ...  gentoo   .../gentoo/output/...
+```
+
+Each tarball is extracted into its own subdirectory, and the
+`project-manifest.json` that `toolero::generate_manifest()` writes
+inside it is read back to assemble the combined tibble – falling back to
+`accumulator.csv` with a warning if the tarball predates that file. In
+`"multiple"`-mode jobs, the result carries a `group_id` column so you
+can tell which subset each row came from.
+[`htc_collect()`](https://erwinlares.github.io/submitr/reference/htc_collect.md)
+does not try to load the saved R objects themselves – their type varies
+by analysis – so pair it with your own
+[`readRDS()`](https://rdrr.io/r/base/readRDS.html) (or similar) over the
+`local_path` column:
+
+``` r
+
+results$data <- lapply(results$local_path, readRDS)
+```
+
+------------------------------------------------------------------------
+
 ## The job manifest
 
 Several calls above take no arguments at all, and they are not guessing.
 As you work, submitr writes what it learns to `htc-manifest.yaml`, a
 small file that sits in your project beside `htc.cfg`.
 
-Each step contributes what it knows.
+Each step contributes what it knows, and each step after the first reads
+back what an earlier one wrote.
 [`htc_gen_submit()`](https://erwinlares.github.io/submitr/reference/htc_gen_submit.md)
 records the submit file, the mode, the derived results name, and in
 multiple-job mode the list of subsets.
 [`htc_gen_executable()`](https://erwinlares.github.io/submitr/reference/htc_gen_executable.md)
 records the analysis script and the executable it wrote.
+[`htc_upload()`](https://erwinlares.github.io/submitr/reference/htc_upload.md)
+records the remote directory it sent files to.
 [`htc_submit()`](https://erwinlares.github.io/submitr/reference/htc_submit.md)
-records the cluster ID HTCondor assigned and the remote directory it
-submitted from. By the time you call
+resolves the submit file and remote directory from those two records
+when you do not pass them, and records the cluster ID HTCondor assigned.
+[`htc_status()`](https://erwinlares.github.io/submitr/reference/htc_status.md)
+resolves the cluster ID the same way. By the time you call
 [`htc_download()`](https://erwinlares.github.io/submitr/reference/htc_download.md),
 the manifest holds everything needed to work out which files to ask for.
 
@@ -464,16 +710,18 @@ cluster_id: '6302860'
 remote_path: ~/
 ```
 
-By default the manifest is written to the same directory as the
-generated files, which for the default `output = "."` is your project
-root. If you generate into a subdirectory, pass the same `path` to every
-function that touches the manifest, so that all five are reading and
-writing the same file:
+By default the manifest lives in your project root (`path = "."`),
+regardless of where `output` points – generating files into a
+subdirectory does not move the manifest along with them. If you do write
+generated files elsewhere, pass the same `path` to every function that
+touches the manifest, so that all five are reading and writing the same
+file:
 
 ``` r
 
-htc_gen_submit(r_script = "R/analysis.R", output = "jobs/")
-htc_gen_executable(r_script = "R/analysis.R", output = "jobs/")
+htc_gen_submit(r_script = "R/analysis.R", input_files = "R/analysis.R",
+                output = "jobs/", path = "jobs/")
+htc_gen_executable(r_script = "R/analysis.R", output = "jobs/", path = "jobs/")
 htc_upload(path   = "jobs/")
 htc_submit(submit_file = "analysis.sub", path = "jobs/")
 htc_download(path = "jobs/")
@@ -585,19 +833,31 @@ analysis script is genuinely not something it can work out for itself.
 |----|----|
 | [`htc_start()`](https://erwinlares.github.io/submitr/reference/htc_start.md) | Start a session, reading config and storing it for all calls |
 | [`htc_config()`](https://erwinlares.github.io/submitr/reference/htc_config.md) | Create or read `htc.cfg`, optionally checking the server |
+| [`htc_ssh_setup()`](https://erwinlares.github.io/submitr/reference/htc_ssh_setup.md) | Write the ControlMaster block for SSH connection reuse |
 | [`htc_gen_submit()`](https://erwinlares.github.io/submitr/reference/htc_gen_submit.md) | Generate the HTCondor `.sub` submit file |
 | [`htc_gen_executable()`](https://erwinlares.github.io/submitr/reference/htc_gen_executable.md) | Generate the `.sh` executable script |
+| [`htc_check()`](https://erwinlares.github.io/submitr/reference/htc_check.md) | Preflight-check files, resources, and image before upload |
 | [`htc_upload()`](https://erwinlares.github.io/submitr/reference/htc_upload.md) | Copy files to the submit node via `scp` |
 | [`htc_submit()`](https://erwinlares.github.io/submitr/reference/htc_submit.md) | Run `condor_submit` on the submit node |
-| [`htc_status()`](https://erwinlares.github.io/submitr/reference/htc_status.md) | Check job progress via `condor_q` |
+| [`htc_status()`](https://erwinlares.github.io/submitr/reference/htc_status.md) | Check job progress via `condor_q`, including hold reasons |
+| [`htc_cancel()`](https://erwinlares.github.io/submitr/reference/htc_cancel.md) | Remove a submitted cluster via `condor_rm` |
+| [`htc_release()`](https://erwinlares.github.io/submitr/reference/htc_release.md) | Release held jobs back into the queue via `condor_release` |
 | [`htc_download()`](https://erwinlares.github.io/submitr/reference/htc_download.md) | Copy results back from the submit node |
+| [`htc_collect()`](https://erwinlares.github.io/submitr/reference/htc_collect.md) | Stitch downloaded tarballs into a single tibble |
 
-[`htc_upload()`](https://erwinlares.github.io/submitr/reference/htc_upload.md)
+[`htc_upload()`](https://erwinlares.github.io/submitr/reference/htc_upload.md),
+[`htc_submit()`](https://erwinlares.github.io/submitr/reference/htc_submit.md),
+[`htc_status()`](https://erwinlares.github.io/submitr/reference/htc_status.md),
+[`htc_cancel()`](https://erwinlares.github.io/submitr/reference/htc_cancel.md),
+[`htc_release()`](https://erwinlares.github.io/submitr/reference/htc_release.md),
+[`htc_download()`](https://erwinlares.github.io/submitr/reference/htc_download.md),
 and
-[`htc_download()`](https://erwinlares.github.io/submitr/reference/htc_download.md)
-can be called with no arguments once the two generators have run. All
-five of the functions that read or write the job manifest take a `path`
-argument naming the directory it lives in.
+[`htc_collect()`](https://erwinlares.github.io/submitr/reference/htc_collect.md)
+can all be called with no arguments (or close to it) once the steps
+before them have run. All functions that read or write the job manifest
+take a `path` argument naming the directory it lives in, and all default
+it to `"."` independent of `output` – see [the job
+manifest](#the-job-manifest).
 
 ------------------------------------------------------------------------
 

@@ -14,7 +14,9 @@ htc_status(
   watch = FALSE,
   interval = 60L,
   dry_run = FALSE,
-  verbose = FALSE
+  verbose = FALSE,
+  path = ".",
+  show_hold_reason = TRUE
 )
 ```
 
@@ -22,10 +24,14 @@ htc_status(
 
 - cluster_id:
 
-  An integer or character string. The cluster ID returned by
+  An integer, character string, or `NULL`. The cluster ID returned by
   [`htc_submit()`](https://erwinlares.github.io/submitr/reference/htc_submit.md),
-  e.g. `6302860`. If `NULL` (the default), shows all of your jobs
-  currently in the queue. Required when `watch = TRUE`.
+  e.g. `6302860`. When `NULL` (the default), resolves to the cluster ID
+  recorded in the job manifest by the most recent
+  [`htc_submit()`](https://erwinlares.github.io/submitr/reference/htc_submit.md)
+  call; if no manifest value is available either, shows all of your jobs
+  currently in the queue instead. Required (directly or via the
+  manifest) when `watch = TRUE`.
 
 - config:
 
@@ -56,10 +62,35 @@ htc_status(
 
   Logical. If `TRUE`, prints progress messages. Defaults to `FALSE`.
 
+- path:
+
+  A character string. Directory holding the job manifest
+  (`htc-manifest.yaml`), consulted only when `cluster_id` is `NULL`.
+  Defaults to `"."`, matching the default used by
+  [`htc_upload()`](https://erwinlares.github.io/submitr/reference/htc_upload.md),
+  [`htc_submit()`](https://erwinlares.github.io/submitr/reference/htc_submit.md),
+  and
+  [`htc_download()`](https://erwinlares.github.io/submitr/reference/htc_download.md).
+  If you passed a non-default `path` to
+  [`htc_submit()`](https://erwinlares.github.io/submitr/reference/htc_submit.md),
+  pass that same directory here.
+
+- show_hold_reason:
+
+  Logical. If `TRUE` (the default), every poll automatically follows up
+  with `condor_q -hold` and prints the result whenever it shows an
+  actual held job – nothing is printed when nothing is held (S-G2). This
+  is the single most common cause of newcomer confusion – a job held for
+  exceeding its memory or disk request otherwise gives no clue why
+  without a separate manual query. Set to `FALSE` to skip the follow-up
+  query entirely (for example, in a tight `watch = TRUE` polling loop
+  where the extra round trip is unwelcome).
+
 ## Value
 
-Called for its side effects. Prints the `condor_q` output to the
-console. Returns the most recent output invisibly as a character vector.
+Called for its side effects. Prints the `condor_q` output (and, when
+applicable, hold reasons) to the console. Returns the most recent
+`condor_q` output invisibly as a character vector.
 
 ## Details
 
@@ -86,6 +117,13 @@ been transferred back to the submit node. Use
 [`htc_download()`](https://erwinlares.github.io/submitr/reference/htc_download.md)
 to retrieve completed job output.
 
+A held (`H`) job is not a lost cause: `htc_status()` surfaces the hold
+reason automatically (see `show_hold_reason`), and once the underlying
+problem is fixed – most often the resource request –
+[`htc_release()`](https://erwinlares.github.io/submitr/reference/htc_release.md)
+resumes it without resubmitting. To abandon a job entirely instead, use
+[`htc_cancel()`](https://erwinlares.github.io/submitr/reference/htc_cancel.md).
+
 ## Workflow
 
     cfg <- htc_config()
@@ -103,6 +141,13 @@ ControlMaster in your `~/.ssh/config` (see
 [`htc_config()`](https://erwinlares.github.io/submitr/reference/htc_config.md))
 is strongly recommended when using `watch = TRUE` to avoid repeated Duo
 MFA prompts.
+
+## See also
+
+[`htc_cancel()`](https://erwinlares.github.io/submitr/reference/htc_cancel.md)
+to remove a job, and
+[`htc_release()`](https://erwinlares.github.io/submitr/reference/htc_release.md)
+to resume a held one after fixing what caused the hold.
 
 ## Examples
 

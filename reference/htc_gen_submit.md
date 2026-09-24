@@ -24,7 +24,8 @@ htc_gen_submit(
   verbose = FALSE,
   comments = FALSE,
   output = ".",
-  path = output
+  config = NULL,
+  path = "."
 )
 ```
 
@@ -44,9 +45,17 @@ htc_gen_submit(
 
 - executable:
 
-  A character string. The shell script that HTCondor will run inside the
-  container, e.g. `"analysis.sh"`. Defaults to `NULL`, which writes a
-  placeholder comment in the submit file.
+  A character string or `NULL`. The shell script that HTCondor will run
+  inside the container, e.g. `"analysis.sh"`. When `NULL` (the default),
+  resolves to the `executable_file` recorded in the job manifest by a
+  previous
+  [`htc_gen_executable()`](https://erwinlares.github.io/submitr/reference/htc_gen_executable.md)
+  call (S-I3), so the name only has to be typed once regardless of which
+  of the two generators runs first. If neither an explicit value nor a
+  manifest value is available, writes a placeholder comment in the
+  submit file instead. If the resolved value here disagrees with an
+  `executable_file` already in the manifest, warns rather than silently
+  preferring one over the other.
 
 - r_script:
 
@@ -61,15 +70,23 @@ htc_gen_submit(
   [`htc_gen_executable()`](https://erwinlares.github.io/submitr/reference/htc_gen_executable.md)
   call is used; note that the documented workflow calls this function
   first, in which case there is nothing recorded yet. Ignored when
-  `output_files` is supplied. Defaults to `NULL`.
+  `output_files` is supplied. Note that supplying `r_script` here does
+  not transfer it – the script is not baked into the container image
+  (see
+  [`htc_gen_executable()`](https://erwinlares.github.io/submitr/reference/htc_gen_executable.md)),
+  so its basename must also appear in `input_files` or HTCondor will not
+  send it to the execute node; this function warns when it does not.
+  Defaults to `NULL`.
 
 - input_files:
 
   A character vector. Files to transfer to the job's working directory
-  before execution, e.g. `c("analysis.R", "data.csv")`. In `"multiple"`
-  mode, the per-job subset file is added automatically from the
-  manifest; use this argument for files shared across all jobs (e.g. the
-  analysis script). Defaults to `NULL`.
+  before execution, e.g. `c("analysis.R", "data.csv")`. This must
+  include the R script named by `r_script` (by basename) – the script
+  travels to the execute node as an uploaded input file, not as part of
+  the container image. In `"multiple"` mode, the per-job subset file is
+  added automatically from the manifest; use this argument for files
+  shared across all jobs (e.g. the analysis script). Defaults to `NULL`.
 
 - output_files:
 
@@ -98,11 +115,16 @@ htc_gen_submit(
 
 - queue_from:
 
-  A character string. Path to the manifest file produced by
+  A character string or `NULL`. Path to the manifest file produced by
   `toolero::write_by_group(manifest = TRUE)`. Required when
-  `mode = "multiple"`. The `file_path` column is extracted and written
-  alongside the submit file as `subdatasets.csv`, which HTCondor reads
-  to generate one job per subset file.
+  `mode = "multiple"`, unless it can be resolved from `config` (S-G5):
+  when `NULL` and `config$project$conventions$split_dir` is set,
+  defaults to `file.path(split_dir, "manifest.csv")` –
+  `write_by_group()` always names its manifest `manifest.csv`, so the
+  convention's directory is enough to reconstruct the full path. The
+  `file_path` column is extracted and written alongside the submit file
+  as `subdatasets.csv`, which HTCondor reads to generate one job per
+  subset file.
 
 - resources:
 
@@ -150,19 +172,27 @@ htc_gen_submit(
   `"multiple"` mode, `subdatasets.csv`) will be written. Defaults to
   `"."` (current working directory).
 
+- config:
+
+  A named list as returned by
+  [`htc_config()`](https://erwinlares.github.io/submitr/reference/htc_config.md),
+  or `NULL` (the default). When supplied with a `project` element (via
+  `htc_config(project_config = )`),
+  `config$project$conventions$split_dir` is used to default `queue_from`
+  (S-G5). Not required – everything here can still be passed explicitly.
+
 - path:
 
   A character string. Directory where the job manifest
-  (`htc-manifest.yaml`) is read from and written to. Defaults to
-  whatever `output` is set to, so the manifest travels with the files it
-  describes. Pass `path = "."` to keep the manifest in the project root
-  while writing generated files elsewhere. Whatever you choose,
+  (`htc-manifest.yaml`) is read from and written to. Defaults to `"."`
+  (the current working directory), matching the default used by
   [`htc_upload()`](https://erwinlares.github.io/submitr/reference/htc_upload.md),
   [`htc_submit()`](https://erwinlares.github.io/submitr/reference/htc_submit.md),
   and
-  [`htc_download()`](https://erwinlares.github.io/submitr/reference/htc_download.md)
-  must be given the same directory, since that is where they look for
-  the manifest.
+  [`htc_download()`](https://erwinlares.github.io/submitr/reference/htc_download.md).
+  This is independent of `output`: if you write generated files to a
+  subfolder with `output`, pass the same `path` explicitly to every
+  function in the pipeline so they all find the same manifest.
 
 ## Value
 
@@ -249,7 +279,7 @@ htc_gen_submit(
 #> Writing logging section
 #> Writing resources section (small preset: 1 CPU / 4GB RAM / 4GB disk)
 #> Writing queue section (1 job)
-#> ✔ Submit file written to /tmp/RtmpteSnTz/annotated.sub
+#> ✔ Submit file written to /tmp/Rtmpye778X/annotated.sub
 
 # Custom resource request
 htc_gen_submit(

@@ -58,7 +58,9 @@ specific submission.</p>
 <span>  watch <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>  interval <span class="op">=</span> <span class="fl">60L</span>,</span>
 <span>  dry_run <span class="op">=</span> <span class="cn">FALSE</span>,</span>
-<span>  verbose <span class="op">=</span> <span class="cn">FALSE</span></span>
+<span>  verbose <span class="op">=</span> <span class="cn">FALSE</span>,</span>
+<span>  path <span class="op">=</span> <span class="st">"."</span>,</span>
+<span>  show_hold_reason <span class="op">=</span> <span class="cn">TRUE</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
 
@@ -67,9 +69,12 @@ specific submission.</p>
 
 
 <dl><dt id="arg-cluster-id">cluster_id<a class="anchor" aria-label="anchor" href="#arg-cluster-id"></a></dt>
-<dd><p>An integer or character string. The cluster ID returned
-by <code><a href="htc_submit.html">htc_submit()</a></code>, e.g. <code>6302860</code>. If <code>NULL</code> (the default), shows all
-of your jobs currently in the queue. Required when <code>watch = TRUE</code>.</p></dd>
+<dd><p>An integer, character string, or <code>NULL</code>. The cluster ID
+returned by <code><a href="htc_submit.html">htc_submit()</a></code>, e.g. <code>6302860</code>. When <code>NULL</code> (the default),
+resolves to the cluster ID recorded in the job manifest by the most
+recent <code><a href="htc_submit.html">htc_submit()</a></code> call; if no manifest value is available either,
+shows all of your jobs currently in the queue instead. Required
+(directly or via the manifest) when <code>watch = TRUE</code>.</p></dd>
 
 
 <dt id="arg-config">config<a class="anchor" aria-label="anchor" href="#arg-config"></a></dt>
@@ -99,11 +104,31 @@ executed without running it. Defaults to <code>FALSE</code>.</p></dd>
 <dd><p>Logical. If <code>TRUE</code>, prints progress messages. Defaults to
 <code>FALSE</code>.</p></dd>
 
+
+<dt id="arg-path">path<a class="anchor" aria-label="anchor" href="#arg-path"></a></dt>
+<dd><p>A character string. Directory holding the job manifest
+(<code>htc-manifest.yaml</code>), consulted only when <code>cluster_id</code> is <code>NULL</code>.
+Defaults to <code>"."</code>, matching the default used by <code><a href="htc_upload.html">htc_upload()</a></code>,
+<code><a href="htc_submit.html">htc_submit()</a></code>, and <code><a href="htc_download.html">htc_download()</a></code>. If you passed a non-default
+<code>path</code> to <code><a href="htc_submit.html">htc_submit()</a></code>, pass that same directory here.</p></dd>
+
+
+<dt id="arg-show-hold-reason">show_hold_reason<a class="anchor" aria-label="anchor" href="#arg-show-hold-reason"></a></dt>
+<dd><p>Logical. If <code>TRUE</code> (the default), every poll
+automatically follows up with <code>condor_q -hold</code> and prints the result
+whenever it shows an actual held job – nothing is printed when nothing
+is held (S-G2). This is the single most common cause of newcomer
+confusion – a job held for exceeding its memory or disk request
+otherwise gives no clue why without a separate manual query. Set to
+<code>FALSE</code> to skip the follow-up query entirely (for example, in a tight
+<code>watch = TRUE</code> polling loop where the extra round trip is unwelcome).</p></dd>
+
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
-    <p>Called for its side effects. Prints the <code>condor_q</code> output to the
-console. Returns the most recent output invisibly as a character vector.</p>
+    <p>Called for its side effects. Prints the <code>condor_q</code> output (and,
+when applicable, hold reasons) to the console. Returns the most recent
+<code>condor_q</code> output invisibly as a character vector.</p>
     </div>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
@@ -118,6 +143,11 @@ a timestamped snapshot after each poll.</p>
 <p>HTCondor reports each job's status with a single letter:</p><table class="table table"><tr><td>Code</td><td>Meaning</td></tr><tr><td>I</td><td>Idle – waiting for a matching execute node</td></tr><tr><td>R</td><td>Running – currently executing</td></tr><tr><td>H</td><td>Held – paused, usually due to an error</td></tr><tr><td>C</td><td>Completed – finished successfully</td></tr><tr><td>X</td><td>Removed – cancelled</td></tr><tr><td>S</td><td>Suspended</td></tr></table><p>Jobs disappear from <code>condor_q</code> once they complete and their output has
 been transferred back to the submit node. Use <code><a href="htc_download.html">htc_download()</a></code> to retrieve
 completed job output.</p>
+<p>A held (<code>H</code>) job is not a lost cause: <code>htc_status()</code> surfaces the hold
+reason automatically (see <code>show_hold_reason</code>), and once the underlying
+problem is fixed – most often the resource request – <code><a href="htc_release.html">htc_release()</a></code>
+resumes it without resubmitting. To abandon a job entirely instead, use
+<code><a href="htc_cancel.html">htc_cancel()</a></code>.</p>
     </div>
     <div class="section level2">
     <h2 id="workflow">Workflow<a class="anchor" aria-label="anchor" href="#workflow"></a></h2>
@@ -139,6 +169,11 @@ completed job output.</p>
 <p>Each poll in watch mode opens a new SSH connection. Configuring
 ControlMaster in your <code>~/.ssh/config</code> (see <code><a href="htc_config.html">htc_config()</a></code>) is strongly
 recommended when using <code>watch = TRUE</code> to avoid repeated Duo MFA prompts.</p>
+    </div>
+    <div class="section level2">
+    <h2 id="see-also">See also<a class="anchor" aria-label="anchor" href="#see-also"></a></h2>
+    <div class="dont-index"><p><code><a href="htc_cancel.html">htc_cancel()</a></code> to remove a job, and <code><a href="htc_release.html">htc_release()</a></code> to resume a
+held one after fixing what caused the hold.</p></div>
     </div>
 
     <div class="section level2">

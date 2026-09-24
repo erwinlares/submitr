@@ -349,9 +349,23 @@ The generated script handles a standard sequence:
 
 1.  move to HTCondor’s writable scratch directory;
 2.  create the `output/` folder;
-3.  run the R script with `Rscript`, using an absolute path to the copy
-    baked into the container;
+3.  run the R script with `Rscript`, by its bare name – your analysis
+    script is not baked into the container image, it travels to the
+    execute node as an uploaded job input file (the `input_files` you
+    listed in Step 2), the same way `data.csv` did;
 4.  archive the folder as `analysis-results.tar.gz`.
+
+Because HTCondor’s file transfer does not preserve subdirectories, the
+script lands flat in the scratch directory regardless of the `R/` prefix
+on `r_script`, so the generated line reads `Rscript analysis.R`, not
+`Rscript R/analysis.R`. This is also why editing your analysis script
+only means re-uploading it and resubmitting the job – no container
+rebuild, no registry push. Reference data that genuinely belongs in the
+image (large or unchanging files you do not expect to edit) is a
+different case: pass it to
+[`htc_gen_executable()`](https://erwinlares.github.io/submitr/reference/htc_gen_executable.md)’s
+`data_files` argument instead, and it keeps the absolute,
+`home_dir`-prefixed path that a baked-in file needs.
 
 That last name is derived from `r_script`, with the directory and
 extension stripped, which is why `R/analysis.R` gives
@@ -491,8 +505,12 @@ small file that sits in your project beside `htc.cfg`.
 records the submit file, the mode and the derived results name.
 [`htc_gen_executable()`](https://erwinlares.github.io/submitr/reference/htc_gen_executable.md)
 records the analysis script and the executable it wrote.
+[`htc_upload()`](https://erwinlares.github.io/submitr/reference/htc_upload.md)
+records the remote directory it sent files to.
 [`htc_submit()`](https://erwinlares.github.io/submitr/reference/htc_submit.md)
-records the cluster ID and the remote directory. By the time you reach
+resolves the submit file and remote directory from those records when
+you do not supply them, and records the cluster ID HTCondor assigned. By
+the time you reach
 [`htc_download()`](https://erwinlares.github.io/submitr/reference/htc_download.md),
 the manifest holds everything needed to work out what to ask the submit
 node for.
@@ -586,13 +604,16 @@ will not automatically have the same setup. A container image solves
 that problem by packaging the R version, packages, and system libraries
 needed to run the analysis.
 
-`containr` handles that step:
+`containr` handles that step. Notice that `generate_dockerfile()` is not
+given your analysis script here – as Step 3 explained, the script
+travels to CHTC as an uploaded job input file rather than as part of the
+image, so the image only needs to carry the R version and packages your
+`renv.lock` records:
 
 ``` r
 
 containr::generate_dockerfile(
   r_version = "4.4.0",
-  code_file = "R/analysis.R",
   output    = "."
 )
 containr::build_image(verbose = TRUE)
@@ -624,7 +645,8 @@ Before scaling up, confirm that the small job works end to end:
 - ControlMaster is configured and the session is authenticated.
 - The container image is pushed to a registry CHTC can access.
 - The image tag is explicit, not `"latest"`.
-- The submit file lists the correct executable and input files.
+- The submit file lists the correct executable and input files,
+  including your analysis script – it is not baked into the image.
 - `r_script` is the same in both generator calls, so the tarball the job
   builds is the one the submit file asks for.
 - The dry-run upload shows the expected files.

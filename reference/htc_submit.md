@@ -10,8 +10,8 @@ paths in the submit file resolve correctly.
 
 ``` r
 htc_submit(
-  submit_file = "job.sub",
-  remote_path = "~/",
+  submit_file = NULL,
+  remote_path = NULL,
   config = NULL,
   dry_run = FALSE,
   verbose = FALSE,
@@ -23,15 +23,21 @@ htc_submit(
 
 - submit_file:
 
-  A character string. Name of the submit file on the remote node, e.g.
-  `"job.sub"`. Must end in `".sub"`. Defaults to `"job.sub"`.
+  A character string or `NULL`. Name of the submit file on the remote
+  node, e.g. `"job.sub"`. Must end in `".sub"`. When `NULL` (the
+  default), resolves to the `submit_file` recorded in the job manifest
+  by
+  [`htc_gen_submit()`](https://erwinlares.github.io/submitr/reference/htc_gen_submit.md),
+  falling back to `"job.sub"` if no manifest value is available.
 
 - remote_path:
 
-  A character string. The directory on the submit node where the submit
-  file was uploaded. Defaults to `"~/"`. Must match the `remote_path`
-  used in the preceding call to
-  [`htc_upload()`](https://erwinlares.github.io/submitr/reference/htc_upload.md).
+  A character string or `NULL`. The directory on the submit node where
+  the submit file was uploaded. When `NULL` (the default), resolves to
+  the `remote_path` recorded in the job manifest by the preceding call
+  to
+  [`htc_upload()`](https://erwinlares.github.io/submitr/reference/htc_upload.md),
+  falling back to `"~/"` if no manifest value is available.
 
 - config:
 
