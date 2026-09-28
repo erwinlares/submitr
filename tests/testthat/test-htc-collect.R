@@ -30,7 +30,9 @@
         file.path(out_dir, "project-manifest.json")
     )
     withr::with_dir(build_dir, {
-        utils::tar(tarball_path, files = "output", compression = "gzip", tar = "internal")
+        suppressWarnings(
+            utils::tar(tarball_path, files = "output", compression = "gzip", tar = "internal")
+        )
     })
     invisible(tarball_path)
 }
@@ -160,7 +162,9 @@ test_that("htc_collect() falls back to accumulator.csv with a warning when no pr
         file.path(out_dir, "accumulator.csv")
     )
     withr::with_dir(build_dir, {
-        utils::tar(tarball, files = "output", compression = "gzip", tar = "internal")
+        suppressWarnings(
+            utils::tar(tarball, files = "output", compression = "gzip", tar = "internal")
+        )
     })
 
     manifest_dir <- withr::local_tempdir()

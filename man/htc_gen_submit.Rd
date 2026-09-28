@@ -199,8 +199,15 @@ falling back to the package default if none is found.
 }
 
 \examples{
+# output writes the generated .sub file; path is where the job manifest
+# (htc-manifest.yaml) gets read from and written to. The two are
+# independent arguments (see @param path), so both must point at the
+# same scratch directory here to keep the manifest out of the current
+# working directory.
+tmp <- tempdir()
+
 # Single-job submit file with default resource preset
-htc_gen_submit(output = tempdir())
+htc_gen_submit(output = tmp, path = tmp)
 
 # Single-job submit file with medium resources and file transfer
 htc_gen_submit(
@@ -210,7 +217,8 @@ htc_gen_submit(
   r_script        = "R/analysis.R",
   input_files     = "R/analysis.R",
   resources       = "medium",
-  output          = tempdir()
+  output          = tmp,
+  path            = tmp
 )
 
 # Annotated submit file useful for learning HTCondor syntax
@@ -218,14 +226,16 @@ htc_gen_submit(
   output_file = "annotated.sub",
   comments    = TRUE,
   verbose     = TRUE,
-  output      = tempdir()
+  output      = tmp,
+  path        = tmp
 )
 
 # Custom resource request
 htc_gen_submit(
   resources        = "custom",
   custom_resources = list(cpus = 2, memory = "8GB", disk = "4GB"),
-  output           = tempdir()
+  output           = tmp,
+  path             = tmp
 )
 
 \dontrun{
