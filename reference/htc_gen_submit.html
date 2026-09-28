@@ -278,8 +278,21 @@ falling back to the package default if none is found.</p>
 
     <div class="section level2">
     <h2 id="ref-examples">Examples<a class="anchor" aria-label="anchor" href="#ref-examples"></a></h2>
-    <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="co"># Single-job submit file with default resource preset</span></span></span>
-<span class="r-in"><span><span class="fu">htc_gen_submit</span><span class="op">(</span>output <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/tempfile.html" class="external-link">tempdir</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span></span>
+    <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="co"># output writes the generated .sub file; path is where the job manifest</span></span></span>
+<span class="r-in"><span><span class="co"># (htc-manifest.yaml) gets read from and written to. The two are</span></span></span>
+<span class="r-in"><span><span class="co"># independent arguments (see @param path), so both must point at the</span></span></span>
+<span class="r-in"><span><span class="co"># same scratch directory here to keep the manifest out of the current</span></span></span>
+<span class="r-in"><span><span class="co"># working directory.</span></span></span>
+<span class="r-in"><span><span class="va">tmp</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/tempfile.html" class="external-link">tempdir</a></span><span class="op">(</span><span class="op">)</span></span></span>
+<span class="r-in"><span></span></span>
+<span class="r-in"><span><span class="co"># Single-job submit file with default resource preset</span></span></span>
+<span class="r-in"><span><span class="fu">htc_gen_submit</span><span class="op">(</span>output <span class="op">=</span> <span class="va">tmp</span>, path <span class="op">=</span> <span class="va">tmp</span><span class="op">)</span></span></span>
+<span class="r-wrn co"><span class="r-pr">#&gt;</span> <span class="warning">Warning: </span>`r_script` (<span style="color: #0000BB;">"run-analysis.R"</span>) is not listed in `input_files`.</span>
+<span class="r-wrn co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">ℹ</span> The R script is not baked into the container image -- it must be</span>
+<span class="r-wrn co"><span class="r-pr">#&gt;</span>   transferred to the execute node as a job input file, or HTCondor</span>
+<span class="r-wrn co"><span class="r-pr">#&gt;</span>   will not find it there.</span>
+<span class="r-wrn co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">ℹ</span> Pass `input_files = "run-analysis.R"` (or add it alongside</span>
+<span class="r-wrn co"><span class="r-pr">#&gt;</span>   any other shared files).</span>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="co"># Single-job submit file with medium resources and file transfer</span></span></span>
 <span class="r-in"><span><span class="fu">htc_gen_submit</span><span class="op">(</span></span></span>
@@ -289,16 +302,31 @@ falling back to the package default if none is found.</p>
 <span class="r-in"><span>  r_script        <span class="op">=</span> <span class="st">"R/analysis.R"</span>,</span></span>
 <span class="r-in"><span>  input_files     <span class="op">=</span> <span class="st">"R/analysis.R"</span>,</span></span>
 <span class="r-in"><span>  resources       <span class="op">=</span> <span class="st">"medium"</span>,</span></span>
-<span class="r-in"><span>  output          <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/tempfile.html" class="external-link">tempdir</a></span><span class="op">(</span><span class="op">)</span></span></span>
+<span class="r-in"><span>  output          <span class="op">=</span> <span class="va">tmp</span>,</span></span>
+<span class="r-in"><span>  path            <span class="op">=</span> <span class="va">tmp</span></span></span>
 <span class="r-in"><span><span class="op">)</span></span></span>
+<span class="r-wrn co"><span class="r-pr">#&gt;</span> <span class="warning">Warning: </span>`executable` (<span style="color: #0000BB;">"analysis.sh"</span>) does not match the</span>
+<span class="r-wrn co"><span class="r-pr">#&gt;</span>   executable script name already recorded in the job</span>
+<span class="r-wrn co"><span class="r-pr">#&gt;</span>   manifest (<span style="color: #0000BB;">"run.sh"</span>).</span>
+<span class="r-wrn co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">ℹ</span> That name came from an earlier `htc_gen_executable()` call.</span>
+<span class="r-wrn co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">ℹ</span> If this is deliberate, ignore this warning -- the submit</span>
+<span class="r-wrn co"><span class="r-pr">#&gt;</span>   file will use <span style="color: #0000BB;">"analysis.sh"</span>. Otherwise, check that</span>
+<span class="r-wrn co"><span class="r-pr">#&gt;</span>   the two calls agree on the script's name.</span>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="co"># Annotated submit file useful for learning HTCondor syntax</span></span></span>
 <span class="r-in"><span><span class="fu">htc_gen_submit</span><span class="op">(</span></span></span>
 <span class="r-in"><span>  output_file <span class="op">=</span> <span class="st">"annotated.sub"</span>,</span></span>
 <span class="r-in"><span>  comments    <span class="op">=</span> <span class="cn">TRUE</span>,</span></span>
 <span class="r-in"><span>  verbose     <span class="op">=</span> <span class="cn">TRUE</span>,</span></span>
-<span class="r-in"><span>  output      <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/tempfile.html" class="external-link">tempdir</a></span><span class="op">(</span><span class="op">)</span></span></span>
+<span class="r-in"><span>  output      <span class="op">=</span> <span class="va">tmp</span>,</span></span>
+<span class="r-in"><span>  path        <span class="op">=</span> <span class="va">tmp</span></span></span>
 <span class="r-in"><span><span class="op">)</span></span></span>
+<span class="r-wrn co"><span class="r-pr">#&gt;</span> <span class="warning">Warning: </span>`r_script` (<span style="color: #0000BB;">"run-analysis.R"</span>) is not listed in `input_files`.</span>
+<span class="r-wrn co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">ℹ</span> The R script is not baked into the container image -- it must be</span>
+<span class="r-wrn co"><span class="r-pr">#&gt;</span>   transferred to the execute node as a job input file, or HTCondor</span>
+<span class="r-wrn co"><span class="r-pr">#&gt;</span>   will not find it there.</span>
+<span class="r-wrn co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">ℹ</span> Pass `input_files = "run-analysis.R"` (or add it alongside</span>
+<span class="r-wrn co"><span class="r-pr">#&gt;</span>   any other shared files).</span>
 <span class="r-msg co"><span class="r-pr">#&gt;</span> Writing submit file header</span>
 <span class="r-msg co"><span class="r-pr">#&gt;</span> Writing container section</span>
 <span class="r-msg co"><span class="r-pr">#&gt;</span> Writing executable section</span>
@@ -306,14 +334,21 @@ falling back to the package default if none is found.</p>
 <span class="r-msg co"><span class="r-pr">#&gt;</span> Writing logging section</span>
 <span class="r-msg co"><span class="r-pr">#&gt;</span> Writing resources section (small preset: 1 CPU / 4GB RAM / 4GB disk)</span>
 <span class="r-msg co"><span class="r-pr">#&gt;</span> Writing queue section (1 job)</span>
-<span class="r-msg co"><span class="r-pr">#&gt;</span> <span style="color: #00BB00;">✔</span> Submit file written to <span style="color: #0000BB;">/tmp/Rtmpye778X/annotated.sub</span></span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> <span style="color: #00BB00;">✔</span> Submit file written to <span style="color: #0000BB;">/tmp/RtmpTA4CG0/annotated.sub</span></span>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="co"># Custom resource request</span></span></span>
 <span class="r-in"><span><span class="fu">htc_gen_submit</span><span class="op">(</span></span></span>
 <span class="r-in"><span>  resources        <span class="op">=</span> <span class="st">"custom"</span>,</span></span>
 <span class="r-in"><span>  custom_resources <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>cpus <span class="op">=</span> <span class="fl">2</span>, memory <span class="op">=</span> <span class="st">"8GB"</span>, disk <span class="op">=</span> <span class="st">"4GB"</span><span class="op">)</span>,</span></span>
-<span class="r-in"><span>  output           <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/tempfile.html" class="external-link">tempdir</a></span><span class="op">(</span><span class="op">)</span></span></span>
+<span class="r-in"><span>  output           <span class="op">=</span> <span class="va">tmp</span>,</span></span>
+<span class="r-in"><span>  path             <span class="op">=</span> <span class="va">tmp</span></span></span>
 <span class="r-in"><span><span class="op">)</span></span></span>
+<span class="r-wrn co"><span class="r-pr">#&gt;</span> <span class="warning">Warning: </span>`r_script` (<span style="color: #0000BB;">"run-analysis.R"</span>) is not listed in `input_files`.</span>
+<span class="r-wrn co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">ℹ</span> The R script is not baked into the container image -- it must be</span>
+<span class="r-wrn co"><span class="r-pr">#&gt;</span>   transferred to the execute node as a job input file, or HTCondor</span>
+<span class="r-wrn co"><span class="r-pr">#&gt;</span>   will not find it there.</span>
+<span class="r-wrn co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">ℹ</span> Pass `input_files = "run-analysis.R"` (or add it alongside</span>
+<span class="r-wrn co"><span class="r-pr">#&gt;</span>   any other shared files).</span>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="kw">if</span> <span class="op">(</span><span class="cn">FALSE</span><span class="op">)</span> <span class="op">{</span> <span class="co"># \dontrun{</span></span></span>
 <span class="r-in"><span><span class="co"># Multiple-job submit file driven by a write_by_group() manifest</span></span></span>

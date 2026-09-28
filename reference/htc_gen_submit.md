@@ -251,8 +251,21 @@ back to the package default if none is found.
 ## Examples
 
 ``` r
+# output writes the generated .sub file; path is where the job manifest
+# (htc-manifest.yaml) gets read from and written to. The two are
+# independent arguments (see @param path), so both must point at the
+# same scratch directory here to keep the manifest out of the current
+# working directory.
+tmp <- tempdir()
+
 # Single-job submit file with default resource preset
-htc_gen_submit(output = tempdir())
+htc_gen_submit(output = tmp, path = tmp)
+#> Warning: `r_script` ("run-analysis.R") is not listed in `input_files`.
+#> ℹ The R script is not baked into the container image -- it must be
+#>   transferred to the execute node as a job input file, or HTCondor
+#>   will not find it there.
+#> ℹ Pass `input_files = "run-analysis.R"` (or add it alongside
+#>   any other shared files).
 
 # Single-job submit file with medium resources and file transfer
 htc_gen_submit(
@@ -262,16 +275,31 @@ htc_gen_submit(
   r_script        = "R/analysis.R",
   input_files     = "R/analysis.R",
   resources       = "medium",
-  output          = tempdir()
+  output          = tmp,
+  path            = tmp
 )
+#> Warning: `executable` ("analysis.sh") does not match the
+#>   executable script name already recorded in the job
+#>   manifest ("run.sh").
+#> ℹ That name came from an earlier `htc_gen_executable()` call.
+#> ℹ If this is deliberate, ignore this warning -- the submit
+#>   file will use "analysis.sh". Otherwise, check that
+#>   the two calls agree on the script's name.
 
 # Annotated submit file useful for learning HTCondor syntax
 htc_gen_submit(
   output_file = "annotated.sub",
   comments    = TRUE,
   verbose     = TRUE,
-  output      = tempdir()
+  output      = tmp,
+  path        = tmp
 )
+#> Warning: `r_script` ("run-analysis.R") is not listed in `input_files`.
+#> ℹ The R script is not baked into the container image -- it must be
+#>   transferred to the execute node as a job input file, or HTCondor
+#>   will not find it there.
+#> ℹ Pass `input_files = "run-analysis.R"` (or add it alongside
+#>   any other shared files).
 #> Writing submit file header
 #> Writing container section
 #> Writing executable section
@@ -279,14 +307,21 @@ htc_gen_submit(
 #> Writing logging section
 #> Writing resources section (small preset: 1 CPU / 4GB RAM / 4GB disk)
 #> Writing queue section (1 job)
-#> ✔ Submit file written to /tmp/Rtmpye778X/annotated.sub
+#> ✔ Submit file written to /tmp/RtmpTA4CG0/annotated.sub
 
 # Custom resource request
 htc_gen_submit(
   resources        = "custom",
   custom_resources = list(cpus = 2, memory = "8GB", disk = "4GB"),
-  output           = tempdir()
+  output           = tmp,
+  path             = tmp
 )
+#> Warning: `r_script` ("run-analysis.R") is not listed in `input_files`.
+#> ℹ The R script is not baked into the container image -- it must be
+#>   transferred to the execute node as a job input file, or HTCondor
+#>   will not find it there.
+#> ℹ Pass `input_files = "run-analysis.R"` (or add it alongside
+#>   any other shared files).
 
 if (FALSE) { # \dontrun{
 # Multiple-job submit file driven by a write_by_group() manifest

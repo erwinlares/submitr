@@ -102,9 +102,9 @@ whatever `toolero::save_output()`'s `.f` originally wrote it with.
 job_dir <- withr::local_tempdir()
 out_dir <- file.path(job_dir, "output")
 dir.create(out_dir)
-#> Warning: cannot create dir '/tmp/Rtmpye778X/file4a03515f02cd/output', reason 'No such file or directory'
+#> Warning: cannot create dir '/tmp/RtmpTA4CG0/file492c70a08eb5/output', reason 'No such file or directory'
 saveRDS(mtcars, file.path(out_dir, "mtcars.rds"))
-#> Warning: cannot open compressed file '/tmp/Rtmpye778X/file4a03515f02cd/output/mtcars.rds', probable reason 'No such file or directory'
+#> Warning: cannot open compressed file '/tmp/RtmpTA4CG0/file492c70a08eb5/output/mtcars.rds', probable reason 'No such file or directory'
 #> Error in gzfile(file, mode): cannot open the connection
 writeLines(
   jsonlite::toJSON(list(
@@ -118,7 +118,7 @@ writeLines(
   ), auto_unbox = TRUE),
   file.path(out_dir, "project-manifest.json")
 )
-#> Warning: cannot open file '/tmp/Rtmpye778X/file4a03515f02cd/output/project-manifest.json': No such file or directory
+#> Warning: cannot open file '/tmp/RtmpTA4CG0/file492c70a08eb5/output/project-manifest.json': No such file or directory
 #> Error in file(con, "w"): cannot open the connection
 
 local_path <- withr::local_tempdir()
@@ -133,7 +133,7 @@ results <- htc_collect(
   extract_dir = withr::local_tempdir()
 )
 #> Error in htc_collect(tarballs = c(analysis = file.path(local_path, "analysis-results.tar.gz")),     extract_dir = withr::local_tempdir()): 1 tarball not found:
-#> ✖ /tmp/Rtmpye778X/file4a036f1a6be/analysis-results.tar.gz
+#> ✖ /tmp/RtmpTA4CG0/file492c12adcaa5/analysis-results.tar.gz
 #> ℹ Run `htc_download()` first.
 results
 #> Error: object 'results' not found

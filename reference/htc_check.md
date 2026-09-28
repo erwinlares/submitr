@@ -125,7 +125,7 @@ htc_gen_submit(
   output          = tmp,
   path            = tmp
 )
-#> Error in htc_gen_submit(container_image = "registry.doit.wisc.edu/netid/myimage:latest",     resources = "small", output = tmp, path = tmp): Output directory /tmp/Rtmpye778X/file4a032142e2f9 does not exist.
+#> Error in htc_gen_submit(container_image = "registry.doit.wisc.edu/netid/myimage:latest",     resources = "small", output = tmp, path = tmp): Output directory /tmp/RtmpTA4CG0/file492c4e2da565 does not exist.
 htc_check(path = tmp)
 #> ℹ No `input_files` to check (none supplied or recorded).
 #> ℹ No `data_files` to check (none supplied or recorded).
