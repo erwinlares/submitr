@@ -245,6 +245,10 @@ test_that("log, err, and out are NA when the files were not downloaded", {
 })
 
 test_that("an empty results folder is indexed as zero files, without a warning", {
+    # R's internal tar records a directory only through the files inside it,
+    # so this tarball has no entries at all -- the form an empty results
+    # folder can take. The shell tar in a generated executable records the
+    # empty folder itself; both must index the same way.
     state      <- withr::local_tempdir()
     local_path <- withr::local_tempdir()
     .state_single(state)
@@ -261,6 +265,7 @@ test_that("an empty results folder is indexed as zero files, without a warning",
     expect_true(index$extracted)
     expect_identical(index$n_files, 0L)
     expect_identical(index$files[[1]], character(0))
+    expect_true(dir.exists(index$output_dir))
 })
 
 test_that("a tarball without the results folder is extracted, flagged, and warned about", {

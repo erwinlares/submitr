@@ -17,8 +17,8 @@ A tibble with columns \code{group_id} and \code{tarball} (a local path),
 possibly with zero rows.
 }
 \description{
-Internal helper used by \code{\link[=htc_collect]{htc_collect()}} to rebuild, from the job
-manifest, the same tarball names \code{\link[=htc_download]{htc_download()}} would have fetched into
+Internal helper used by \code{\link[=htc_collect]{htc_collect()}} to rebuild, from the submission
+state, the same tarball names \code{\link[=htc_download]{htc_download()}} would have fetched into
 \code{local_path} -- reusing \code{\link[=.tarball_name]{.tarball_name()}} so the naming stays in the one
 place the rest of the family already shares it (see that function's own
 docs for why three separate resolvers of this name would drift).

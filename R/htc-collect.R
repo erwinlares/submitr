@@ -166,6 +166,19 @@
 
     output_dir <- file.path(dest, results_folder)
 
+    # A job whose results folder was empty can come back as a tarball with
+    # no entries at all: some tar implementations, R's own included, record
+    # a directory only through the files inside it. An archive that
+    # extracted to nothing is that case, so it is indexed as an empty
+    # results folder rather than as a missing one.
+    extracted_nothing <- length(list.files(
+        dest, recursive = TRUE, all.files = TRUE, include.dirs = TRUE,
+        no.. = TRUE
+    )) == 0L
+    if (!dir.exists(output_dir) && extracted_nothing) {
+        dir.create(output_dir, recursive = TRUE)
+    }
+
     if (!dir.exists(output_dir)) {
         return(list(
             extracted  = TRUE,
