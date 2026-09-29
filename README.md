@@ -282,10 +282,15 @@ and as a learning document.
 so that the name matches the one `htc_gen_executable()` tells the job to
 build; pass `output_files` yourself if you want a different name. But your
 analysis script is not baked into the container image, so it still has to
-reach the execute node somehow -- list its basename in `input_files`, as
-above, so `htc_upload()` sends it and HTCondor transfers it alongside the
-executable. `htc_gen_submit()` warns if `r_script` is supplied but its
-basename is missing from `input_files`.
+reach the execute node somehow -- list it in `input_files`, as above, so
+`htc_upload()` sends it and HTCondor transfers it alongside the
+executable. Give `input_files` the paths as they are on your machine
+(`R/analysis.R`); `htc_upload()` needs those to find the files, and the
+submit file lists them by basename (`transfer_input_files = analysis.R`),
+since `htc_upload()` sends everything flat into one directory on the
+submit node. For the same reason, two input files that share a name
+(`R/utils.R` and `scripts/utils.R`) are an error. `htc_gen_submit()` also
+warns if `r_script` is supplied but missing from `input_files`.
 
 `executable` does not have to be typed here if you are about to call
 `htc_gen_executable()` next (or already have): the two generators share the
@@ -348,13 +353,20 @@ Only `output/` itself is created. If your analysis writes to `output/figures/`,
 the R script has to create that subfolder, which `toolero::save_output()` does
 and a bare `ggsave()` does not.
 
+If the R script fails, the job still packs `output/` and sends the tarball
+back, with whatever the analysis wrote before it stopped, and then exits
+with R's own exit status, so HTCondor still reports the job as failed. The
+reason is in that job's `.err` file, and the partial results are there to
+look at rather than lost. (Without this, a failed job would leave no tarball,
+and HTCondor would put it on hold for a missing output file instead.)
+
 Your analysis script is **not** baked into the container image. It travels to
 the execute node as an uploaded job input file, the same way `data.csv` would,
 so the generated script runs it by bare name (`Rscript analysis.R`) rather
 than by an absolute, in-container path. Because HTCondor's file transfer does
 not preserve subdirectories, `r_script = "R/analysis.R"` still resolves to
-`analysis.R` at the execute node -- see [the submission state](#the-submission-state)
-for how `input_files` on `htc_gen_submit()` has to name it. Data files passed
+`analysis.R` at the execute node, which is also the name `htc_gen_submit()`
+gives it in `transfer_input_files`. Data files passed
 via `data_files` are the opposite case: those are baked into the image under
 `home_dir` at build time, and the script reads them by absolute path.
 Editing your analysis script therefore only requires re-uploading it and
@@ -574,11 +586,13 @@ index[, c("group_id", "proc_id", "extracted", "n_files", "output_dir")]
 #> 3 gentoo          2 TRUE            2 ./gentoo/output
 ```
 
-A job that fails before packing its results sends no tarball back, so it
-shows up as a row with `extracted = FALSE` rather than stopping the
-collection, and `htc_collect()` warns once about all such jobs together. The
-`err` column points at that job's `.err` file, which usually says what went
-wrong:
+A job whose R script fails still sends its tarball back, holding whatever
+it wrote before it stopped (see `htc_gen_executable()` above). A job that
+never got that far -- the container did not start, or the job was removed
+-- sends nothing, so it shows up as a row with `extracted = FALSE` rather
+than stopping the collection, and `htc_collect()` warns once about all such
+jobs together. The `err` column points at that job's `.err` file, which
+usually says what went wrong:
 
 ```r
 lapply(index$err[!index$extracted], readLines)

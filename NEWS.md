@@ -1,4 +1,4 @@
-# submitr (development version)
+ # submitr (development version)
 
 ## Breaking changes
 
@@ -41,10 +41,10 @@
   rather than by an absolute, `home_dir`-prefixed path, because HTCondor's
   file transfer does not preserve subdirectories: a script listed in
   `transfer_input_files` always lands flat in the scratch directory. List
-  the script's basename in `input_files` when calling `htc_gen_submit()`,
-  and `htc_upload()` sends it along with everything else;
-  `htc_gen_submit()` warns when `r_script` is known but its basename is
-  missing from `input_files`. `data_files` are unaffected: they remain baked
+  the script in `input_files` when calling `htc_gen_submit()`, and
+  `htc_upload()` sends it along with everything else; `htc_gen_submit()`
+  warns when `r_script` is known but its basename is missing from
+  `input_files`. `data_files` are unaffected: they remain baked
   into the image under `home_dir` and are still read by absolute path.
   The practical benefit is that editing the analysis script now requires
   only re-uploading and resubmitting, not a container rebuild and registry
@@ -215,6 +215,25 @@
   platform.
 
 ## Bug fixes
+
+* `htc_gen_submit()` lists input files by basename in
+  `transfer_input_files`. `htc_upload()` sends every file flat into one
+  directory on the submit node, so `input_files = "R/analysis.R"` put a
+  path in the submit file that did not exist there, and the job failed
+  before it started. The submission state still records the paths as
+  given, which is how `htc_upload()` finds the files on this machine. Two
+  input files that share a basename (`R/utils.R` and `scripts/utils.R`)
+  would overwrite each other on the submit node, so they are now an error,
+  raised before anything is written.
+
+* The script `htc_gen_executable()` writes now packs the results folder
+  even when the R script fails, and then exits with R's own exit status.
+  Previously `set -euo pipefail` stopped the script at the failing
+  `Rscript` line, so no tarball was built: whatever the analysis had
+  written was lost, and HTCondor held the job for a missing
+  `transfer_output_files` entry rather than letting it finish. A failed job
+  now returns its partial results and is reported by HTCondor as failed,
+  not held.
 
 * `htc_gen_executable()` always writes `#!/bin/bash` as the first line of
   the generated script. With `comments = TRUE`, the shebang section's

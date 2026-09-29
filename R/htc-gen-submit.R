@@ -33,13 +33,19 @@
 #'   `input_files` or HTCondor will not send it to the execute node; this
 #'   function warns when it does not. Defaults to `NULL`.
 #' @param input_files A character vector. Files to transfer to the job's
-#'   working directory before execution, e.g. `c("analysis.R", "data.csv")`.
-#'   This must include the R script named by `r_script` (by basename) --
-#'   the script travels to the execute node as an uploaded input file, not
-#'   as part of the container image. In `"multiple"` mode, the per-job
-#'   subset file is added automatically from the job manifest; use this
-#'   argument for files shared across all jobs (e.g. the analysis script).
-#'   Defaults to `NULL`.
+#'   working directory before execution, given as paths on this machine,
+#'   e.g. `c("R/analysis.R", "data/lookup.csv")`. This must include the R
+#'   script named by `r_script` -- the script travels to the execute node
+#'   as an uploaded input file, not as part of the container image. The
+#'   submission state keeps the paths as given, which is how
+#'   [htc_upload()] finds the files; the submit file lists them by
+#'   basename (`transfer_input_files = analysis.R, lookup.csv`), because
+#'   [htc_upload()] sends every file flat into one directory on the submit
+#'   node and HTCondor transfers them flat to the execute node. Two files
+#'   that share a basename would overwrite each other there, so that is an
+#'   error. In `"multiple"` mode, the per-job subset file is added
+#'   automatically from the job manifest; use this argument for files
+#'   shared across all jobs (e.g. the analysis script). Defaults to `NULL`.
 #' @param output_files A character vector. Files to transfer back from the
 #'   job's working directory after execution. When not supplied, it is
 #'   derived from `r_script` following the family convention
@@ -234,6 +240,28 @@ htc_gen_submit <- function(output_file      = "job.sub",
         cli::cli_abort(
             "Output directory {.path {output}} does not exist."
         )
+    }
+
+    # -- 2a. Refuse input files that would collide once flattened ------------
+    # htc_upload() sends every file into one directory on the submit node,
+    # so R/utils.R and scripts/utils.R would overwrite each other there, and
+    # whichever landed second is the one every job would run. Checked before
+    # anything is written (subdatasets.csv included), so a rejected call
+    # leaves nothing behind.
+    if (!is.null(input_files)) {
+        input_basenames <- basename(input_files)
+        clashing        <- unique(input_basenames[duplicated(input_basenames)])
+        if (length(clashing) > 0L) {
+            clashing_paths <- input_files[input_basenames %in% clashing]
+            cli::cli_abort(c(
+                "{.arg input_files} has files that share a name: {.val {clashing}}.",
+                "x" = "From: {.path {clashing_paths}}.",
+                "i" = "{.fn htc_upload} sends files flat into one directory on the",
+                " " = "  submit node, and HTCondor transfers them flat to the execute",
+                " " = "  node, so files with the same name overwrite each other.",
+                "i" = "Rename one of them."
+            ))
+        }
     }
 
     # -- 2b. Prepend docker:// to container_image if missing -------------------
@@ -433,12 +461,15 @@ htc_gen_submit <- function(output_file      = "job.sub",
     }
 
     # -- 10. Resolve transfer lines based on mode ------------------------------
+    # Input files are listed by basename: htc_upload() sends them flat to
+    # the submit node, so R/analysis.R arrives there as analysis.R, and a
+    # path HTCondor cannot find there would stop the job before it starts.
     # In multiple mode, $(file) is the per-job variable HTCondor substitutes
     # from subdatasets.csv. Shared input files (e.g. analysis.R) are listed
     # alongside the per-job file.
     resolved_input_files <- if (mode == "multiple") {
         shared <- if (!is.null(input_files)) {
-            paste(input_files, collapse = ", ")
+            paste(basename(input_files), collapse = ", ")
         } else {
             NULL
         }
@@ -448,7 +479,7 @@ htc_gen_submit <- function(output_file      = "job.sub",
             "$(file)"
         }
     } else {
-        if (!is.null(input_files)) paste(input_files, collapse = ", ") else NULL
+        if (!is.null(input_files)) paste(basename(input_files), collapse = ", ") else NULL
     }
 
     # -- 10b. Resolve the results tarball name ---------------------------------

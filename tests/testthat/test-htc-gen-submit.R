@@ -542,7 +542,7 @@ test_that("htc_gen_submit() does not warn when r_script is NULL", {
     expect_no_warning(htc_gen_submit(output = tmp))
 })
 
-test_that("htc_gen_submit() falls back to the r_script in the job manifest", {
+test_that("htc_gen_submit() falls back to the r_script in the submission state", {
     tmp <- withr::local_tempdir()
     withr::local_dir(tmp)
     # As htc_gen_executable() would have recorded it on an earlier call.
@@ -554,7 +554,7 @@ test_that("htc_gen_submit() falls back to the r_script in the job manifest", {
                           lines, fixed = TRUE)))
 })
 
-test_that("htc_gen_submit() records the script stem in the manifest", {
+test_that("htc_gen_submit() records the script stem in the submission state", {
     tmp <- withr::local_tempdir()
     withr::local_dir(tmp)
     htc_gen_submit(r_script = "R/run-model.R", input_files = "R/run-model.R", output = tmp)
@@ -597,17 +597,17 @@ test_that("verbose = FALSE produces no messages", {
 })
 
 # ---------------------------------------------------------------------------
-# Job manifest recording
+# Submission state recording
 # ---------------------------------------------------------------------------
 
-test_that("htc_gen_submit() writes the job manifest to the output directory", {
+test_that("htc_gen_submit() writes the submission state to path", {
     tmp <- withr::local_tempdir()
     withr::local_dir(tmp)
     htc_gen_submit(output = tmp)
     expect_true(file.exists(file.path(tmp, "htc-manifest.yaml")))
 })
 
-test_that("htc_gen_submit() records the submit file and input files in the manifest", {
+test_that("htc_gen_submit() records the submit file and input files in the submission state", {
     tmp <- withr::local_tempdir()
     withr::local_dir(tmp)
     htc_gen_submit(
@@ -631,7 +631,7 @@ test_that("htc_gen_submit() records submit_path pointing at the written file", {
     expect_true(file.exists(m$submit_path))
 })
 
-test_that("htc_gen_submit() writes the manifest to path when it differs from output", {
+test_that("htc_gen_submit() writes the submission state to path when it differs from output", {
     out  <- withr::local_tempdir()
     proj <- withr::local_tempdir()
     htc_gen_submit(output = out, path = proj)
@@ -662,7 +662,7 @@ test_that("htc_gen_submit() does not record subdatasets_path or subset_files in 
     expect_null(m$subset_files)
 })
 
-test_that("htc_gen_submit() records container_image and resources in the manifest", {
+test_that("htc_gen_submit() records container_image and resources in the submission state", {
     tmp <- withr::local_tempdir()
     withr::local_dir(tmp)
     htc_gen_submit(
@@ -680,7 +680,7 @@ test_that("htc_gen_submit() records container_image and resources in the manifes
 })
 
 # ---------------------------------------------------------------------------
-# executable cross-defaulting from the job manifest (S-I3)
+# executable cross-defaulting from the submission state (S-I3)
 #
 # Same coordination problem as r_script/output_files above: htc_gen_submit()
 # and htc_gen_executable() both need to agree on the executable script's
@@ -712,7 +712,7 @@ test_that("htc_gen_submit() defaults executable from a prior htc_gen_executable(
     expect_true(any(grepl("executable = analysis.sh", lines, fixed = TRUE)))
 })
 
-test_that("explicit executable overrides the manifest silently when they agree", {
+test_that("explicit executable matching the submission state raises no warning", {
     tmp <- withr::local_tempdir()
     withr::local_dir(tmp)
     writeLines("# analysis", "analysis.R")
@@ -732,7 +732,7 @@ test_that("explicit executable overrides the manifest silently when they agree",
     )
 })
 
-test_that("htc_gen_submit() warns when executable disagrees with the manifest", {
+test_that("htc_gen_submit() warns when executable disagrees with the submission state", {
     tmp <- withr::local_tempdir()
     withr::local_dir(tmp)
     writeLines("# analysis", "analysis.R")
@@ -822,4 +822,88 @@ test_that("htc_gen_submit() still errors when mode = 'multiple' and neither queu
         htc_gen_submit(mode = "multiple", config = config, output = tmp),
         regexp = "queue_from"
     )
+})
+
+# ---------------------------------------------------------------------------
+# transfer_input_files lists files by basename (S28)
+#
+# htc_upload() sends every file flat into one directory on the submit node,
+# so a path like R/analysis.R does not exist there. The submit file names
+# each input by basename; the submission state keeps the local path, which
+# is what htc_upload() needs to find the file on this machine.
+# ---------------------------------------------------------------------------
+
+test_that("single mode lists input files by basename in transfer_input_files", {
+    tmp <- withr::local_tempdir()
+    withr::local_dir(tmp)
+    htc_gen_submit(
+        r_script    = "R/analysis.R",
+        input_files = c("R/analysis.R", "data/lookup.csv"),
+        output      = tmp
+    )
+    lines <- read_subfile(tmp)
+
+    expect_true(any(lines == "transfer_input_files = analysis.R, lookup.csv"))
+    expect_false(any(grepl("R/analysis.R", lines, fixed = TRUE)))
+})
+
+test_that("multiple mode lists shared input files by basename before $(file)", {
+    tmp      <- withr::local_tempdir()
+    withr::local_dir(tmp)
+    manifest <- .write_manifest(tmp, filenames = "adelie.csv")
+    htc_gen_submit(
+        mode        = "multiple",
+        queue_from  = manifest,
+        r_script    = "R/analysis.R",
+        input_files = "R/analysis.R",
+        output      = tmp
+    )
+    lines <- read_subfile(tmp)
+
+    expect_true(any(lines == "transfer_input_files = analysis.R, $(file)"))
+})
+
+test_that("the submission state keeps input files as local paths", {
+    tmp <- withr::local_tempdir()
+    withr::local_dir(tmp)
+    htc_gen_submit(
+        r_script    = "R/analysis.R",
+        input_files = c("R/analysis.R", "data/lookup.csv"),
+        output      = tmp
+    )
+    m <- .get_manifest(path = tmp)
+
+    expect_equal(m$input_files, c("R/analysis.R", "data/lookup.csv"))
+})
+
+test_that("input files that share a basename are an error", {
+    tmp <- withr::local_tempdir()
+    withr::local_dir(tmp)
+
+    expect_error(
+        htc_gen_submit(
+            input_files = c("R/utils.R", "scripts/utils.R"),
+            output      = tmp
+        ),
+        regexp = "share a name"
+    )
+})
+
+test_that("a basename clash is caught before anything is written", {
+    tmp      <- withr::local_tempdir()
+    withr::local_dir(tmp)
+    manifest <- .write_manifest(tmp, filenames = "adelie.csv")
+
+    expect_error(
+        htc_gen_submit(
+            mode        = "multiple",
+            queue_from  = manifest,
+            input_files = c("R/utils.R", "scripts/utils.R"),
+            output      = tmp
+        ),
+        regexp = "share a name"
+    )
+    expect_false(file.exists(file.path(tmp, "subdatasets.csv")))
+    expect_false(file.exists(file.path(tmp, "job.sub")))
+    expect_false(file.exists(file.path(tmp, "htc-manifest.yaml")))
 })

@@ -1,7 +1,7 @@
 # tests/testthat/test-htc-upload.R
 
 # ---------------------------------------------------------------------------
-# Layer 1 — Argument validation
+# Layer 1 -- Argument validation
 # ---------------------------------------------------------------------------
 
 test_that("htc_upload() errors when config is NULL", {
@@ -64,7 +64,7 @@ test_that("htc_upload() errors when a file does not exist", {
 })
 
 # ---------------------------------------------------------------------------
-# Layer 2 — Command construction via dry_run
+# Layer 2 -- Command construction via dry_run
 # ---------------------------------------------------------------------------
 
 test_that("htc_upload() dry_run produces scp command", {
@@ -150,7 +150,7 @@ test_that("htc_upload() dry_run returns invisible NULL", {
 })
 
 # ---------------------------------------------------------------------------
-# Layer 2b — job manifest recording (S-I1)
+# Layer 2b -- submission state recording (S-I1)
 # ---------------------------------------------------------------------------
 
 .mock_scp_success <- function() {
@@ -213,7 +213,7 @@ test_that("htc_upload() explicit remote_path overrides the value in the manifest
 })
 
 # ---------------------------------------------------------------------------
-# Layer 2c — preflight check integration (S-G4)
+# Layer 2c -- preflight check integration (S-G4)
 # ---------------------------------------------------------------------------
 
 test_that("htc_upload() aborts before uploading when check = TRUE finds an error", {
@@ -273,13 +273,13 @@ test_that("htc_upload() does not run the preflight check when check = FALSE (def
 })
 
 # ---------------------------------------------------------------------------
-# Layer 3 — Integration (requires live CHTC connection)
+# Layer 3 -- Integration (requires live CHTC connection)
 # ---------------------------------------------------------------------------
 
 test_that("htc_upload() copies a file to the submit node", {
     skip_if_not(
         nchar(Sys.getenv("CHTC_USERNAME")) > 0,
-        "CHTC_USERNAME not set — skipping integration test"
+        "CHTC_USERNAME not set -- skipping integration test"
     )
     tmp <- withr::local_tempdir()
     f   <- file.path(tmp, "test-upload.txt")

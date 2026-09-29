@@ -1,7 +1,7 @@
 # tests/testthat/test-htc-config.R
 
 # ---------------------------------------------------------------------------
-# Layer 1 — Argument validation
+# Layer 1 -- Argument validation
 # ---------------------------------------------------------------------------
 
 test_that("htc_config() errors when username is empty string in non-interactive mode", {
@@ -23,7 +23,7 @@ test_that("htc_config() errors when server is empty string in non-interactive mo
 })
 
 # ---------------------------------------------------------------------------
-# Layer 2 — File creation and reading
+# Layer 2 -- File creation and reading
 # ---------------------------------------------------------------------------
 
 test_that("htc_config() creates htc.cfg when username and server are supplied", {
@@ -411,13 +411,13 @@ test_that("project_config warns on an unrecognized schema_version but still pars
 })
 
 # ---------------------------------------------------------------------------
-# Layer 3 — Integration (requires live htc.cfg and CHTC connection)
+# Layer 3 -- Integration (requires live htc.cfg and CHTC connection)
 # ---------------------------------------------------------------------------
 
 test_that("htc_config() connects to a live CHTC server", {
     skip_if_not(
         file.exists("htc.cfg"),
-        "htc.cfg not found — skipping live connection test"
+        "htc.cfg not found -- skipping live connection test"
     )
     result <- htc_config()
     expect_type(result, "list")

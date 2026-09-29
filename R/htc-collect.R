@@ -221,9 +221,12 @@
 #'
 #' A job whose tarball is missing, or will not extract, still gets a row,
 #' with `extracted = FALSE`, and the collection carries on with the other
-#' jobs. A job that fails before packing its results sends nothing back, so
-#' a missing tarball usually means a failed job; its `.err` file, in the
-#' `err` column when it was downloaded, is the place to look.
+#' jobs. A job whose R script fails still sends its tarball back (see
+#' [htc_gen_executable()]), so a missing tarball means the job stopped
+#' before it got that far: the container did not start, a file it needed
+#' was not transferred, or the job was removed. Its `.err` and `.log`
+#' files, in the `err` and `log` columns when they were downloaded, are the
+#' place to look.
 #'
 #' @param tarballs A named character vector or `NULL`. Local tarball paths
 #'   to collect, with names giving each one's group id. When `NULL` (the
@@ -423,9 +426,10 @@ htc_collect <- function(tarballs    = NULL,
             "!" = "{n_failed} of {n_jobs} tarball{?s} could not be collected.",
             if (length(missing) > 0L) c("x" = "Not found: {.file {missing}}"),
             if (length(unreadable) > 0L) c("x" = "Could not be extracted: {.file {unreadable}}"),
-            "i" = "Those rows have {.code extracted = FALSE}. A job that fails before",
-            " " = "  packing its results sends back no tarball; its {.file .err}",
-            " " = "  file (the {.field err} column, once downloaded) usually says why.",
+            "i" = "Those rows have {.code extracted = FALSE}. A job that stops before",
+            " " = "  packing its results sends back no tarball; its {.file .err} and",
+            " " = "  {.file .log} files (the {.field err} and {.field log} columns, once",
+            " " = "  downloaded) usually say why.",
             "i" = "If the jobs have not finished downloading, run {.fn htc_download} first."
         ))
     }

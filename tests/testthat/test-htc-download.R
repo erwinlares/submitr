@@ -1,7 +1,7 @@
 # tests/testthat/test-htc-download.R
 
 # ---------------------------------------------------------------------------
-# Layer 1 — Argument validation
+# Layer 1 -- Argument validation
 # ---------------------------------------------------------------------------
 
 test_that("htc_download() errors when config is NULL", {
@@ -61,7 +61,7 @@ test_that("htc_download() errors when local_path does not exist", {
 })
 
 # ---------------------------------------------------------------------------
-# Layer 2 — Command construction via dry_run (plain filenames)
+# Layer 2 -- Command construction via dry_run (plain filenames)
 # ---------------------------------------------------------------------------
 
 test_that("htc_download() dry_run produces scp command for plain filename", {
@@ -136,7 +136,7 @@ test_that("htc_download() dry_run reflects custom remote_path", {
 })
 
 # ---------------------------------------------------------------------------
-# Layer 2 — Command construction via dry_run (glob patterns)
+# Layer 2 -- Command construction via dry_run (glob patterns)
 # ---------------------------------------------------------------------------
 
 test_that("htc_download() dry_run single-quotes glob pattern", {
@@ -213,13 +213,13 @@ test_that("htc_download() dry_run returns invisible NULL", {
 })
 
 # ---------------------------------------------------------------------------
-# Layer 3 — Integration (requires live CHTC connection)
+# Layer 3 -- Integration (requires live CHTC connection)
 # ---------------------------------------------------------------------------
 
 test_that("htc_download() retrieves a file from the submit node", {
     skip_if_not(
         nchar(Sys.getenv("CHTC_USERNAME")) > 0,
-        "CHTC_USERNAME not set — skipping integration test"
+        "CHTC_USERNAME not set -- skipping integration test"
     )
     cfg <- list(
         username = Sys.getenv("CHTC_USERNAME"),

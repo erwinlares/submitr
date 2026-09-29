@@ -550,13 +550,13 @@ test_that("set_executable = TRUE is the default", {
 # Job manifest recording
 # ---------------------------------------------------------------------------
 
-test_that("htc_gen_executable() writes the job manifest to path", {
+test_that("htc_gen_executable() writes the submission state to path", {
     tmp <- withr::local_tempdir()
     htc_gen_executable(r_script = "analysis.R", output = tmp, path = tmp)
     expect_true(file.exists(file.path(tmp, "htc-manifest.yaml")))
 })
 
-test_that("htc_gen_executable() records the executable file in the manifest", {
+test_that("htc_gen_executable() records the executable file in the submission state", {
     tmp <- withr::local_tempdir()
     htc_gen_executable(
         r_script    = "analysis.R",
@@ -593,7 +593,7 @@ test_that("htc_gen_executable() defaults path to the working directory, independ
     expect_false(file.exists(file.path(out, "htc-manifest.yaml")))
 })
 
-test_that("htc_gen_executable() writes the manifest to an explicit path, independent of output", {
+test_that("htc_gen_executable() writes the submission state to an explicit path, independent of output", {
     out  <- withr::local_tempdir()
     proj <- withr::local_tempdir()
     htc_gen_executable(r_script = "analysis.R", output = out, path = proj)
@@ -616,7 +616,7 @@ test_that("htc_gen_executable() defaults output_file from a prior htc_gen_submit
     expect_false(file.exists(file.path(tmp, "job.sh")))
 })
 
-test_that("htc_gen_executable() explicit output_file overrides the manifest silently when they agree", {
+test_that("htc_gen_executable() explicit output_file matching the submission state raises no warning", {
     tmp <- withr::local_tempdir()
     withr::local_dir(tmp)
     htc_gen_submit(executable = "analysis.sh", output = tmp)
@@ -626,7 +626,7 @@ test_that("htc_gen_executable() explicit output_file overrides the manifest sile
     )
 })
 
-test_that("htc_gen_executable() warns when output_file disagrees with the manifest", {
+test_that("htc_gen_executable() warns when output_file disagrees with the submission state", {
     tmp <- withr::local_tempdir()
     withr::local_dir(tmp)
     htc_gen_submit(executable = "analysis.sh", output = tmp)
@@ -677,7 +677,7 @@ test_that("htc_gen_executable() explicit results_folder overrides config", {
     expect_true(any(grepl("mkdir -p out", lines, fixed = TRUE)))
 })
 
-test_that("htc_gen_executable() records data_files in the job manifest", {
+test_that("htc_gen_executable() records data_files in the submission state", {
     tmp <- withr::local_tempdir()
     htc_gen_executable(
         r_script   = "analysis.R",
@@ -687,4 +687,107 @@ test_that("htc_gen_executable() records data_files in the job manifest", {
     )
     m <- .get_manifest(path = tmp)
     expect_equal(m$data_files, "data-raw/sample.csv")
+})
+
+# ---------------------------------------------------------------------------
+# A failed R script still packs its results (S28)
+#
+# The Rscript line is bracketed by set +e and set -e so that its exit status
+# is recorded rather than fatal; the tarball is built either way and the
+# script exits with R's own status.
+# ---------------------------------------------------------------------------
+
+test_that("the Rscript line is bracketed so its exit status is kept", {
+    tmp <- withr::local_tempdir()
+    withr::local_dir(tmp)
+    htc_gen_executable(r_script = "analysis.R", output = tmp)
+    lines <- read_script(tmp)
+
+    pos_off     <- which(lines == "set +e")
+    pos_rscript <- which(grepl("^Rscript", lines))
+    pos_status  <- which(lines == "status=$?")
+    pos_on      <- which(lines == "set -e")
+    pos_tar     <- which(grepl("^tar", lines))
+
+    expect_length(pos_off, 1L)
+    expect_identical(pos_rscript, pos_off + 1L)
+    expect_identical(pos_status, pos_rscript + 1L)
+    expect_identical(pos_on, pos_status + 1L)
+    expect_true(pos_on < pos_tar)
+})
+
+test_that("the script ends by exiting with the R script's status", {
+    tmp <- withr::local_tempdir()
+    withr::local_dir(tmp)
+    htc_gen_executable(r_script = "analysis.R", mode = "multiple", output = tmp)
+    lines <- read_script(tmp)
+    lines <- lines[nzchar(lines)]
+
+    expect_equal(lines[[length(lines)]], 'exit "$status"')
+})
+
+# Runs a generated script under bash with a stand-in Rscript on PATH, so the
+# shell logic is exercised without R or HTCondor on the other end.
+.run_generated_script <- function(script_dir, script_name, r_exit_code, args = character(0)) {
+    bin <- withr::local_tempdir(.local_envir = parent.frame())
+    fake_rscript <- file.path(bin, "Rscript")
+    writeLines(c(
+        "#!/bin/sh",
+        "echo partial > output/partial.txt",
+        paste("exit", r_exit_code)
+    ), fake_rscript)
+    Sys.chmod(fake_rscript, mode = "0755")
+
+    withr::local_envvar(c(
+        PATH                 = paste(bin, Sys.getenv("PATH"), sep = .Platform$path.sep),
+        `_CONDOR_SCRATCH_DIR` = script_dir
+    ))
+    system2("bash", c(file.path(script_dir, script_name), args),
+            stdout = FALSE, stderr = FALSE)
+}
+
+test_that("a failing R script still produces the tarball, and the job exits non-zero", {
+    skip_on_os("windows")
+    skip_if(!nzchar(Sys.which("bash")), "bash is not available")
+    skip_if(!nzchar(Sys.which("tar")), "tar is not available")
+
+    tmp <- withr::local_tempdir()
+    htc_gen_executable(r_script = "R/analysis.R", output = tmp, path = tmp)
+
+    status <- .run_generated_script(tmp, "job.sh", r_exit_code = 3)
+
+    tarball <- file.path(tmp, "analysis-results.tar.gz")
+    expect_equal(status, 3)
+    expect_true(file.exists(tarball))
+    expect_true("output/partial.txt" %in% utils::untar(tarball, list = TRUE))
+})
+
+test_that("a succeeding R script produces the tarball and exits zero", {
+    skip_on_os("windows")
+    skip_if(!nzchar(Sys.which("bash")), "bash is not available")
+    skip_if(!nzchar(Sys.which("tar")), "tar is not available")
+
+    tmp <- withr::local_tempdir()
+    htc_gen_executable(r_script = "R/analysis.R", output = tmp, path = tmp)
+
+    status <- .run_generated_script(tmp, "job.sh", r_exit_code = 0)
+
+    expect_equal(status, 0)
+    expect_true(file.exists(file.path(tmp, "analysis-results.tar.gz")))
+})
+
+test_that("a failing multiple-mode job packs its per-subset tarball", {
+    skip_on_os("windows")
+    skip_if(!nzchar(Sys.which("bash")), "bash is not available")
+    skip_if(!nzchar(Sys.which("tar")), "tar is not available")
+
+    tmp <- withr::local_tempdir()
+    htc_gen_executable(r_script = "R/analysis.R", mode = "multiple",
+                       output = tmp, path = tmp)
+
+    status <- .run_generated_script(tmp, "job.sh", r_exit_code = 1,
+                                    args = "adelie.csv")
+
+    expect_equal(status, 1)
+    expect_true(file.exists(file.path(tmp, "analysis-adelie-results.tar.gz")))
 })
