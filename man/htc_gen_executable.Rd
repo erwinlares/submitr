@@ -22,12 +22,12 @@ htc_gen_executable(
 \arguments{
 \item{output_file}{A character string or \code{NULL}. Name of the shell script
 to write. Must end in \code{".sh"}. When \code{NULL} (the default), resolves to
-the \code{executable_file} recorded in the job manifest by a previous
+the \code{executable_file} recorded in the submission state by a previous
 \code{\link[=htc_gen_submit]{htc_gen_submit()}} call (S-I3), so the name only has to be typed once
 regardless of which of the two generators runs first. Falls back to
-\code{"job.sh"} if neither an explicit value nor a manifest value is
+\code{"job.sh"} if neither an explicit value nor a submission-state value is
 available. If the resolved value disagrees with an \code{executable_file}
-already in the manifest, warns rather than silently preferring one
+already in the submission state, warns rather than silently preferring one
 over the other.}
 
 \item{r_script}{A character string. Name of the R script that HTCondor
@@ -101,13 +101,13 @@ default). When supplied with a \code{project} element (via
 is used to default \code{results_folder} (S-G5). Not required -- everything
 here can still be passed explicitly.}
 
-\item{path}{A character string. Directory where the job manifest
+\item{path}{A character string. Directory where the submission state
 (\code{htc-manifest.yaml}) is read from and written to. Defaults to \code{"."}
 (the current working directory), matching the default used by
 \code{\link[=htc_upload]{htc_upload()}}, \code{\link[=htc_submit]{htc_submit()}}, and \code{\link[=htc_download]{htc_download()}}. This is
 independent of \code{output}: if you write generated files to a subfolder
 with \code{output}, pass the same \code{path} explicitly to every function in
-the pipeline so they all find the same manifest.}
+the pipeline so they all find the same submission state.}
 }
 \value{
 Called for its side effects. Writes a bash script to
@@ -177,10 +177,10 @@ input_file <- switch(context,
 }
 
 \examples{
-# output writes the generated .sh file; path is where the job manifest
+# output writes the generated .sh file; path is where the submission state
 # (htc-manifest.yaml) gets read from and written to. The two are
 # independent arguments (see @param path), so both must point at the
-# same scratch directory here to keep the manifest out of the current
+# same scratch directory here to keep the submission state out of the current
 # working directory.
 tmp <- tempdir()
 

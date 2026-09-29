@@ -18,10 +18,10 @@ htc_status(
 \arguments{
 \item{cluster_id}{An integer, character string, or \code{NULL}. The cluster ID
 returned by \code{\link[=htc_submit]{htc_submit()}}, e.g. \code{6302860}. When \code{NULL} (the default),
-resolves to the cluster ID recorded in the job manifest by the most
-recent \code{\link[=htc_submit]{htc_submit()}} call; if no manifest value is available either,
+resolves to the cluster ID recorded in the submission state by the most
+recent \code{\link[=htc_submit]{htc_submit()}} call; if the submission state holds no value either,
 shows all of your jobs currently in the queue instead. Required
-(directly or via the manifest) when \code{watch = TRUE}.}
+(directly or via the submission state) when \code{watch = TRUE}.}
 
 \item{config}{A named list as returned by \code{\link[=htc_config]{htc_config()}}. Must contain
 \code{username} and \code{server}. If \code{NULL} (the default), uses the session
@@ -41,7 +41,7 @@ executed without running it. Defaults to \code{FALSE}.}
 \item{verbose}{Logical. If \code{TRUE}, prints progress messages. Defaults to
 \code{FALSE}.}
 
-\item{path}{A character string. Directory holding the job manifest
+\item{path}{A character string. Directory holding the submission state
 (\code{htc-manifest.yaml}), consulted only when \code{cluster_id} is \code{NULL}.
 Defaults to \code{"."}, matching the default used by \code{\link[=htc_upload]{htc_upload()}},
 \code{\link[=htc_submit]{htc_submit()}}, and \code{\link[=htc_download]{htc_download()}}. If you passed a non-default

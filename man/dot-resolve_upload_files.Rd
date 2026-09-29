@@ -2,7 +2,7 @@
 % Please edit documentation in R/htc-upload.R
 \name{.resolve_upload_files}
 \alias{.resolve_upload_files}
-\title{Resolve files to upload from the job manifest}
+\title{Resolve files to upload from the submission state}
 \usage{
 .resolve_upload_files(manifest)
 }
@@ -14,10 +14,10 @@ A character vector of local file paths to upload, possibly empty.
 }
 \description{
 Internal helper used by \code{htc_upload()} when \code{files = NULL}. Builds the
-list of local files to copy to the submit node from the job manifest
+list of local files to copy to the submit node from the submission state
 accumulated by \code{\link[=htc_gen_submit]{htc_gen_submit()}} and \code{\link[=htc_gen_executable]{htc_gen_executable()}}: the submit
 file, the executable script, any shared input files, and -- in
-\code{"multiple"} mode -- the subdatasets manifest and the individual subset
+\code{"multiple"} mode -- \code{subdatasets.csv} and the individual subset
 data files.
 }
 \details{

@@ -16,7 +16,7 @@ htc_cancel(
 \arguments{
 \item{cluster_id}{An integer, character string, or \code{NULL}. The cluster ID
 to remove, e.g. \code{6302860}. When \code{NULL} (the default), resolves to the
-cluster ID recorded in the job manifest by the most recent
+cluster ID recorded in the submission state by the most recent
 \code{\link[=htc_submit]{htc_submit()}} call. Unlike \code{\link[=htc_status]{htc_status()}}, \code{htc_cancel()} never falls
 back to "all of my jobs": a bare \code{condor_rm} with no arguments removes
 every job you have queued on the submit node, not just the ones from
@@ -39,7 +39,7 @@ executed without running it. Defaults to \code{FALSE}.}
 \item{verbose}{Logical. If \code{TRUE}, prints progress messages. Defaults to
 \code{FALSE}.}
 
-\item{path}{A character string. Directory holding the job manifest
+\item{path}{A character string. Directory holding the submission state
 (\code{htc-manifest.yaml}), consulted only when \code{cluster_id} is \code{NULL}.
 Defaults to \code{"."}, matching the default used elsewhere in the family.}
 }

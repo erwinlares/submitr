@@ -2,7 +2,7 @@
 % Please edit documentation in R/htc-helpers.R
 \name{.get_manifest}
 \alias{.get_manifest}
-\title{Retrieve the current job manifest}
+\title{Retrieve the current submission state}
 \usage{
 .get_manifest(path = ".")
 }
@@ -15,8 +15,8 @@ directory).}
 A named list or \code{NULL}.
 }
 \description{
-Internal helper that reads the accumulated job manifest from
-\code{htc-manifest.yaml} in \code{path}. Returns \code{NULL} if no manifest file
+Internal helper that reads the accumulated submission state from
+\code{htc-manifest.yaml} in \code{path}. Returns \code{NULL} if no \code{htc-manifest.yaml}
 exists yet.
 }
 \details{

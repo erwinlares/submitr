@@ -19,20 +19,20 @@ htc_download(
 \item{files}{A character vector or \code{NULL}. One or more filenames or glob
 patterns to download from \code{remote_path} on the submit node. Examples:
 \code{"results.tar.gz"}, \code{c("job.log", "job.err")}, \code{"*.tar.gz"}. When
-\code{NULL}, the function uses \code{cluster_id} and the job manifest to
+\code{NULL}, the function uses \code{cluster_id} and the submission state to
 determine which files to download. Defaults to \code{NULL}.}
 
 \item{cluster_id}{A character string or \code{NULL}. The cluster ID returned
 by \code{\link[=htc_submit]{htc_submit()}}. When supplied without \code{files}, the function
-constructs the file list from the job manifest. When \code{NULL}, falls
-back to the most recently submitted cluster ID stored in the manifest.
+constructs the file list from the submission state. When \code{NULL}, falls
+back to the most recently submitted cluster ID stored in the submission state.
 Defaults to \code{NULL}.}
 
 \item{remote_path}{A character string or \code{NULL}. The directory on the
 submit node where the files are located. When \code{NULL} (the default),
-resolves to the \code{remote_path} recorded in the job manifest by the
-preceding call to \code{\link[=htc_submit]{htc_submit()}}, falling back to \code{"~/"} if no manifest
-value is available. Should match the \code{remote_path} used in
+resolves to the \code{remote_path} recorded in the submission state by the
+preceding call to \code{\link[=htc_submit]{htc_submit()}}, falling back to \code{"~/"} if the submission state
+holds no value. Should match the \code{remote_path} used in
 \code{\link[=htc_upload]{htc_upload()}} and \code{\link[=htc_submit]{htc_submit()}}.}
 
 \item{local_path}{A character string. The local directory where downloaded
@@ -49,7 +49,7 @@ executed without running it. Defaults to \code{FALSE}.}
 \item{verbose}{Logical. If \code{TRUE}, prints progress messages. Defaults to
 \code{FALSE}.}
 
-\item{path}{A character string. Directory holding the job manifest
+\item{path}{A character string. Directory holding the submission state
 (\code{htc-manifest.yaml}). This is where the function looks for job
 metadata; it is not where downloaded files are written, which is
 \code{local_path}. Defaults to \code{"."}. If you passed a non-default \code{output}
@@ -67,11 +67,11 @@ have completed.
 }
 \details{
 When \code{cluster_id} is supplied without \code{files}, the function uses the
-job manifest built up by \code{\link[=htc_gen_submit]{htc_gen_submit()}}, \code{\link[=htc_gen_executable]{htc_gen_executable()}},
+submission state built up by \code{\link[=htc_gen_submit]{htc_gen_submit()}}, \code{\link[=htc_gen_executable]{htc_gen_executable()}},
 and \code{\link[=htc_submit]{htc_submit()}} to determine which files to download. For single-mode
 jobs, this includes the results tarball and the log, error, and output
 files. For multiple-mode jobs, the function reads the subset names from
-the manifest and constructs per-job tarball names and per-process log
+the submission state and constructs per-job tarball names and per-process log
 file patterns.
 
 Glob patterns such as \code{"*.tar.gz"} are supported when using the \code{files}
@@ -80,7 +80,7 @@ argument and are evaluated on the remote server, not locally.
 \section{Automatic file resolution}{
 
 When \code{files} is \code{NULL}, the function resolves the file list from the
-job manifest. The manifest is built automatically as you call
+submission state. The submission state is built automatically as you call
 \code{\link[=htc_gen_submit]{htc_gen_submit()}}, \code{\link[=htc_gen_executable]{htc_gen_executable()}}, and \code{\link[=htc_submit]{htc_submit()}} during
 the normal workflow. No extra steps are needed.
 
@@ -102,7 +102,7 @@ For a multiple-mode job:
 \code{htc_download()} is the final system-facing step in the submitr workflow.
 Call it after \code{\link[=htc_status]{htc_status()}} confirms all jobs have completed.
 
-\if{html}{\out{<div class="sourceCode r">}}\preformatted{# Automatic: uses the job manifest to determine what to download
+\if{html}{\out{<div class="sourceCode r">}}\preformatted{# Automatic: uses the submission state to determine what to download
 htc_start()
 htc_gen_submit(...)
 htc_gen_executable(...)

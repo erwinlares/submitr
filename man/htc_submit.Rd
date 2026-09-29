@@ -16,15 +16,15 @@ htc_submit(
 \arguments{
 \item{submit_file}{A character string or \code{NULL}. Name of the submit file
 on the remote node, e.g. \code{"job.sub"}. Must end in \code{".sub"}. When \code{NULL}
-(the default), resolves to the \code{submit_file} recorded in the job
-manifest by \code{\link[=htc_gen_submit]{htc_gen_submit()}}, falling back to \code{"job.sub"} if no
-manifest value is available.}
+(the default), resolves to the \code{submit_file} recorded in the submission
+state by \code{\link[=htc_gen_submit]{htc_gen_submit()}}, falling back to \code{"job.sub"} if the
+submission state holds no value.}
 
 \item{remote_path}{A character string or \code{NULL}. The directory on the
 submit node where the submit file was uploaded. When \code{NULL} (the
-default), resolves to the \code{remote_path} recorded in the job manifest by
-the preceding call to \code{\link[=htc_upload]{htc_upload()}}, falling back to \code{"~/"} if no
-manifest value is available.}
+default), resolves to the \code{remote_path} recorded in the submission state by
+the preceding call to \code{\link[=htc_upload]{htc_upload()}}, falling back to \code{"~/"} if the
+submission state holds no value.}
 
 \item{config}{A named list as returned by \code{\link[=htc_config]{htc_config()}}. Must contain
 \code{username} and \code{server}. If \code{NULL} (the default), uses the session
@@ -38,12 +38,12 @@ submitting. Defaults to \code{FALSE}.}
 \item{verbose}{Logical. If \code{TRUE}, prints progress messages and the
 \code{condor_submit} output. Defaults to \code{FALSE}.}
 
-\item{path}{A character string. Directory holding the job manifest
+\item{path}{A character string. Directory holding the submission state
 (\code{htc-manifest.yaml}), where the cluster ID and \code{remote_path} are
 recorded on a successful submission. Defaults to \code{"."}. If you passed a
 non-default \code{output} or \code{path} to \code{\link[=htc_gen_submit]{htc_gen_submit()}}, pass that same
 directory here, or the cluster ID will be written to a second, separate
-manifest and \code{\link[=htc_download]{htc_download()}} will not find it alongside the job
+\code{htc-manifest.yaml} and \code{\link[=htc_download]{htc_download()}} will not find it alongside the job
 metadata it needs.}
 }
 \value{

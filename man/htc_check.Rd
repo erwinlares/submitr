@@ -17,29 +17,29 @@ htc_check(
 \item{container_image}{A character string or \code{NULL}. The container image
 reference to check, e.g. \code{"registry.doit.wisc.edu/netid/myimage:1.0.0"}.
 When \code{NULL} (the default), resolves to the \code{container_image} recorded
-in the job manifest by \code{\link[=htc_gen_submit]{htc_gen_submit()}}. When still \code{NULL}, image
+in the submission state by \code{\link[=htc_gen_submit]{htc_gen_submit()}}. When still \code{NULL}, image
 checks are skipped.}
 
 \item{input_files}{A character vector or \code{NULL}. Local paths that are
 expected to exist before upload -- normally the same value passed to
 \code{\link[=htc_gen_submit]{htc_gen_submit()}}. When \code{NULL} (the default), resolves to
-\code{input_files} recorded in the manifest.}
+\code{input_files} recorded in the submission state.}
 
 \item{data_files}{A character vector or \code{NULL}. Local paths to data files
 expected to exist before a container image bakes them in -- normally
 the same value passed to \code{\link[=htc_gen_executable]{htc_gen_executable()}}. When \code{NULL} (the
-default), resolves to \code{data_files} recorded in the manifest.}
+default), resolves to \code{data_files} recorded in the submission state.}
 
 \item{resources}{A named list with \code{cpus}, \code{memory}, and \code{disk}, or
 \code{NULL}. When \code{NULL} (the default), resolves to the resolved resource
-values \code{\link[=htc_gen_submit]{htc_gen_submit()}} recorded in the manifest (whichever preset,
+values \code{\link[=htc_gen_submit]{htc_gen_submit()}} recorded in the submission state (whichever preset,
 or \code{custom_resources}, was actually used).}
 
 \item{verbose}{Logical. If \code{TRUE} (the default), prints a line for every
 check performed, not just the ones that found something. Set \code{FALSE}
 to only see problems.}
 
-\item{path}{A character string. Directory holding the job manifest
+\item{path}{A character string. Directory holding the submission state
 (\code{htc-manifest.yaml}). Defaults to \code{"."}, matching the default used
 elsewhere in the family.}
 }
@@ -59,7 +59,7 @@ plausible, and -- best effort, when a container tool is available
 locally -- that the container image looks reachable.
 }
 \details{
-Every argument can be resolved from the job manifest, so the common case
+Every argument can be resolved from the submission state, so the common case
 is \code{htc_check()} with no arguments at all, run right after
 \code{\link[=htc_gen_submit]{htc_gen_submit()}} and \code{\link[=htc_gen_executable]{htc_gen_executable()}} and before \code{\link[=htc_upload]{htc_upload()}}.
 }

@@ -19,17 +19,17 @@ htc_upload(
 directory paths to copy to the submit node. A single file, a vector of
 files, and a directory path are all accepted. Directories are copied
 recursively. When \code{NULL} (the default), the function resolves the files
-to upload from the job manifest built up by \code{\link[=htc_gen_submit]{htc_gen_submit()}} and
+to upload from the submission state built up by \code{\link[=htc_gen_submit]{htc_gen_submit()}} and
 \code{\link[=htc_gen_executable]{htc_gen_executable()}}: the submit file, the executable script, any
-shared input files, and -- in \code{"multiple"} mode -- the subdatasets
-manifest and the individual subset data files.}
+shared input files, and -- in \code{"multiple"} mode -- \code{subdatasets.csv}
+and the individual subset data files.}
 
 \item{remote_path}{A character string or \code{NULL}. The destination directory
 on the submit node. When \code{NULL} (the default), resolves to the
-\code{remote_path} recorded in the job manifest by a previous call to
-\code{htc_upload()}, falling back to \code{"~/"} if no manifest value is
-available. On a successful (non-\code{dry_run}) upload, the resolved value is
-recorded back to the manifest, so \code{\link[=htc_submit]{htc_submit()}} and \code{\link[=htc_download]{htc_download()}}
+\code{remote_path} recorded in the submission state by a previous call to
+\code{htc_upload()}, falling back to \code{"~/"} if the submission state holds
+no value. On a successful (non-\code{dry_run}) upload, the resolved value is
+recorded back to the submission state, so \code{\link[=htc_submit]{htc_submit()}} and \code{\link[=htc_download]{htc_download()}}
 can pick it up automatically without retyping it.}
 
 \item{config}{A named list as returned by \code{\link[=htc_config]{htc_config()}}. Must contain
@@ -44,7 +44,7 @@ transferring files. Defaults to \code{FALSE}.}
 \item{verbose}{Logical. If \code{TRUE}, prints progress messages. Defaults to
 \code{FALSE}.}
 
-\item{path}{A character string. Directory holding the job manifest
+\item{path}{A character string. Directory holding the submission state
 (\code{htc-manifest.yaml}), consulted only when \code{files} is \code{NULL}. Defaults
 to \code{"."}, which matches the generator functions' own default. If you
 passed a non-default \code{output} or \code{path} to \code{\link[=htc_gen_submit]{htc_gen_submit()}} and
@@ -73,8 +73,8 @@ Call it after generating your submit file and executable script with
 \code{\link[=htc_gen_submit]{htc_gen_submit()}} and \code{\link[=htc_gen_executable]{htc_gen_executable()}}, and before calling
 \code{\link[=htc_submit]{htc_submit()}}.
 
-The typical sequence relies on automatic resolution from the job
-manifest, so \code{files} can usually be omitted:
+The typical sequence relies on automatic resolution from the submission
+state, so \code{files} can usually be omitted:
 
 \if{html}{\out{<div class="sourceCode r">}}\preformatted{cfg <- htc_config()
 
@@ -116,7 +116,7 @@ htc_upload(files = tmp, config = cfg, dry_run = TRUE)
 # All remaining examples require a live CHTC connection
 cfg <- htc_config()
 
-# Resolve files automatically from the job manifest
+# Resolve files automatically from the submission state
 htc_gen_submit(executable = "job.sh", r_script = "R/analysis.R",
                input_files = "R/analysis.R")
 htc_gen_executable(r_script = "R/analysis.R")

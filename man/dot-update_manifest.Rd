@@ -2,14 +2,14 @@
 % Please edit documentation in R/htc-helpers.R
 \name{.update_manifest}
 \alias{.update_manifest}
-\title{Update the job manifest with new information}
+\title{Update the submission state with new information}
 \usage{
 .update_manifest(..., path = ".")
 }
 \arguments{
-\item{...}{Named key-value pairs to add or update in the manifest. Because
+\item{...}{Named key-value pairs to add or update in the submission state. Because
 \code{path} below sits after the dots, it is matched exactly by name and can
-never be stored as a manifest field. Nothing in the package needs a
+never be stored as a submission-state field. Nothing in the package needs a
 field called \code{path}, but any future one would have to be named
 differently.}
 
@@ -17,7 +17,7 @@ differently.}
 is read from and written to. Defaults to \code{"."} (current working
 directory). Functions that write to a caller-supplied \code{output}
 directory (e.g. \code{\link[=htc_gen_submit]{htc_gen_submit()}}, \code{\link[=htc_gen_executable]{htc_gen_executable()}}) pass
-that directory through so the manifest travels with the generated
+that directory through so the submission state travels with the generated
 files, and so package examples never write outside \code{tempdir()}.}
 }
 \value{
@@ -27,11 +27,11 @@ Called for its side effects. Returns \code{invisible(NULL)}.
 Internal helper that accumulates job metadata across the submitr
 pipeline. Each function in the workflow calls \code{.update_manifest()}
 with the information it knows. \code{htc_download()} and \code{htc_upload()}
-read the accumulated manifest to resolve files automatically.
+read the accumulated submission state to resolve files automatically.
 }
 \details{
-The manifest is persisted to \code{htc-manifest.yaml} in \code{path}, not to
-session options. Persisting it to disk means the manifest survives
+The submission state is persisted to \code{htc-manifest.yaml} in \code{path}, not to
+session options. Persisting it to disk means the submission state survives
 across R sessions: restarting a session with \code{\link[=htc_start]{htc_start()}} no longer
 discards job metadata recorded by an earlier call to
 \code{\link[=htc_gen_submit]{htc_gen_submit()}}, \code{\link[=htc_gen_executable]{htc_gen_executable()}}, or \code{\link[=htc_submit]{htc_submit()}}.

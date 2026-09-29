@@ -2,7 +2,7 @@
 % Please edit documentation in R/htc-download.R
 \name{.resolve_download_files}
 \alias{.resolve_download_files}
-\title{Resolve file list from job manifest and cluster ID}
+\title{Resolve file list from submission state and cluster ID}
 \usage{
 .resolve_download_files(cluster_id, manifest)
 }

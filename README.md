@@ -556,34 +556,48 @@ not come back".
 
 ### `htc_collect()`
 
-The counterpart to `toolero::run_by_group()` on the HTC side of the arc:
-`htc_collect()` stitches the tarballs `htc_download()` brought back into a
-single tibble, rather than leaving you with a pile of extracted folders to
-sort through by hand. Like the other pipeline functions, it resolves what it
-needs from the submission state:
+`htc_download()` leaves you with a folder of tarballs and log files.
+`htc_collect()` unpacks each tarball into its own subfolder and returns the
+*job index*: a tibble with one row per job, saying whether its results came
+back, where they landed, what files they hold, and where that job's HTCondor
+logs are. Like the other pipeline functions, it resolves what it needs from
+the submission state:
 
 ```r
-results <- htc_collect()
-results
-#> # A tibble: 2 x 9
-#>   file_path            r_class  ...  group_id local_path         ...
-#>   <chr>                <chr>    ...  <chr>    <chr>              ...
-#> 1 output/adelie-fit.rds lm      ...  adelie   .../adelie/output/...
-#> 2 output/gentoo-fit.rds lm      ...  gentoo   .../gentoo/output/...
+index <- htc_collect()
+index[, c("group_id", "proc_id", "extracted", "n_files", "output_dir")]
+#> # A tibble: 3 x 5
+#>   group_id  proc_id extracted n_files output_dir
+#>   <chr>       <int> <lgl>       <int> <chr>
+#> 1 adelie          0 TRUE            2 ./adelie/output
+#> 2 chinstrap       1 FALSE          NA NA
+#> 3 gentoo          2 TRUE            2 ./gentoo/output
 ```
 
-Each tarball is extracted into its own subdirectory, and the output record
-(`project-manifest.json`) that `toolero::generate_manifest()` writes inside
-it is read back to assemble the combined tibble -- falling back to
-`accumulator.csv` with a warning if the tarball predates that file. In
-`"multiple"`-mode jobs, the result carries a `group_id` column so you can
-tell which subset each row came from. `htc_collect()` does not try to load
-the saved R objects themselves -- their type varies by analysis -- so pair
-it with your own `readRDS()` (or similar) over the `local_path` column:
+A job that fails before packing its results sends no tarball back, so it
+shows up as a row with `extracted = FALSE` rather than stopping the
+collection, and `htc_collect()` warns once about all such jobs together. The
+`err` column points at that job's `.err` file, which usually says what went
+wrong:
 
 ```r
-results$data <- lapply(results$local_path, readRDS)
+lapply(index$err[!index$extracted], readLines)
 ```
+
+`htc_collect()` works whatever your script wrote into `output/`, and it
+never opens those files, since their types vary by analysis. `files` is a
+list column of paths relative to `output_dir`, so reading every saved model
+back is one line:
+
+```r
+models <- lapply(unlist(Map(file.path, index$output_dir, index$files)), readRDS)
+```
+
+If the analysis used `toolero::save_output()` and
+`toolero::generate_manifest()`, each job's results folder also holds an
+output record (`project-manifest.json`), and `has_record` says which jobs
+have one. `htc_collect()` only checks that the file is there; interpreting
+it is toolero's job.
 
 ---
 
@@ -597,7 +611,7 @@ name predates that term and is kept for compatibility, but it is not a
 *job manifest* -- that is `toolero::write_by_group()`'s `manifest.csv`, the
 list of subsets a multiple-job run reads once, at generation time. The
 [vocabulary section of
-CONVENTIONS.md](https://github.com/erwinlares/toolero/blob/main/CONVENTIONS.md#7-vocabulary)
+CONVENTIONS.md](https://github.com/erwinlares/toolero/blob/main/CONVENTIONS.md#8-vocabulary)
 lists all four terms.
 
 Each step contributes what it knows, and each step after the first reads back
@@ -754,7 +768,7 @@ something it can work out for itself.
 | `htc_cancel()` | Remove a submitted cluster via `condor_rm` |
 | `htc_release()` | Release held jobs back into the queue via `condor_release` |
 | `htc_download()` | Copy results back from the submit node |
-| `htc_collect()` | Stitch downloaded tarballs into a single tibble |
+| `htc_collect()` | Unpack downloaded tarballs and index them, one row per job |
 
 `htc_upload()`, `htc_submit()`, `htc_status()`, `htc_cancel()`,
 `htc_release()`, `htc_download()`, and `htc_collect()` can all be called with

@@ -183,17 +183,21 @@
   submission state, then `"~/"`; previously it assumed `"~/"` even when the
   job had been submitted from somewhere else.
 
-* `htc_collect()` stitches the tarballs from one or more completed jobs back
-  into a single tibble, the HTC-side counterpart to
-  `toolero::run_by_group()`'s local return value. It resolves the tarballs
-  to collect from the submission state (or accepts an explicit named
-  `tarballs` vector), extracts each into its own subdirectory, and reads the
-  output record (`project-manifest.json`) that `toolero::generate_manifest()`
-  writes inside each one, falling back to `accumulator.csv` with a warning,
-  to assemble a combined tibble with a `group_id` column for
-  `"multiple"`-mode jobs. It deliberately does not load the saved R objects
-  themselves, since their type varies by analysis; a `local_path` column
-  points to each one.
+* `htc_collect()` unpacks the results tarballs `htc_download()` brought back,
+  one subfolder per job, and returns the *job index*: a tibble with one row
+  per job giving its group, HTCondor process and cluster numbers, whether
+  its tarball was extracted, how many files its results folder holds and
+  what they are (a list column of paths relative to `output_dir`), whether
+  it includes an output record, the paths to its `.log`, `.err`, and `.out`
+  files, and the container image it ran in. It resolves the tarballs from
+  the submission state, or accepts an explicit named `tarballs` vector. It
+  works for any analysis, whatever the script wrote, and never opens the
+  files themselves: the output record (`project-manifest.json`) is only
+  checked for, not read, since interpreting it is `toolero`'s job. A job
+  whose tarball is missing or will not extract still gets a row, with
+  `extracted = FALSE`, and one warning covers all such jobs, so a failed job
+  no longer stops the collection. An existing extraction folder is an error
+  raised before anything is extracted, unless `overwrite = TRUE`.
 
 ## Minor improvements
 

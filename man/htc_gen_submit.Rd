@@ -37,12 +37,12 @@ which writes a placeholder comment in the submit file.}
 \item{executable}{A character string or \code{NULL}. The shell script that
 HTCondor will run inside the container, e.g. \code{"analysis.sh"}. When
 \code{NULL} (the default), resolves to the \code{executable_file} recorded in the
-job manifest by a previous \code{\link[=htc_gen_executable]{htc_gen_executable()}} call (S-I3), so the
+submission state by a previous \code{\link[=htc_gen_executable]{htc_gen_executable()}} call (S-I3), so the
 name only has to be typed once regardless of which of the two
-generators runs first. If neither an explicit value nor a manifest
+generators runs first. If neither an explicit value nor a submission-state
 value is available, writes a placeholder comment in the submit file
 instead. If the resolved value here disagrees with an
-\code{executable_file} already in the manifest, warns rather than silently
+\code{executable_file} already in the submission state, warns rather than silently
 preferring one over the other.}
 
 \item{r_script}{A character string. The R script the job runs, e.g.
@@ -50,7 +50,7 @@ preferring one over the other.}
 which must match the tarball \code{\link[=htc_gen_executable]{htc_gen_executable()}} tells the job to
 build. This function never reads the executable script or the
 Dockerfile, so the script's name cannot be inferred and has to be given
-here. If omitted, the value recorded in the job manifest by a previous
+here. If omitted, the value recorded in the submission state by a previous
 \code{\link[=htc_gen_executable]{htc_gen_executable()}} call is used; note that the documented workflow
 calls this function first, in which case there is nothing recorded yet.
 Ignored when \code{output_files} is supplied. Note that supplying \code{r_script}
@@ -64,7 +64,7 @@ working directory before execution, e.g. \code{c("analysis.R", "data.csv")}.
 This must include the R script named by \code{r_script} (by basename) --
 the script travels to the execute node as an uploaded input file, not
 as part of the container image. In \code{"multiple"} mode, the per-job
-subset file is added automatically from the manifest; use this
+subset file is added automatically from the job manifest; use this
 argument for files shared across all jobs (e.g. the analysis script).
 Defaults to \code{NULL}.}
 
@@ -80,19 +80,19 @@ Supplying this argument overrides the derivation entirely. Defaults to
 \code{NULL}.}
 
 \item{mode}{A character string. Submission mode. \code{"single"} (the default)
-submits one job. \code{"multiple"} submits one job per row in the manifest
+submits one job. \code{"multiple"} submits one job per row in the job manifest
 supplied to \code{queue_from}, passing each subset file as a positional
 argument to the executable via \verb{arguments = $(file)}.}
 
 \item{queue}{A positive integer. Number of identical jobs to submit.
 Only used when \code{mode = "single"}. Defaults to \code{1}.}
 
-\item{queue_from}{A character string or \code{NULL}. Path to the manifest file
+\item{queue_from}{A character string or \code{NULL}. Path to the job manifest
 produced by \code{toolero::write_by_group(manifest = TRUE)}. Required when
 \code{mode = "multiple"}, unless it can be resolved from \code{config} (S-G5):
 when \code{NULL} and \code{config$project$conventions$split_dir} is set, defaults
 to \code{file.path(split_dir, "manifest.csv")} -- \code{write_by_group()} always
-names its manifest \code{manifest.csv}, so the convention's directory is
+names its job manifest \code{manifest.csv}, so the convention's directory is
 enough to reconstruct the full path. The \code{file_path} column is
 extracted and written alongside the submit file as \code{subdatasets.csv},
 which HTCondor reads to generate one job per subset file.}
@@ -137,13 +137,13 @@ default). When supplied with a \code{project} element (via
 is used to default \code{queue_from} (S-G5). Not required -- everything here
 can still be passed explicitly.}
 
-\item{path}{A character string. Directory where the job manifest
+\item{path}{A character string. Directory where the submission state
 (\code{htc-manifest.yaml}) is read from and written to. Defaults to \code{"."}
 (the current working directory), matching the default used by
 \code{\link[=htc_upload]{htc_upload()}}, \code{\link[=htc_submit]{htc_submit()}}, and \code{\link[=htc_download]{htc_download()}}. This is
 independent of \code{output}: if you write generated files to a subfolder
 with \code{output}, pass the same \code{path} explicitly to every function in
-the pipeline so they all find the same manifest.}
+the pipeline so they all find the same submission state.}
 }
 \value{
 Called for its side effects. Writes an HTCondor submit file to
@@ -199,10 +199,10 @@ falling back to the package default if none is found.
 }
 
 \examples{
-# output writes the generated .sub file; path is where the job manifest
+# output writes the generated .sub file; path is where the submission state
 # (htc-manifest.yaml) gets read from and written to. The two are
 # independent arguments (see @param path), so both must point at the
-# same scratch directory here to keep the manifest out of the current
+# same scratch directory here to keep the submission state out of the current
 # working directory.
 tmp <- tempdir()
 
@@ -239,7 +239,7 @@ htc_gen_submit(
 )
 
 \dontrun{
-# Multiple-job submit file driven by a write_by_group() manifest
+# Multiple-job submit file driven by a write_by_group() job manifest
 htc_gen_submit(
   output_file     = "analysis.sub",
   container_image = "docker://registry.doit.wisc.edu/netid/myimage",
