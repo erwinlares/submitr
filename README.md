@@ -151,7 +151,7 @@ htc_gen_executable(
 )
 
 # 4. Upload files to the submit node
-#    With no files argument, submitr sends what the job manifest recorded
+#    With no files argument, submitr sends what the submission state recorded
 htc_upload()
 
 # 5. Submit the job
@@ -165,7 +165,7 @@ htc_download()
 ```
 
 Steps 4 and 7 take no arguments because submitr keeps track of what it has
-generated. The section on [the job manifest](#the-job-manifest) below explains
+generated. The section on [the submission state](#the-submission-state) below explains
 how, and why it still works if you close R between submitting and collecting.
 
 ---
@@ -289,17 +289,18 @@ basename is missing from `input_files`.
 
 `executable` does not have to be typed here if you are about to call
 `htc_gen_executable()` next (or already have): the two generators share the
-job manifest, so whichever one runs second picks up the executable script's
+submission state, so whichever one runs second picks up the executable script's
 name from whichever one ran first. Passing `executable` explicitly to both
 still works as before, and if the two ever disagree, both generators warn
 rather than silently picking one -- your explicit value is still used, so
 the warning is a nudge to check, not a blocker.
 
-If your project has a `_toolero.yml` (written by `toolero::init_project()`),
+If your project has a project config, `_toolero.yml` (written by
+`toolero::init_project()`),
 pass it through `htc_config(project_config = )` and on to `config` here, and
 `queue_from` in multiple-job mode can be left out entirely -- it defaults to
-`manifest.csv` inside `config$project$conventions$split_dir`, since
-`toolero::write_by_group()` always uses that filename:
+the job manifest, `manifest.csv`, inside `config$project$conventions$split_dir`,
+since `toolero::write_by_group()` always uses that filename:
 
 ```r
 cfg <- htc_config(project_config = "_toolero.yml")
@@ -352,7 +353,7 @@ the execute node as an uploaded job input file, the same way `data.csv` would,
 so the generated script runs it by bare name (`Rscript analysis.R`) rather
 than by an absolute, in-container path. Because HTCondor's file transfer does
 not preserve subdirectories, `r_script = "R/analysis.R"` still resolves to
-`analysis.R` at the execute node -- see [the job manifest](#the-job-manifest)
+`analysis.R` at the execute node -- see [the submission state](#the-submission-state)
 for how `input_files` on `htc_gen_submit()` has to name it. Data files passed
 via `data_files` are the opposite case: those are baked into the image under
 `home_dir` at build time, and the script reads them by absolute path.
@@ -364,7 +365,7 @@ explanation of the line beneath it. `containr` annotates its Dockerfiles the
 same way round, so a reader moving between the two files reads them the same
 way: explanation first, instruction second.
 
-`output_file` here shares the same manifest-based defaulting as `executable`
+`output_file` here shares the same defaulting through the submission state as `executable`
 in `htc_gen_submit()`: if you called `htc_gen_submit()` first, its
 `executable` value is already recorded, so `output_file` can be left off.
 `results_folder` follows the same `config` pattern as `queue_from` above --
@@ -386,7 +387,7 @@ otherwise only surface an hour later as a held or failed job on the cluster:
 a missing input or data file, a `"multiple"`-mode job whose subset files no
 longer match `subdatasets.csv`, a resource request that looks implausible,
 and a `container_image` tagged `latest` or carrying no tag at all. Every
-argument resolves from the job manifest, so the common case is no arguments
+argument resolves from the submission state, so the common case is no arguments
 at all, run right after the two generators:
 
 ```r
@@ -410,14 +411,14 @@ automatically and aborts on an `"error"`; warnings never block anything.
 ### `htc_upload()`
 
 Copies files to the CHTC submit node via `scp`. Called with no `files`
-argument, it sends what the job manifest recorded: the submit file, the
+argument, it sends what the submission state recorded: the submit file, the
 executable, any shared input files, and in multiple-job mode the subsets and
-their manifest. On success, the remote directory it uploaded to is written
-back to the manifest, so `htc_submit()` and `htc_download()` can pick it up
+`subdatasets.csv`. On success, the remote directory it uploaded to is written
+back to the submission state, so `htc_submit()` and `htc_download()` can pick it up
 without it being retyped.
 
 ```r
-# Automatic -- uses the job manifest built by the two generators
+# Automatic -- uses the submission state built by the two generators
 htc_upload()
 
 # Preview the command before running it
@@ -425,7 +426,7 @@ htc_upload(dry_run = TRUE)
 #> v Dry run -- command that would be executed:
 #>   `scp analysis.sub analysis.sh R/analysis.R your.netid@ap2002.chtc.wisc.edu:~/`
 
-# Or name the files yourself, which bypasses the manifest entirely
+# Or name the files yourself, which bypasses the submission state entirely
 htc_upload(files = c("analysis.sub", "analysis.sh", "R/analysis.R", "data.csv"))
 
 # Uploading somewhere other than ~/ is remembered for later steps
@@ -447,7 +448,7 @@ shaking out a new job.
 
 Runs `condor_submit` on the remote server via SSH and returns the cluster ID.
 Both `submit_file` and `remote_path` default to `NULL` and resolve from the
-job manifest -- the submit file `htc_gen_submit()` wrote and the directory
+submission state -- the submit file `htc_gen_submit()` wrote and the directory
 `htc_upload()` sent it to -- so a call with no arguments at all works once
 those two steps have run:
 
@@ -459,7 +460,7 @@ cluster_id <- htc_submit(verbose = TRUE)
 ```
 
 The cluster ID, the submit file, and the directory the job was submitted from
-are all written to the job manifest, so none of them has to be repeated when
+are all written to the submission state, so none of them has to be repeated when
 you come back to collect the results.
 
 ---
@@ -468,7 +469,7 @@ you come back to collect the results.
 
 Runs `condor_q` on the remote server. Use `watch = TRUE` to poll until all
 jobs in the cluster leave the queue. `cluster_id` defaults to `NULL` and
-resolves from the job manifest -- the ID `htc_submit()` just returned -- so
+resolves from the submission state -- the ID `htc_submit()` just returned -- so
 you rarely have to pass it explicitly right after submitting:
 
 ```r
@@ -478,7 +479,7 @@ htc_status(cluster_id = cluster_id)
 # Watch until complete
 htc_status(cluster_id = cluster_id, watch = TRUE)
 
-# Or let it resolve cluster_id from the manifest
+# Or let it resolve cluster_id from the submission state
 htc_status(watch = TRUE)
 ```
 
@@ -500,7 +501,7 @@ Set `show_hold_reason = FALSE` to skip that extra query.
 
 Job control from R: `htc_cancel()` removes a submitted cluster with
 `condor_rm`, and `htc_release()` puts held jobs back into the queue with
-`condor_release`. Both resolve `cluster_id` from the job manifest, the same
+`condor_release`. Both resolve `cluster_id` from the submission state, the same
 way `htc_status()` does:
 
 ```r
@@ -510,7 +511,7 @@ htc_cancel(cluster_id = cluster_id, reason = "wrong container image")
 # Release jobs that HTCondor put on hold
 htc_release(cluster_id = cluster_id)
 
-# Or resolve cluster_id from the manifest, same as htc_status()
+# Or resolve cluster_id from the submission state, same as htc_status()
 htc_cancel()
 ```
 
@@ -530,7 +531,7 @@ Copies files back from the submit node via `scp`. After a full workflow,
 take them from:
 
 ```r
-# Automatic -- uses the job manifest built during the workflow
+# Automatic -- uses the submission state built during the workflow
 htc_download()
 
 # Or specify the cluster ID explicitly
@@ -559,7 +560,7 @@ The counterpart to `toolero::run_by_group()` on the HTC side of the arc:
 `htc_collect()` stitches the tarballs `htc_download()` brought back into a
 single tibble, rather than leaving you with a pile of extracted folders to
 sort through by hand. Like the other pipeline functions, it resolves what it
-needs from the job manifest:
+needs from the submission state:
 
 ```r
 results <- htc_collect()
@@ -571,9 +572,9 @@ results
 #> 2 output/gentoo-fit.rds lm      ...  gentoo   .../gentoo/output/...
 ```
 
-Each tarball is extracted into its own subdirectory, and the
-`project-manifest.json` that `toolero::generate_manifest()` writes inside it
-is read back to assemble the combined tibble -- falling back to
+Each tarball is extracted into its own subdirectory, and the output record
+(`project-manifest.json`) that `toolero::generate_manifest()` writes inside
+it is read back to assemble the combined tibble -- falling back to
 `accumulator.csv` with a warning if the tarball predates that file. In
 `"multiple"`-mode jobs, the result carries a `group_id` column so you can
 tell which subset each row came from. `htc_collect()` does not try to load
@@ -586,11 +587,18 @@ results$data <- lapply(results$local_path, readRDS)
 
 ---
 
-## The job manifest
+## The submission state
 
 Several calls above take no arguments at all, and they are not guessing. As
 you work, submitr writes what it learns to `htc-manifest.yaml`, a small file
-that sits in your project beside `htc.cfg`.
+that sits in your project beside `htc.cfg`. The family calls this file the
+*submission state*: submitr's working memory for the job in progress. Its
+name predates that term and is kept for compatibility, but it is not a
+*job manifest* -- that is `toolero::write_by_group()`'s `manifest.csv`, the
+list of subsets a multiple-job run reads once, at generation time. The
+[vocabulary section of
+CONVENTIONS.md](https://github.com/erwinlares/toolero/blob/main/CONVENTIONS.md#7-vocabulary)
+lists all four terms.
 
 Each step contributes what it knows, and each step after the first reads back
 what an earlier one wrote. `htc_gen_submit()` records the submit file, the
@@ -600,14 +608,14 @@ wrote. `htc_upload()` records the remote directory it sent files to.
 `htc_submit()` resolves the submit file and remote directory from those two
 records when you do not pass them, and records the cluster ID HTCondor
 assigned. `htc_status()` resolves the cluster ID the same way. By the time
-you call `htc_download()`, the manifest holds everything needed to work out
+you call `htc_download()`, the submission state holds everything needed to work out
 which files to ask for.
 
 The reason it is a file rather than something held in memory is the shape of
 the work. A CHTC job worth sending to CHTC is usually one that takes a while,
 so you submit it in one sitting and collect it in another, and somewhere in
-between you close RStudio or your laptop sleeps. A manifest that lived only in
-the R session would be gone by then, and with it any chance of `htc_download()`
+between you close RStudio or your laptop sleeps. Submission state that lived
+only in the R session would be gone by then, and with it any chance of `htc_download()`
 knowing what to retrieve. Because it is on disk, restarting R costs you
 nothing, and `htc_start()` leaves it alone.
 
@@ -625,10 +633,11 @@ cluster_id: '6302860'
 remote_path: ~/
 ```
 
-By default the manifest lives in your project root (`path = "."`), regardless
-of where `output` points -- generating files into a subdirectory does not move
-the manifest along with them. If you do write generated files elsewhere, pass
-the same `path` to every function that touches the manifest, so that all five
+By default `htc-manifest.yaml` lives in your project root (`path = "."`),
+regardless of where `output` points -- generating files into a subdirectory
+does not move it along with them. If you do write generated files elsewhere,
+pass the same `path` to every function that touches the submission state, so
+that all five
 are reading and writing the same file:
 
 ```r
@@ -645,7 +654,7 @@ htc_download(path = "jobs/")
 ## Scaling to many jobs
 
 Once a single job works, scaling up is mostly a matter of changing the queue.
-Use `toolero::write_by_group()` to split your dataset and produce a manifest,
+Use `toolero::write_by_group()` to split your dataset and produce a job manifest,
 then switch to multiple-job mode:
 
 ```r
@@ -750,9 +759,9 @@ something it can work out for itself.
 `htc_upload()`, `htc_submit()`, `htc_status()`, `htc_cancel()`,
 `htc_release()`, `htc_download()`, and `htc_collect()` can all be called with
 no arguments (or close to it) once the steps before them have run. All
-functions that read or write the job manifest take a `path` argument naming
-the directory it lives in, and all default it to `"."` independent of
-`output` -- see [the job manifest](#the-job-manifest).
+functions that read or write the submission state take a `path` argument
+naming the directory it lives in, and all default it to `"."` independent of
+`output` -- see [the submission state](#the-submission-state).
 
 ---
 
