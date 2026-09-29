@@ -9,16 +9,16 @@
 #'   directory paths to copy to the submit node. A single file, a vector of
 #'   files, and a directory path are all accepted. Directories are copied
 #'   recursively. When `NULL` (the default), the function resolves the files
-#'   to upload from the job manifest built up by [htc_gen_submit()] and
+#'   to upload from the submission state built up by [htc_gen_submit()] and
 #'   [htc_gen_executable()]: the submit file, the executable script, any
-#'   shared input files, and -- in `"multiple"` mode -- the subdatasets
-#'   manifest and the individual subset data files.
+#'   shared input files, and -- in `"multiple"` mode -- `subdatasets.csv`
+#'   and the individual subset data files.
 #' @param remote_path A character string or `NULL`. The destination directory
 #'   on the submit node. When `NULL` (the default), resolves to the
-#'   `remote_path` recorded in the job manifest by a previous call to
-#'   `htc_upload()`, falling back to `"~/"` if no manifest value is
-#'   available. On a successful (non-`dry_run`) upload, the resolved value is
-#'   recorded back to the manifest, so [htc_submit()] and [htc_download()]
+#'   `remote_path` recorded in the submission state by a previous call to
+#'   `htc_upload()`, falling back to `"~/"` if the submission state holds
+#'   no value. On a successful (non-`dry_run`) upload, the resolved value is
+#'   recorded back to the submission state, so [htc_submit()] and [htc_download()]
 #'   can pick it up automatically without retyping it.
 #' @param config A named list as returned by [htc_config()]. Must contain
 #'   `username` and `server`. If `NULL` (the default), uses the session
@@ -29,7 +29,7 @@
 #'   transferring files. Defaults to `FALSE`.
 #' @param verbose Logical. If `TRUE`, prints progress messages. Defaults to
 #'   `FALSE`.
-#' @param path A character string. Directory holding the job manifest
+#' @param path A character string. Directory holding the submission state
 #'   (`htc-manifest.yaml`), consulted only when `files` is `NULL`. Defaults
 #'   to `"."`, which matches the generator functions' own default. If you
 #'   passed a non-default `output` or `path` to [htc_gen_submit()] and
@@ -49,8 +49,8 @@
 #' [htc_gen_submit()] and [htc_gen_executable()], and before calling
 #' [htc_submit()].
 #'
-#' The typical sequence relies on automatic resolution from the job
-#' manifest, so `files` can usually be omitted:
+#' The typical sequence relies on automatic resolution from the submission
+#' state, so `files` can usually be omitted:
 #'
 #' ```r
 #' cfg <- htc_config()
@@ -93,7 +93,7 @@
 #' # All remaining examples require a live CHTC connection
 #' cfg <- htc_config()
 #'
-#' # Resolve files automatically from the job manifest
+#' # Resolve files automatically from the submission state
 #' htc_gen_submit(executable = "job.sh", r_script = "R/analysis.R",
 #'                input_files = "R/analysis.R")
 #' htc_gen_executable(r_script = "R/analysis.R")
@@ -145,18 +145,18 @@ htc_upload <- function(files       = NULL,
         }
     }
 
-    # -- 2. Read the job manifest ------------------------------------------------
+    # -- 2. Read the submission state ------------------------------------------
     # Read unconditionally (not just when files is NULL): the remote_path
     # fallback below needs it regardless of how files was resolved.
     manifest <- .get_manifest(path = path)
 
-    # -- 3. Resolve files from the job manifest if not supplied -----------------
+    # -- 3. Resolve files from the submission state if not supplied ------------
     if (is.null(files)) {
         files <- .resolve_upload_files(manifest)
 
         if (length(files) > 0 && verbose) {
             cli::cli_inform(
-                "Resolved {length(files)} file{?s} from the job manifest."
+                "Resolved {length(files)} file{?s} from the submission state."
             )
         }
     }
@@ -166,9 +166,9 @@ htc_upload <- function(files       = NULL,
         cli::cli_abort(c(
             "{.arg files} must be supplied and cannot be empty.",
             "i" = "Pass {.arg files} directly, or run {.fn htc_gen_submit} and",
-            " " = "  {.fn htc_gen_executable} first so the job manifest can",
+            " " = "  {.fn htc_gen_executable} first so the submission state can",
             " " = "  resolve them automatically.",
-            "i" = "Looked for a manifest in {.path {path}}."
+            "i" = "Looked for the submission state ({.file htc-manifest.yaml}) in {.path {path}}."
         ))
     }
 
@@ -182,7 +182,7 @@ htc_upload <- function(files       = NULL,
 
     # -- 5. Resolve and validate remote_path -------------------------------------
     # Explicit argument > the remote_path a previous htc_upload() recorded in
-    # the job manifest > the hardcoded default.
+    # the submission state > the hardcoded default.
     if (is.null(remote_path)) {
         remote_path <- manifest$remote_path
     }
@@ -233,7 +233,7 @@ htc_upload <- function(files       = NULL,
         "Uploaded {length(files)} file{?s} to {.val {config$server}}:{remote_path}"
     )
 
-    # -- 8. Record remote_path in the manifest -----------------------------------
+    # -- 8. Record remote_path in the submission state -------------------------
     # So htc_submit() and htc_download() can resolve it automatically without
     # it being retyped at every step of the pipeline.
     .update_manifest(remote_path = remote_path, path = path)
@@ -242,13 +242,13 @@ htc_upload <- function(files       = NULL,
 }
 
 
-#' Resolve files to upload from the job manifest
+#' Resolve files to upload from the submission state
 #'
 #' Internal helper used by `htc_upload()` when `files = NULL`. Builds the
-#' list of local files to copy to the submit node from the job manifest
+#' list of local files to copy to the submit node from the submission state
 #' accumulated by [htc_gen_submit()] and [htc_gen_executable()]: the submit
 #' file, the executable script, any shared input files, and -- in
-#' `"multiple"` mode -- the subdatasets manifest and the individual subset
+#' `"multiple"` mode -- `subdatasets.csv` and the individual subset
 #' data files.
 #'
 #' Every field used here holds a path as seen from the machine running R,

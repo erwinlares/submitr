@@ -15,7 +15,7 @@
 #' is cleared automatically when the R session ends. To clear it
 #' manually, call `options(submitr.config = NULL)`.
 #'
-#' The job manifest built up by [htc_gen_submit()], [htc_gen_executable()],
+#' The submission state built up by [htc_gen_submit()], [htc_gen_executable()],
 #' and [htc_submit()] is persisted to disk separately (see
 #' [htc_upload()]/[htc_download()]), so calling `htc_start()` again --
 #' for example, in a new R session -- does not discard it.

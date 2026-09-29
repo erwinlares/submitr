@@ -7,7 +7,7 @@
 #'
 #' @param cluster_id An integer, character string, or `NULL`. The cluster ID
 #'   to remove, e.g. `6302860`. When `NULL` (the default), resolves to the
-#'   cluster ID recorded in the job manifest by the most recent
+#'   cluster ID recorded in the submission state by the most recent
 #'   [htc_submit()] call. Unlike [htc_status()], `htc_cancel()` never falls
 #'   back to "all of my jobs": a bare `condor_rm` with no arguments removes
 #'   every job you have queued on the submit node, not just the ones from
@@ -25,7 +25,7 @@
 #'   executed without running it. Defaults to `FALSE`.
 #' @param verbose Logical. If `TRUE`, prints progress messages. Defaults to
 #'   `FALSE`.
-#' @param path A character string. Directory holding the job manifest
+#' @param path A character string. Directory holding the submission state
 #'   (`htc-manifest.yaml`), consulted only when `cluster_id` is `NULL`.
 #'   Defaults to `"."`, matching the default used elsewhere in the family.
 #'
@@ -67,7 +67,7 @@ htc_cancel <- function(cluster_id = NULL,
     # -- 1. Resolve config (explicit argument or session option) ----------------
     config <- .resolve_config(config)
 
-    # -- 2. Resolve cluster_id from the job manifest if not supplied ------------
+    # -- 2. Resolve cluster_id from the submission state if not supplied -------
     # No "remove everything" fallback here, deliberately -- see @param docs.
     if (is.null(cluster_id)) {
         cluster_id <- .get_manifest(path = path)$cluster_id
@@ -75,7 +75,7 @@ htc_cancel <- function(cluster_id = NULL,
 
     if (is.null(cluster_id)) {
         cli::cli_abort(c(
-            "{.arg cluster_id} must be supplied, directly or via the job manifest.",
+            "{.arg cluster_id} must be supplied, directly or via the submission state.",
             "i" = "Pass the cluster ID returned by {.fn htc_submit}.",
             "i" = "{.fn htc_cancel} will not run a bare {.code condor_rm} with no",
             " " = "  cluster ID -- that removes every job you have queued on the",
@@ -165,7 +165,7 @@ htc_cancel <- function(cluster_id = NULL,
 #'
 #' @param cluster_id An integer, character string, or `NULL`. The cluster ID
 #'   to release, e.g. `6302860`. When `NULL` (the default), resolves to the
-#'   cluster ID recorded in the job manifest by the most recent
+#'   cluster ID recorded in the submission state by the most recent
 #'   [htc_submit()] call. Unlike [htc_status()], `htc_release()` never falls
 #'   back to "all of my jobs": a bare `condor_release` with no arguments
 #'   releases every held job you have on the submit node, not just the ones
@@ -179,7 +179,7 @@ htc_cancel <- function(cluster_id = NULL,
 #'   executed without running it. Defaults to `FALSE`.
 #' @param verbose Logical. If `TRUE`, prints progress messages. Defaults to
 #'   `FALSE`.
-#' @param path A character string. Directory holding the job manifest
+#' @param path A character string. Directory holding the submission state
 #'   (`htc-manifest.yaml`), consulted only when `cluster_id` is `NULL`.
 #'   Defaults to `"."`, matching the default used elsewhere in the family.
 #'
@@ -220,7 +220,7 @@ htc_release <- function(cluster_id = NULL,
     # -- 1. Resolve config (explicit argument or session option) ----------------
     config <- .resolve_config(config)
 
-    # -- 2. Resolve cluster_id from the job manifest if not supplied ------------
+    # -- 2. Resolve cluster_id from the submission state if not supplied -------
     # No "release everything" fallback here, deliberately -- see @param docs.
     if (is.null(cluster_id)) {
         cluster_id <- .get_manifest(path = path)$cluster_id
@@ -228,7 +228,7 @@ htc_release <- function(cluster_id = NULL,
 
     if (is.null(cluster_id)) {
         cli::cli_abort(c(
-            "{.arg cluster_id} must be supplied, directly or via the job manifest.",
+            "{.arg cluster_id} must be supplied, directly or via the submission state.",
             "i" = "Pass the cluster ID returned by {.fn htc_submit}.",
             "i" = "{.fn htc_release} will not run a bare {.code condor_release} with",
             " " = "  no cluster ID -- that releases every held job you have on the",

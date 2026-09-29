@@ -8,12 +8,12 @@
 #'
 #' @param output_file A character string or `NULL`. Name of the shell script
 #'   to write. Must end in `".sh"`. When `NULL` (the default), resolves to
-#'   the `executable_file` recorded in the job manifest by a previous
+#'   the `executable_file` recorded in the submission state by a previous
 #'   [htc_gen_submit()] call (S-I3), so the name only has to be typed once
 #'   regardless of which of the two generators runs first. Falls back to
-#'   `"job.sh"` if neither an explicit value nor a manifest value is
+#'   `"job.sh"` if neither an explicit value nor a submission-state value is
 #'   available. If the resolved value disagrees with an `executable_file`
-#'   already in the manifest, warns rather than silently preferring one
+#'   already in the submission state, warns rather than silently preferring one
 #'   over the other.
 #' @param r_script A character string. Name of the R script that HTCondor
 #'   will run, e.g. `"analysis.R"`. Must be supplied explicitly -- there is
@@ -76,13 +76,13 @@
 #'   `htc_config(project_config = )`), `config$project$conventions$output_dir`
 #'   is used to default `results_folder` (S-G5). Not required -- everything
 #'   here can still be passed explicitly.
-#' @param path A character string. Directory where the job manifest
+#' @param path A character string. Directory where the submission state
 #'   (`htc-manifest.yaml`) is read from and written to. Defaults to `"."`
 #'   (the current working directory), matching the default used by
 #'   [htc_upload()], [htc_submit()], and [htc_download()]. This is
 #'   independent of `output`: if you write generated files to a subfolder
 #'   with `output`, pass the same `path` explicitly to every function in
-#'   the pipeline so they all find the same manifest.
+#'   the pipeline so they all find the same submission state.
 #'
 #' @return Called for its side effects. Writes a bash script to
 #'   `file.path(output, output_file)` and sets executable permissions when
@@ -143,10 +143,10 @@
 #' @export
 #'
 #' @examples
-#' # output writes the generated .sh file; path is where the job manifest
+#' # output writes the generated .sh file; path is where the submission state
 #' # (htc-manifest.yaml) gets read from and written to. The two are
 #' # independent arguments (see @param path), so both must point at the
-#' # same scratch directory here to keep the manifest out of the current
+#' # same scratch directory here to keep the submission state out of the current
 #' # working directory.
 #' tmp <- tempdir()
 #'
@@ -201,20 +201,20 @@ htc_gen_executable <- function(output_file    = NULL,
         ))
     }
 
-    # -- 1b. Read the job manifest once, up front -------------------------------
+    # -- 1b. Read the submission state once, up front --------------------------
     manifest <- .get_manifest(path = path)
 
-    # -- 1c. Resolve output_file from the job manifest if not supplied (S-I3) --
+    # -- 1c. Resolve output_file from the submission state if unset (S-I3) -----
     # Explicit argument > the executable_file a previous htc_gen_submit()
-    # call recorded in the manifest > the hardcoded "job.sh" default.
+    # call recorded in the submission state > the hardcoded "job.sh" default.
     if (is.null(output_file)) {
         output_file <- manifest$executable_file
     } else if (!is.null(manifest$executable_file) &&
                !identical(output_file, manifest$executable_file)) {
         cli::cli_warn(c(
             "{.arg output_file} ({.val {output_file}}) does not match the",
-            " " = "  executable script name already recorded in the job",
-            " " = "  manifest ({.val {manifest$executable_file}}).",
+            " " = "  executable script name already recorded in the",
+            " " = "  submission state ({.val {manifest$executable_file}}).",
             "i" = "That name came from an earlier {.fn htc_gen_submit} call.",
             "i" = "If this is deliberate, ignore this warning -- this script",
             " " = "  will be written as {.val {output_file}}. Otherwise, check",

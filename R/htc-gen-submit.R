@@ -12,19 +12,19 @@
 #' @param executable A character string or `NULL`. The shell script that
 #'   HTCondor will run inside the container, e.g. `"analysis.sh"`. When
 #'   `NULL` (the default), resolves to the `executable_file` recorded in the
-#'   job manifest by a previous [htc_gen_executable()] call (S-I3), so the
+#'   submission state by a previous [htc_gen_executable()] call (S-I3), so the
 #'   name only has to be typed once regardless of which of the two
-#'   generators runs first. If neither an explicit value nor a manifest
+#'   generators runs first. If neither an explicit value nor a submission-state
 #'   value is available, writes a placeholder comment in the submit file
 #'   instead. If the resolved value here disagrees with an
-#'   `executable_file` already in the manifest, warns rather than silently
+#'   `executable_file` already in the submission state, warns rather than silently
 #'   preferring one over the other.
 #' @param r_script A character string. The R script the job runs, e.g.
 #'   `"R/analysis.R"`. Used only to derive the default `output_files` name,
 #'   which must match the tarball [htc_gen_executable()] tells the job to
 #'   build. This function never reads the executable script or the
 #'   Dockerfile, so the script's name cannot be inferred and has to be given
-#'   here. If omitted, the value recorded in the job manifest by a previous
+#'   here. If omitted, the value recorded in the submission state by a previous
 #'   [htc_gen_executable()] call is used; note that the documented workflow
 #'   calls this function first, in which case there is nothing recorded yet.
 #'   Ignored when `output_files` is supplied. Note that supplying `r_script`
@@ -37,7 +37,7 @@
 #'   This must include the R script named by `r_script` (by basename) --
 #'   the script travels to the execute node as an uploaded input file, not
 #'   as part of the container image. In `"multiple"` mode, the per-job
-#'   subset file is added automatically from the manifest; use this
+#'   subset file is added automatically from the job manifest; use this
 #'   argument for files shared across all jobs (e.g. the analysis script).
 #'   Defaults to `NULL`.
 #' @param output_files A character vector. Files to transfer back from the
@@ -51,17 +51,17 @@
 #'   Supplying this argument overrides the derivation entirely. Defaults to
 #'   `NULL`.
 #' @param mode A character string. Submission mode. `"single"` (the default)
-#'   submits one job. `"multiple"` submits one job per row in the manifest
+#'   submits one job. `"multiple"` submits one job per row in the job manifest
 #'   supplied to `queue_from`, passing each subset file as a positional
 #'   argument to the executable via `arguments = $(file)`.
 #' @param queue A positive integer. Number of identical jobs to submit.
 #'   Only used when `mode = "single"`. Defaults to `1`.
-#' @param queue_from A character string or `NULL`. Path to the manifest file
+#' @param queue_from A character string or `NULL`. Path to the job manifest
 #'   produced by `toolero::write_by_group(manifest = TRUE)`. Required when
 #'   `mode = "multiple"`, unless it can be resolved from `config` (S-G5):
 #'   when `NULL` and `config$project$conventions$split_dir` is set, defaults
 #'   to `file.path(split_dir, "manifest.csv")` -- `write_by_group()` always
-#'   names its manifest `manifest.csv`, so the convention's directory is
+#'   names its job manifest `manifest.csv`, so the convention's directory is
 #'   enough to reconstruct the full path. The `file_path` column is
 #'   extracted and written alongside the submit file as `subdatasets.csv`,
 #'   which HTCondor reads to generate one job per subset file.
@@ -97,13 +97,13 @@
 #'   `htc_config(project_config = )`), `config$project$conventions$split_dir`
 #'   is used to default `queue_from` (S-G5). Not required -- everything here
 #'   can still be passed explicitly.
-#' @param path A character string. Directory where the job manifest
+#' @param path A character string. Directory where the submission state
 #'   (`htc-manifest.yaml`) is read from and written to. Defaults to `"."`
 #'   (the current working directory), matching the default used by
 #'   [htc_upload()], [htc_submit()], and [htc_download()]. This is
 #'   independent of `output`: if you write generated files to a subfolder
 #'   with `output`, pass the same `path` explicitly to every function in
-#'   the pipeline so they all find the same manifest.
+#'   the pipeline so they all find the same submission state.
 #'
 #' @return Called for its side effects. Writes an HTCondor submit file to
 #'   `file.path(output, output_file)`. In `"multiple"` mode also writes
@@ -150,10 +150,10 @@
 #' @export
 #'
 #' @examples
-#' # output writes the generated .sub file; path is where the job manifest
+#' # output writes the generated .sub file; path is where the submission state
 #' # (htc-manifest.yaml) gets read from and written to. The two are
 #' # independent arguments (see @param path), so both must point at the
-#' # same scratch directory here to keep the manifest out of the current
+#' # same scratch directory here to keep the submission state out of the current
 #' # working directory.
 #' tmp <- tempdir()
 #'
@@ -190,7 +190,7 @@
 #' )
 #'
 #' \dontrun{
-#' # Multiple-job submit file driven by a write_by_group() manifest
+#' # Multiple-job submit file driven by a write_by_group() job manifest
 #' htc_gen_submit(
 #'   output_file     = "analysis.sub",
 #'   container_image = "docker://registry.doit.wisc.edu/netid/myimage",
@@ -241,14 +241,14 @@ htc_gen_submit <- function(output_file      = "job.sub",
         container_image <- paste0("docker://", container_image)
     }
 
-    # -- 2c. Read the job manifest once, up front -------------------------------
+    # -- 2c. Read the submission state once, up front --------------------------
     # Feeds the executable default (S-I3) below and the r_script fallback
     # further down (10b), so it is read once rather than twice.
     manifest <- .get_manifest(path = path)
 
-    # -- 2d. Resolve executable from the job manifest if not supplied (S-I3) ---
+    # -- 2d. Resolve executable from the submission state if unset (S-I3) ------
     # Explicit argument > the executable_file a previous htc_gen_executable()
-    # call recorded in the manifest > NULL (placeholder comment). Without
+    # call recorded in the submission state > NULL (placeholder comment). Without
     # this, the script's name has to be retyped identically in both
     # generators, and nothing catches it if they drift apart.
     if (is.null(executable)) {
@@ -257,8 +257,8 @@ htc_gen_submit <- function(output_file      = "job.sub",
                !identical(executable, manifest$executable_file)) {
         cli::cli_warn(c(
             "{.arg executable} ({.val {executable}}) does not match the",
-            " " = "  executable script name already recorded in the job",
-            " " = "  manifest ({.val {manifest$executable_file}}).",
+            " " = "  executable script name already recorded in the",
+            " " = "  submission state ({.val {manifest$executable_file}}).",
             "i" = "That name came from an earlier {.fn htc_gen_executable} call.",
             "i" = "If this is deliberate, ignore this warning -- the submit",
             " " = "  file will use {.val {executable}}. Otherwise, check that",
@@ -268,7 +268,7 @@ htc_gen_submit <- function(output_file      = "job.sub",
 
     # -- 2e. Resolve queue_from from project conventions if not supplied (S-G5) -
     # Only attempted when mode = "multiple" is already the intent (checked
-    # below); write_by_group() always names its manifest "manifest.csv", so
+    # below); write_by_group() always names its job manifest "manifest.csv", so
     # knowing split_dir is enough to reconstruct the full path.
     if (is.null(queue_from) && !is.null(config$project$conventions$split_dir)) {
         queue_from <- file.path(
@@ -282,7 +282,7 @@ htc_gen_submit <- function(output_file      = "job.sub",
     if (mode == "multiple" && is.null(queue_from)) {
         cli::cli_abort(c(
             "{.arg queue_from} must be supplied when {.arg mode} is {.val multiple}.",
-            "i" = "Pass the path to a manifest file produced by {.fn toolero::write_by_group},",
+            "i" = "Pass the path to a job manifest produced by {.fn toolero::write_by_group},",
             " " = "  or supply {.arg config} with {.code project$conventions$split_dir} set."
         ))
     }
@@ -290,7 +290,7 @@ htc_gen_submit <- function(output_file      = "job.sub",
     if (mode == "single" && !is.null(queue_from)) {
         cli::cli_warn(c(
             "{.arg queue_from} is ignored when {.arg mode} is {.val single}.",
-            "i" = "Set {.code mode = \"multiple\"} to submit one job per row in the manifest."
+            "i" = "Set {.code mode = \"multiple\"} to submit one job per row in the job manifest."
         ))
         queue_from <- NULL
     }
@@ -303,17 +303,17 @@ htc_gen_submit <- function(output_file      = "job.sub",
     if (!is.null(queue_from)) {
         if (!file.exists(queue_from)) {
             cli::cli_abort(
-                "Manifest file {.path {queue_from}} does not exist."
+                "Job manifest {.path {queue_from}} does not exist."
             )
         }
-        # queue_manifest is the dataset-splitting manifest produced by
-        # toolero::write_by_group(), not submitr's own job manifest. The two
+        # queue_manifest is the job manifest produced by
+        # toolero::write_by_group(), not submitr's own submission state. The two
         # are distinct: this one is read once, here, and never written to.
         queue_manifest <- readr::read_csv(queue_from, show_col_types = FALSE)
         if (!"file_path" %in% names(queue_manifest)) {
             cli::cli_abort(c(
-                "Manifest file {.path {queue_from}} must contain a {.val file_path} column.",
-                "i" = "Use {.fn toolero::write_by_group} with {.code manifest = TRUE} to produce a compatible manifest."
+                "Job manifest {.path {queue_from}} must contain a {.val file_path} column.",
+                "i" = "Use {.fn toolero::write_by_group} with {.code manifest = TRUE} to produce a compatible job manifest."
             ))
         }
         # Keep the full local paths (for htc_upload() to resolve later) as
@@ -454,7 +454,7 @@ htc_gen_submit <- function(output_file      = "job.sub",
     # -- 10b. Resolve the results tarball name ---------------------------------
     # This must match the name htc_gen_executable() tells the job to build.
     # The script stem comes from r_script, or failing that from whatever a
-    # previous htc_gen_executable() call recorded in the job manifest.
+    # previous htc_gen_executable() call recorded in the submission state.
     if (is.null(r_script)) {
         r_script <- manifest$r_script
     }
@@ -714,7 +714,7 @@ htc_gen_submit <- function(output_file      = "job.sub",
                 glue::glue("Writing queue section ({queue} job{ifelse(queue == 1, '', 's')})")
             } else {
                 glue::glue(
-                    "Writing queue section ({length(subset_filenames)} job{ifelse(length(subset_filenames) == 1, '', 's')} from manifest)"
+                    "Writing queue section ({length(subset_filenames)} job{ifelse(length(subset_filenames) == 1, '', 's')} from the job manifest)"
                 )
             },
             comment     = if (mode == "single") {
@@ -730,7 +730,7 @@ htc_gen_submit <- function(output_file      = "job.sub",
                     "# HTCondor reads each filename into the $(file) variable and\n",
                     "# substitutes it throughout the submit file -- in arguments,\n",
                     "# transfer_input_files, and transfer_output_files.\n",
-                    "# subdatasets.csv was generated from the manifest produced by\n",
+                    "# subdatasets.csv was generated from the job manifest produced by\n",
                     "# toolero::write_by_group(manifest = TRUE)."
                 )
             },

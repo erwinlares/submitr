@@ -48,31 +48,31 @@
 #' plausible, and -- best effort, when a container tool is available
 #' locally -- that the container image looks reachable.
 #'
-#' Every argument can be resolved from the job manifest, so the common case
+#' Every argument can be resolved from the submission state, so the common case
 #' is `htc_check()` with no arguments at all, run right after
 #' [htc_gen_submit()] and [htc_gen_executable()] and before [htc_upload()].
 #'
 #' @param container_image A character string or `NULL`. The container image
 #'   reference to check, e.g. `"registry.doit.wisc.edu/netid/myimage:1.0.0"`.
 #'   When `NULL` (the default), resolves to the `container_image` recorded
-#'   in the job manifest by [htc_gen_submit()]. When still `NULL`, image
+#'   in the submission state by [htc_gen_submit()]. When still `NULL`, image
 #'   checks are skipped.
 #' @param input_files A character vector or `NULL`. Local paths that are
 #'   expected to exist before upload -- normally the same value passed to
 #'   [htc_gen_submit()]. When `NULL` (the default), resolves to
-#'   `input_files` recorded in the manifest.
+#'   `input_files` recorded in the submission state.
 #' @param data_files A character vector or `NULL`. Local paths to data files
 #'   expected to exist before a container image bakes them in -- normally
 #'   the same value passed to [htc_gen_executable()]. When `NULL` (the
-#'   default), resolves to `data_files` recorded in the manifest.
+#'   default), resolves to `data_files` recorded in the submission state.
 #' @param resources A named list with `cpus`, `memory`, and `disk`, or
 #'   `NULL`. When `NULL` (the default), resolves to the resolved resource
-#'   values [htc_gen_submit()] recorded in the manifest (whichever preset,
+#'   values [htc_gen_submit()] recorded in the submission state (whichever preset,
 #'   or `custom_resources`, was actually used).
 #' @param verbose Logical. If `TRUE` (the default), prints a line for every
 #'   check performed, not just the ones that found something. Set `FALSE`
 #'   to only see problems.
-#' @param path A character string. Directory holding the job manifest
+#' @param path A character string. Directory holding the submission state
 #'   (`htc-manifest.yaml`). Defaults to `"."`, matching the default used
 #'   elsewhere in the family.
 #'
@@ -198,7 +198,7 @@ htc_check <- function(container_image = NULL,
                 "subdatasets", "error",
                 paste0(
                     "subdatasets.csv not found at ",
-                    if (is.null(subdatasets_path)) "(not recorded in the manifest)"
+                    if (is.null(subdatasets_path)) "(not recorded in the submission state)"
                     else subdatasets_path
                 )
             )
@@ -213,7 +213,7 @@ htc_check <- function(container_image = NULL,
                     "subdatasets", "error",
                     paste0(
                         length(missing_on_disk), " subset file(s) listed in the",
-                        " job manifest no longer exist: ",
+                        " submission state no longer exist: ",
                         paste(missing_on_disk, collapse = ", ")
                     )
                 )
@@ -225,7 +225,7 @@ htc_check <- function(container_image = NULL,
                     "subdatasets", "error",
                     paste0(
                         "subdatasets.csv (", length(listed), " file(s)) and the",
-                        " job manifest's subset list (", length(recorded_basenames),
+                        " submission state's subset list (", length(recorded_basenames),
                         " file(s)) disagree. Re-run htc_gen_submit() if the",
                         " split data has changed since."
                     )

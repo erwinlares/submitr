@@ -40,15 +40,15 @@
 }
 
 
-#' Update the job manifest with new information
+#' Update the submission state with new information
 #'
 #' Internal helper that accumulates job metadata across the submitr
 #' pipeline. Each function in the workflow calls `.update_manifest()`
 #' with the information it knows. `htc_download()` and `htc_upload()`
-#' read the accumulated manifest to resolve files automatically.
+#' read the accumulated submission state to resolve files automatically.
 #'
-#' The manifest is persisted to `htc-manifest.yaml` in `path`, not to
-#' session options. Persisting it to disk means the manifest survives
+#' The submission state is persisted to `htc-manifest.yaml` in `path`, not to
+#' session options. Persisting it to disk means the submission state survives
 #' across R sessions: restarting a session with [htc_start()] no longer
 #' discards job metadata recorded by an earlier call to
 #' [htc_gen_submit()], [htc_gen_executable()], or [htc_submit()].
@@ -57,16 +57,16 @@
 #' run clear the `subsets` and `subdatasets_path` left behind by an earlier
 #' multiple-mode run in the same directory.
 #'
-#' @param ... Named key-value pairs to add or update in the manifest. Because
+#' @param ... Named key-value pairs to add or update in the submission state. Because
 #'   `path` below sits after the dots, it is matched exactly by name and can
-#'   never be stored as a manifest field. Nothing in the package needs a
+#'   never be stored as a submission-state field. Nothing in the package needs a
 #'   field called `path`, but any future one would have to be named
 #'   differently.
 #' @param path A character string. Directory where `htc-manifest.yaml`
 #'   is read from and written to. Defaults to `"."` (current working
 #'   directory). Functions that write to a caller-supplied `output`
 #'   directory (e.g. [htc_gen_submit()], [htc_gen_executable()]) pass
-#'   that directory through so the manifest travels with the generated
+#'   that directory through so the submission state travels with the generated
 #'   files, and so package examples never write outside `tempdir()`.
 #'
 #' @return Called for its side effects. Returns `invisible(NULL)`.
@@ -76,7 +76,7 @@
 
   if (!dir.exists(path)) {
     cli::cli_abort(c(
-      "Cannot write the job manifest: {.path {path}} does not exist.",
+      "Cannot write the submission state: {.path {path}} does not exist.",
       "i" = "{.arg path} must name an existing directory."
     ))
   }
@@ -102,10 +102,10 @@
 }
 
 
-#' Retrieve the current job manifest
+#' Retrieve the current submission state
 #'
-#' Internal helper that reads the accumulated job manifest from
-#' `htc-manifest.yaml` in `path`. Returns `NULL` if no manifest file
+#' Internal helper that reads the accumulated submission state from
+#' `htc-manifest.yaml` in `path`. Returns `NULL` if no `htc-manifest.yaml`
 #' exists yet.
 #'
 #' YAML represents a sequence (e.g. a character vector recorded via
@@ -129,8 +129,8 @@
 
   manifest <- yaml::read_yaml(manifest_file)
 
-  # An empty or unreadable manifest file is treated the same as no manifest
-  # at all, so callers only ever have to test for NULL.
+  # An empty or unreadable htc-manifest.yaml is treated the same as no
+  # submission state at all, so callers only ever have to test for NULL.
   if (!is.list(manifest) || length(manifest) == 0L) {
     return(NULL)
   }

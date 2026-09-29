@@ -11,10 +11,10 @@
 #'
 #' @param cluster_id An integer, character string, or `NULL`. The cluster ID
 #'   returned by [htc_submit()], e.g. `6302860`. When `NULL` (the default),
-#'   resolves to the cluster ID recorded in the job manifest by the most
-#'   recent [htc_submit()] call; if no manifest value is available either,
+#'   resolves to the cluster ID recorded in the submission state by the most
+#'   recent [htc_submit()] call; if the submission state holds no value either,
 #'   shows all of your jobs currently in the queue instead. Required
-#'   (directly or via the manifest) when `watch = TRUE`.
+#'   (directly or via the submission state) when `watch = TRUE`.
 #' @param config A named list as returned by [htc_config()]. Must contain
 #'   `username` and `server`. If `NULL` (the default), uses the session
 #'   config set by [htc_start()]. If no session config is set,
@@ -28,7 +28,7 @@
 #'   executed without running it. Defaults to `FALSE`.
 #' @param verbose Logical. If `TRUE`, prints progress messages. Defaults to
 #'   `FALSE`.
-#' @param path A character string. Directory holding the job manifest
+#' @param path A character string. Directory holding the submission state
 #'   (`htc-manifest.yaml`), consulted only when `cluster_id` is `NULL`.
 #'   Defaults to `"."`, matching the default used by [htc_upload()],
 #'   [htc_submit()], and [htc_download()]. If you passed a non-default
@@ -127,9 +127,9 @@ htc_status <- function(cluster_id       = NULL,
     # -- 1. Resolve config (explicit argument or session option) ----------------
     config <- .resolve_config(config)
 
-    # -- 1b. Resolve cluster_id from the job manifest if not supplied -----------
+    # -- 1b. Resolve cluster_id from the submission state if not supplied ------
     # Explicit argument > the cluster_id htc_submit() recorded in the job
-    # manifest > NULL (show all jobs in the queue). Without this, the ID
+    # submission state > NULL (show all jobs in the queue). Without this, the ID
     # htc_submit() just printed has to be retyped by hand for every status
     # check and for watch = TRUE.
     if (is.null(cluster_id)) {

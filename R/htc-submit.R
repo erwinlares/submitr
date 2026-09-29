@@ -7,14 +7,14 @@
 #'
 #' @param submit_file A character string or `NULL`. Name of the submit file
 #'   on the remote node, e.g. `"job.sub"`. Must end in `".sub"`. When `NULL`
-#'   (the default), resolves to the `submit_file` recorded in the job
-#'   manifest by [htc_gen_submit()], falling back to `"job.sub"` if no
-#'   manifest value is available.
+#'   (the default), resolves to the `submit_file` recorded in the submission
+#'   state by [htc_gen_submit()], falling back to `"job.sub"` if the
+#'   submission state holds no value.
 #' @param remote_path A character string or `NULL`. The directory on the
 #'   submit node where the submit file was uploaded. When `NULL` (the
-#'   default), resolves to the `remote_path` recorded in the job manifest by
-#'   the preceding call to [htc_upload()], falling back to `"~/"` if no
-#'   manifest value is available.
+#'   default), resolves to the `remote_path` recorded in the submission state by
+#'   the preceding call to [htc_upload()], falling back to `"~/"` if the
+#'   submission state holds no value.
 #' @param config A named list as returned by [htc_config()]. Must contain
 #'   `username` and `server`. If `NULL` (the default), uses the session
 #'   config set by [htc_start()]. If no session config is set,
@@ -24,12 +24,12 @@
 #'   submitting. Defaults to `FALSE`.
 #' @param verbose Logical. If `TRUE`, prints progress messages and the
 #'   `condor_submit` output. Defaults to `FALSE`.
-#' @param path A character string. Directory holding the job manifest
+#' @param path A character string. Directory holding the submission state
 #'   (`htc-manifest.yaml`), where the cluster ID and `remote_path` are
 #'   recorded on a successful submission. Defaults to `"."`. If you passed a
 #'   non-default `output` or `path` to [htc_gen_submit()], pass that same
 #'   directory here, or the cluster ID will be written to a second, separate
-#'   manifest and [htc_download()] will not find it alongside the job
+#'   `htc-manifest.yaml` and [htc_download()] will not find it alongside the job
 #'   metadata it needs.
 #'
 #' @return The cluster ID assigned by HTCondor as a character string,
@@ -106,8 +106,8 @@ htc_submit <- function(submit_file = NULL,
     # -- 1. Resolve config (explicit argument or session option) ----------------
     config <- .resolve_config(config)
 
-    # -- 2. Resolve submit_file and remote_path from the job manifest -----------
-    # Explicit argument > the value recorded in the manifest by an earlier
+    # -- 2. Resolve submit_file and remote_path from the submission state ------
+    # Explicit argument > the value recorded in the submission state by an earlier
     # step in the pipeline (htc_gen_submit() for submit_file, htc_upload()
     # for remote_path) > the hardcoded default. Without this, deviating from
     # the default filename or upload directory anywhere upstream silently

@@ -6,11 +6,11 @@
 #' have completed.
 #'
 #' When `cluster_id` is supplied without `files`, the function uses the
-#' job manifest built up by [htc_gen_submit()], [htc_gen_executable()],
+#' submission state built up by [htc_gen_submit()], [htc_gen_executable()],
 #' and [htc_submit()] to determine which files to download. For single-mode
 #' jobs, this includes the results tarball and the log, error, and output
 #' files. For multiple-mode jobs, the function reads the subset names from
-#' the manifest and constructs per-job tarball names and per-process log
+#' the submission state and constructs per-job tarball names and per-process log
 #' file patterns.
 #'
 #' Glob patterns such as `"*.tar.gz"` are supported when using the `files`
@@ -19,18 +19,18 @@
 #' @param files A character vector or `NULL`. One or more filenames or glob
 #'   patterns to download from `remote_path` on the submit node. Examples:
 #'   `"results.tar.gz"`, `c("job.log", "job.err")`, `"*.tar.gz"`. When
-#'   `NULL`, the function uses `cluster_id` and the job manifest to
+#'   `NULL`, the function uses `cluster_id` and the submission state to
 #'   determine which files to download. Defaults to `NULL`.
 #' @param cluster_id A character string or `NULL`. The cluster ID returned
 #'   by [htc_submit()]. When supplied without `files`, the function
-#'   constructs the file list from the job manifest. When `NULL`, falls
-#'   back to the most recently submitted cluster ID stored in the manifest.
+#'   constructs the file list from the submission state. When `NULL`, falls
+#'   back to the most recently submitted cluster ID stored in the submission state.
 #'   Defaults to `NULL`.
 #' @param remote_path A character string or `NULL`. The directory on the
 #'   submit node where the files are located. When `NULL` (the default),
-#'   resolves to the `remote_path` recorded in the job manifest by the
-#'   preceding call to [htc_submit()], falling back to `"~/"` if no manifest
-#'   value is available. Should match the `remote_path` used in
+#'   resolves to the `remote_path` recorded in the submission state by the
+#'   preceding call to [htc_submit()], falling back to `"~/"` if the submission state
+#'   holds no value. Should match the `remote_path` used in
 #'   [htc_upload()] and [htc_submit()].
 #' @param local_path A character string. The local directory where downloaded
 #'   files will be saved. Defaults to `"."` (current working directory).
@@ -42,7 +42,7 @@
 #'   executed without running it. Defaults to `FALSE`.
 #' @param verbose Logical. If `TRUE`, prints progress messages. Defaults to
 #'   `FALSE`.
-#' @param path A character string. Directory holding the job manifest
+#' @param path A character string. Directory holding the submission state
 #'   (`htc-manifest.yaml`). This is where the function looks for job
 #'   metadata; it is not where downloaded files are written, which is
 #'   `local_path`. Defaults to `"."`. If you passed a non-default `output`
@@ -53,7 +53,7 @@
 #'
 #' @section Automatic file resolution:
 #' When `files` is `NULL`, the function resolves the file list from the
-#' job manifest. The manifest is built automatically as you call
+#' submission state. The submission state is built automatically as you call
 #' [htc_gen_submit()], [htc_gen_executable()], and [htc_submit()] during
 #' the normal workflow. No extra steps are needed.
 #'
@@ -70,7 +70,7 @@
 #' Call it after [htc_status()] confirms all jobs have completed.
 #'
 #' ```r
-#' # Automatic: uses the job manifest to determine what to download
+#' # Automatic: uses the submission state to determine what to download
 #' htc_start()
 #' htc_gen_submit(...)
 #' htc_gen_executable(...)
@@ -133,34 +133,34 @@ htc_download <- function(files       = NULL,
     # -- 1. Resolve config (explicit argument or session option) ----------------
     config <- .resolve_config(config)
 
-    # -- 2. Read the job manifest ----------------------------------------------
+    # -- 2. Read the submission state ------------------------------------------
     # Read once, up front: it feeds both the file list (step 3) and the
     # remote_path fallback (step 6), and the second of those applies whether
     # or not the caller supplied files explicitly.
     manifest <- .get_manifest(path = path)
 
-    # -- 3. Resolve files from manifest if not supplied -------------------------
+    # -- 3. Resolve files from the submission state if not supplied ------------
     if (is.null(files)) {
 
-        # Resolve cluster_id: explicit > manifest > error
+        # Resolve cluster_id: explicit > submission state > error
         if (is.null(cluster_id)) {
             cluster_id <- manifest$cluster_id
         }
 
         if (is.null(cluster_id) && is.null(manifest)) {
             cli::cli_abort(c(
-                "No files specified and no job manifest found.",
+                "No files specified and no submission state found.",
                 "i" = "Either supply {.arg files} directly, or run the full",
                 " " = "  workflow ({.fn htc_gen_submit}, {.fn htc_gen_executable},",
-                " " = "  {.fn htc_submit}) so the manifest is available."
+                " " = "  {.fn htc_submit}) so the submission state is available."
             ))
         }
 
         if (is.null(cluster_id)) {
             cli::cli_abort(c(
-                "No {.arg cluster_id} supplied and none found in the job manifest.",
+                "No {.arg cluster_id} supplied and none found in the submission state.",
                 "i" = "Pass the cluster ID returned by {.fn htc_submit}, or",
-                " " = "  re-run the workflow so the manifest is populated."
+                " " = "  re-run the workflow so the submission state is populated."
             ))
         }
 
@@ -168,7 +168,7 @@ htc_download <- function(files       = NULL,
 
         if (verbose) {
             cli::cli_inform(
-                "Resolved {length(files)} file{?s} from job manifest for cluster {.val {cluster_id}}."
+                "Resolved {length(files)} file{?s} from the submission state for cluster {.val {cluster_id}}."
             )
         }
     }
@@ -190,7 +190,7 @@ htc_download <- function(files       = NULL,
 
     # -- 6. Resolve and validate remote_path ------------------------------------
     # Explicit argument > the remote_path htc_submit() recorded in the job
-    # manifest > the "~/" default.
+    # submission state > the "~/" default.
     if (is.null(remote_path)) {
         remote_path <- manifest$remote_path
     }
@@ -246,7 +246,7 @@ htc_download <- function(files       = NULL,
 }
 
 
-#' Resolve file list from job manifest and cluster ID
+#' Resolve file list from submission state and cluster ID
 #'
 #' Internal helper that constructs the list of files to download based on
 #' the job mode, output file pattern, subset names, and cluster ID.
@@ -265,7 +265,7 @@ htc_download <- function(files       = NULL,
     # -- Result tarballs -------------------------------------------------------
     if (mode == "multiple" && !is.null(manifest$subsets)) {
         # Per-subset tarballs, composed through the same helper the two
-        # generators use. The manifest's output_files is no help here: in
+        # generators use. The submission state's output_files is no help here: in
         # multiple mode it holds the submit-language form, with $Fn(file)
         # standing in for a value only condor_submit can resolve. Substituting
         # into that string would be reimplementing the submit language in R,
