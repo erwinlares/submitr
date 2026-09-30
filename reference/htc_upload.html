@@ -72,19 +72,19 @@ job submission workflow – files must be present on the submit node before
 directory paths to copy to the submit node. A single file, a vector of
 files, and a directory path are all accepted. Directories are copied
 recursively. When <code>NULL</code> (the default), the function resolves the files
-to upload from the job manifest built up by <code><a href="htc_gen_submit.html">htc_gen_submit()</a></code> and
+to upload from the submission state built up by <code><a href="htc_gen_submit.html">htc_gen_submit()</a></code> and
 <code><a href="htc_gen_executable.html">htc_gen_executable()</a></code>: the submit file, the executable script, any
-shared input files, and – in <code>"multiple"</code> mode – the subdatasets
-manifest and the individual subset data files.</p></dd>
+shared input files, and – in <code>"multiple"</code> mode – <code>subdatasets.csv</code>
+and the individual subset data files.</p></dd>
 
 
 <dt id="arg-remote-path">remote_path<a class="anchor" aria-label="anchor" href="#arg-remote-path"></a></dt>
 <dd><p>A character string or <code>NULL</code>. The destination directory
 on the submit node. When <code>NULL</code> (the default), resolves to the
-<code>remote_path</code> recorded in the job manifest by a previous call to
-<code>htc_upload()</code>, falling back to <code>"~/"</code> if no manifest value is
-available. On a successful (non-<code>dry_run</code>) upload, the resolved value is
-recorded back to the manifest, so <code><a href="htc_submit.html">htc_submit()</a></code> and <code><a href="htc_download.html">htc_download()</a></code>
+<code>remote_path</code> recorded in the submission state by a previous call to
+<code>htc_upload()</code>, falling back to <code>"~/"</code> if the submission state holds
+no value. On a successful (non-<code>dry_run</code>) upload, the resolved value is
+recorded back to the submission state, so <code><a href="htc_submit.html">htc_submit()</a></code> and <code><a href="htc_download.html">htc_download()</a></code>
 can pick it up automatically without retyping it.</p></dd>
 
 
@@ -107,7 +107,7 @@ transferring files. Defaults to <code>FALSE</code>.</p></dd>
 
 
 <dt id="arg-path">path<a class="anchor" aria-label="anchor" href="#arg-path"></a></dt>
-<dd><p>A character string. Directory holding the job manifest
+<dd><p>A character string. Directory holding the submission state
 (<code>htc-manifest.yaml</code>), consulted only when <code>files</code> is <code>NULL</code>. Defaults
 to <code>"."</code>, which matches the generator functions' own default. If you
 passed a non-default <code>output</code> or <code>path</code> to <code><a href="htc_gen_submit.html">htc_gen_submit()</a></code> and
@@ -135,8 +135,8 @@ reported but do not block the upload. Defaults to <code>FALSE</code>.</p></dd>
 Call it after generating your submit file and executable script with
 <code><a href="htc_gen_submit.html">htc_gen_submit()</a></code> and <code><a href="htc_gen_executable.html">htc_gen_executable()</a></code>, and before calling
 <code><a href="htc_submit.html">htc_submit()</a></code>.</p>
-<p>The typical sequence relies on automatic resolution from the job
-manifest, so <code>files</code> can usually be omitted:</p>
+<p>The typical sequence relies on automatic resolution from the submission
+state, so <code>files</code> can usually be omitted:</p>
 <p></p><div class="sourceCode r"><pre><code><span><span class="va">cfg</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/htc_config.html">htc_config</a></span><span class="op">(</span><span class="op">)</span></span>
 <span></span>
 <span><span class="fu"><a href="../reference/htc_gen_submit.html">htc_gen_submit</a></span><span class="op">(</span>executable <span class="op">=</span> <span class="st">"job.sh"</span>, r_script <span class="op">=</span> <span class="st">"R/analysis.R"</span>,</span>
@@ -170,14 +170,14 @@ Duo MFA prompt. Run <code><a href="htc_config.html">htc_config()</a></code> for 
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/writeLines.html" class="external-link">writeLines</a></span><span class="op">(</span><span class="st">"queue 1"</span>, <span class="va">tmp</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="fu">htc_upload</span><span class="op">(</span>files <span class="op">=</span> <span class="va">tmp</span>, config <span class="op">=</span> <span class="va">cfg</span>, dry_run <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span></span>
 <span class="r-msg co"><span class="r-pr">#&gt;</span> <span style="color: #00BB00;">✔</span> Dry run -- command that would be executed:</span>
-<span class="r-msg co"><span class="r-pr">#&gt;</span>   `scp /tmp/RtmpTA4CG0/file492c386c0b04.sub netid@ap2002.chtc.wisc.edu:~/`</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span>   `scp /tmp/Rtmp8DxLm7/file4ab621062fcb.sub netid@ap2002.chtc.wisc.edu:~/`</span>
 <span class="r-in"><span><span class="co"># }</span></span></span>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="kw">if</span> <span class="op">(</span><span class="cn">FALSE</span><span class="op">)</span> <span class="op">{</span> <span class="co"># \dontrun{</span></span></span>
 <span class="r-in"><span><span class="co"># All remaining examples require a live CHTC connection</span></span></span>
 <span class="r-in"><span><span class="va">cfg</span> <span class="op">&lt;-</span> <span class="fu"><a href="htc_config.html">htc_config</a></span><span class="op">(</span><span class="op">)</span></span></span>
 <span class="r-in"><span></span></span>
-<span class="r-in"><span><span class="co"># Resolve files automatically from the job manifest</span></span></span>
+<span class="r-in"><span><span class="co"># Resolve files automatically from the submission state</span></span></span>
 <span class="r-in"><span><span class="fu"><a href="htc_gen_submit.html">htc_gen_submit</a></span><span class="op">(</span>executable <span class="op">=</span> <span class="st">"job.sh"</span>, r_script <span class="op">=</span> <span class="st">"R/analysis.R"</span>,</span></span>
 <span class="r-in"><span>               input_files <span class="op">=</span> <span class="st">"R/analysis.R"</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="fu"><a href="htc_gen_executable.html">htc_gen_executable</a></span><span class="op">(</span>r_script <span class="op">=</span> <span class="st">"R/analysis.R"</span><span class="op">)</span></span></span>

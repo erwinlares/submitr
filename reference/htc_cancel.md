@@ -24,7 +24,7 @@ htc_cancel(
 
   An integer, character string, or `NULL`. The cluster ID to remove,
   e.g. `6302860`. When `NULL` (the default), resolves to the cluster ID
-  recorded in the job manifest by the most recent
+  recorded in the submission state by the most recent
   [`htc_submit()`](https://erwinlares.github.io/submitr/reference/htc_submit.md)
   call. Unlike
   [`htc_status()`](https://erwinlares.github.io/submitr/reference/htc_status.md),
@@ -60,7 +60,7 @@ htc_cancel(
 
 - path:
 
-  A character string. Directory holding the job manifest
+  A character string. Directory holding the submission state
   (`htc-manifest.yaml`), consulted only when `cluster_id` is `NULL`.
   Defaults to `"."`, matching the default used elsewhere in the family.
 

@@ -27,11 +27,11 @@ htc_status(
   An integer, character string, or `NULL`. The cluster ID returned by
   [`htc_submit()`](https://erwinlares.github.io/submitr/reference/htc_submit.md),
   e.g. `6302860`. When `NULL` (the default), resolves to the cluster ID
-  recorded in the job manifest by the most recent
+  recorded in the submission state by the most recent
   [`htc_submit()`](https://erwinlares.github.io/submitr/reference/htc_submit.md)
-  call; if no manifest value is available either, shows all of your jobs
-  currently in the queue instead. Required (directly or via the
-  manifest) when `watch = TRUE`.
+  call; if the submission state holds no value either, shows all of your
+  jobs currently in the queue instead. Required (directly or via the
+  submission state) when `watch = TRUE`.
 
 - config:
 
@@ -64,7 +64,7 @@ htc_status(
 
 - path:
 
-  A character string. Directory holding the job manifest
+  A character string. Directory holding the submission state
   (`htc-manifest.yaml`), consulted only when `cluster_id` is `NULL`.
   Defaults to `"."`, matching the default used by
   [`htc_upload()`](https://erwinlares.github.io/submitr/reference/htc_upload.md),

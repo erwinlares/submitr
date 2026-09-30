@@ -3,11 +3,13 @@
 HTCondor runs inside the container for each job. The script changes to
 HTCondor's writable scratch directory, creates an output folder, runs
 the R script via Rscript, and compresses the results into a tarball
-for transfer back to the submit node."><meta property="og:description" content="htc_gen_executable() writes a ready-to-use bash script (.sh) that
+for transfer back to the submit node. The tarball is built whether or
+not the R script succeeds (see the section on failed jobs below)."><meta property="og:description" content="htc_gen_executable() writes a ready-to-use bash script (.sh) that
 HTCondor runs inside the container for each job. The script changes to
 HTCondor's writable scratch directory, creates an output folder, runs
 the R script via Rscript, and compresses the results into a tarball
-for transfer back to the submit node."><meta property="og:image" content="https://erwinlares.github.io/submitr/logo.png"></head><body>
+for transfer back to the submit node. The tarball is built whether or
+not the R script succeeds (see the section on failed jobs below)."><meta property="og:image" content="https://erwinlares.github.io/submitr/logo.png"></head><body>
     <a href="#main" class="visually-hidden-focusable">Skip to contents</a>
 
 
@@ -50,7 +52,8 @@ for transfer back to the submit node."><meta property="og:image" content="https:
 HTCondor runs inside the container for each job. The script changes to
 HTCondor's writable scratch directory, creates an output folder, runs
 the R script via <code>Rscript</code>, and compresses the results into a tarball
-for transfer back to the submit node.</p>
+for transfer back to the submit node. The tarball is built whether or
+not the R script succeeds (see the section on failed jobs below).</p>
     </div>
 
     <div class="section level2">
@@ -78,12 +81,12 @@ for transfer back to the submit node.</p>
 <dl><dt id="arg-output-file">output_file<a class="anchor" aria-label="anchor" href="#arg-output-file"></a></dt>
 <dd><p>A character string or <code>NULL</code>. Name of the shell script
 to write. Must end in <code>".sh"</code>. When <code>NULL</code> (the default), resolves to
-the <code>executable_file</code> recorded in the job manifest by a previous
+the <code>executable_file</code> recorded in the submission state by a previous
 <code><a href="htc_gen_submit.html">htc_gen_submit()</a></code> call (S-I3), so the name only has to be typed once
 regardless of which of the two generators runs first. Falls back to
-<code>"job.sh"</code> if neither an explicit value nor a manifest value is
+<code>"job.sh"</code> if neither an explicit value nor a submission-state value is
 available. If the resolved value disagrees with an <code>executable_file</code>
-already in the manifest, warns rather than silently preferring one
+already in the submission state, warns rather than silently preferring one
 over the other.</p></dd>
 
 
@@ -179,13 +182,13 @@ here can still be passed explicitly.</p></dd>
 
 
 <dt id="arg-path">path<a class="anchor" aria-label="anchor" href="#arg-path"></a></dt>
-<dd><p>A character string. Directory where the job manifest
+<dd><p>A character string. Directory where the submission state
 (<code>htc-manifest.yaml</code>) is read from and written to. Defaults to <code>"."</code>
 (the current working directory), matching the default used by
 <code><a href="htc_upload.html">htc_upload()</a></code>, <code><a href="htc_submit.html">htc_submit()</a></code>, and <code><a href="htc_download.html">htc_download()</a></code>. This is
 independent of <code>output</code>: if you write generated files to a subfolder
 with <code>output</code>, pass the same <code>path</code> explicitly to every function in
-the pipeline so they all find the same manifest.</p></dd>
+the pipeline so they all find the same submission state.</p></dd>
 
 </dl></div>
     <div class="section level2">
@@ -227,6 +230,22 @@ in RStudio, in <code>quarto render</code>, and on HTCondor – while the <code>.
 script handles the HTCondor-specific directory setup.</p>
     </div>
     <div class="section level2">
+    <h2 id="when-the-r-script-fails">When the R script fails<a class="anchor" aria-label="anchor" href="#when-the-r-script-fails"></a></h2>
+
+
+<p>The script runs under <code>set -euo pipefail</code>, so any failing command stops
+it – except the <code>Rscript</code> line, which is bracketed by <code>set +e</code> and
+<code>set -e</code> so that its exit status is recorded rather than fatal. The
+results folder is then compressed as usual, and the script exits with
+the status R returned. A failed job therefore still sends back its
+tarball, holding whatever the analysis wrote before it stopped (and,
+with <code>toolero::save_output()</code>, the accumulator row recording the failed
+write), while HTCondor still sees a non-zero exit code and reports the
+job as failed rather than completed. Without this, a failed job would
+leave no tarball behind, and HTCondor would hold the job for a missing
+<code>transfer_output_files</code> entry instead of letting it finish.</p>
+    </div>
+    <div class="section level2">
     <h2 id="relationship-to-htc-gen-submit-">Relationship to htc_gen_submit()<a class="anchor" aria-label="anchor" href="#relationship-to-htc-gen-submit-"></a></h2>
 
 
@@ -248,10 +267,10 @@ be written to accept this argument – the recommended approach is
 
     <div class="section level2">
     <h2 id="ref-examples">Examples<a class="anchor" aria-label="anchor" href="#ref-examples"></a></h2>
-    <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="co"># output writes the generated .sh file; path is where the job manifest</span></span></span>
+    <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="co"># output writes the generated .sh file; path is where the submission state</span></span></span>
 <span class="r-in"><span><span class="co"># (htc-manifest.yaml) gets read from and written to. The two are</span></span></span>
 <span class="r-in"><span><span class="co"># independent arguments (see @param path), so both must point at the</span></span></span>
-<span class="r-in"><span><span class="co"># same scratch directory here to keep the manifest out of the current</span></span></span>
+<span class="r-in"><span><span class="co"># same scratch directory here to keep the submission state out of the current</span></span></span>
 <span class="r-in"><span><span class="co"># working directory.</span></span></span>
 <span class="r-in"><span><span class="va">tmp</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/tempfile.html" class="external-link">tempdir</a></span><span class="op">(</span><span class="op">)</span></span></span>
 <span class="r-in"><span></span></span>
@@ -282,8 +301,8 @@ be written to accept this argument – the recommended approach is
 <span class="r-in"><span>  path        <span class="op">=</span> <span class="va">tmp</span></span></span>
 <span class="r-in"><span><span class="op">)</span></span></span>
 <span class="r-wrn co"><span class="r-pr">#&gt;</span> <span class="warning">Warning: </span>`output_file` (<span style="color: #0000BB;">"run.sh"</span>) does not match the</span>
-<span class="r-wrn co"><span class="r-pr">#&gt;</span>   executable script name already recorded in the job</span>
-<span class="r-wrn co"><span class="r-pr">#&gt;</span>   manifest (<span style="color: #0000BB;">"job.sh"</span>).</span>
+<span class="r-wrn co"><span class="r-pr">#&gt;</span>   executable script name already recorded in the</span>
+<span class="r-wrn co"><span class="r-pr">#&gt;</span>   submission state (<span style="color: #0000BB;">"job.sh"</span>).</span>
 <span class="r-wrn co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">ℹ</span> That name came from an earlier `htc_gen_submit()` call.</span>
 <span class="r-wrn co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">ℹ</span> If this is deliberate, ignore this warning -- this script</span>
 <span class="r-wrn co"><span class="r-pr">#&gt;</span>   will be written as <span style="color: #0000BB;">"run.sh"</span>. Otherwise, check</span>
@@ -294,8 +313,9 @@ be written to accept this argument – the recommended approach is
 <span class="r-msg co"><span class="r-pr">#&gt;</span> Writing results folder creation</span>
 <span class="r-msg co"><span class="r-pr">#&gt;</span> Writing Rscript execution line (mode: single)</span>
 <span class="r-msg co"><span class="r-pr">#&gt;</span> Writing compression line</span>
-<span class="r-msg co"><span class="r-pr">#&gt;</span> Set executable permissions on <span style="color: #0000BB;">/tmp/RtmpTA4CG0/run.sh</span></span>
-<span class="r-msg co"><span class="r-pr">#&gt;</span> <span style="color: #00BB00;">✔</span> Executable script written to <span style="color: #0000BB;">/tmp/RtmpTA4CG0/run.sh</span></span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> Writing exit line</span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> Set executable permissions on <span style="color: #0000BB;">/tmp/Rtmp8DxLm7/run.sh</span></span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> <span style="color: #00BB00;">✔</span> Executable script written to <span style="color: #0000BB;">/tmp/Rtmp8DxLm7/run.sh</span></span>
 </code></pre></div>
     </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>

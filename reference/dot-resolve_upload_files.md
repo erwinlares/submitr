@@ -1,15 +1,15 @@
-# Resolve files to upload from the job manifest
+# Resolve files to upload from the submission state
 
 Internal helper used by
 [`htc_upload()`](https://erwinlares.github.io/submitr/reference/htc_upload.md)
 when `files = NULL`. Builds the list of local files to copy to the
-submit node from the job manifest accumulated by
+submit node from the submission state accumulated by
 [`htc_gen_submit()`](https://erwinlares.github.io/submitr/reference/htc_gen_submit.md)
 and
 [`htc_gen_executable()`](https://erwinlares.github.io/submitr/reference/htc_gen_executable.md):
 the submit file, the executable script, any shared input files, and – in
-`"multiple"` mode – the subdatasets manifest and the individual subset
-data files.
+`"multiple"` mode – `subdatasets.csv` and the individual subset data
+files.
 
 ## Usage
 

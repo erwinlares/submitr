@@ -16,6 +16,7 @@ htc_check(
   input_files = NULL,
   data_files = NULL,
   resources = NULL,
+  check_image = TRUE,
   verbose = TRUE,
   path = "."
 )
@@ -27,8 +28,8 @@ htc_check(
 
   A character string or `NULL`. The container image reference to check,
   e.g. `"registry.doit.wisc.edu/netid/myimage:1.0.0"`. When `NULL` (the
-  default), resolves to the `container_image` recorded in the job
-  manifest by
+  default), resolves to the `container_image` recorded in the submission
+  state by
   [`htc_gen_submit()`](https://erwinlares.github.io/submitr/reference/htc_gen_submit.md).
   When still `NULL`, image checks are skipped.
 
@@ -38,7 +39,7 @@ htc_check(
   before upload – normally the same value passed to
   [`htc_gen_submit()`](https://erwinlares.github.io/submitr/reference/htc_gen_submit.md).
   When `NULL` (the default), resolves to `input_files` recorded in the
-  manifest.
+  submission state.
 
 - data_files:
 
@@ -47,15 +48,23 @@ htc_check(
   passed to
   [`htc_gen_executable()`](https://erwinlares.github.io/submitr/reference/htc_gen_executable.md).
   When `NULL` (the default), resolves to `data_files` recorded in the
-  manifest.
+  submission state.
 
 - resources:
 
   A named list with `cpus`, `memory`, and `disk`, or `NULL`. When `NULL`
   (the default), resolves to the resolved resource values
   [`htc_gen_submit()`](https://erwinlares.github.io/submitr/reference/htc_gen_submit.md)
-  recorded in the manifest (whichever preset, or `custom_resources`, was
-  actually used).
+  recorded in the submission state (whichever preset, or
+  `custom_resources`, was actually used).
+
+- check_image:
+
+  Logical. If `TRUE` (the default), and `podman` or `docker` is on the
+  local `PATH`, asks it whether `container_image` is pullable (see the
+  section on the image check below). Set `FALSE` to skip that probe,
+  which contacts the registry and can take up to 15 seconds – when
+  working offline, for instance. The `latest`-tag check runs either way.
 
 - verbose:
 
@@ -65,7 +74,7 @@ htc_check(
 
 - path:
 
-  A character string. Directory holding the job manifest
+  A character string. Directory holding the submission state
   (`htc-manifest.yaml`). Defaults to `"."`, matching the default used
   elsewhere in the family.
 
@@ -79,8 +88,8 @@ to inspect the detail behind the printed summary.
 
 ## Details
 
-Every argument can be resolved from the job manifest, so the common case
-is `htc_check()` with no arguments at all, run right after
+Every argument can be resolved from the submission state, so the common
+case is `htc_check()` with no arguments at all, run right after
 [`htc_gen_submit()`](https://erwinlares.github.io/submitr/reference/htc_gen_submit.md)
 and
 [`htc_gen_executable()`](https://erwinlares.github.io/submitr/reference/htc_gen_executable.md)
@@ -106,7 +115,8 @@ when `podman` or `docker` is found on the local `PATH`, via
 an error, and is not conclusive either way: it may mean the image
 genuinely does not exist, or simply that you are not logged in to the
 registry from this machine, or that the tool timed out. When neither
-tool is found, the image check is skipped entirely and reported as such.
+tool is found, or `check_image = FALSE`, the probe is skipped and
+reported as such.
 
 ## See also
 
@@ -125,8 +135,10 @@ htc_gen_submit(
   output          = tmp,
   path            = tmp
 )
-#> Error in htc_gen_submit(container_image = "registry.doit.wisc.edu/netid/myimage:latest",     resources = "small", output = tmp, path = tmp): Output directory /tmp/RtmpTA4CG0/file492c4e2da565 does not exist.
-htc_check(path = tmp)
+#> Error in htc_gen_submit(container_image = "registry.doit.wisc.edu/netid/myimage:latest",     resources = "small", output = tmp, path = tmp): Output directory /tmp/Rtmp8DxLm7/file4ab6300b8e81 does not exist.
+# check_image = FALSE skips asking podman or docker about the image,
+# which would otherwise contact the registry.
+htc_check(path = tmp, check_image = FALSE)
 #> ℹ No `input_files` to check (none supplied or recorded).
 #> ℹ No `data_files` to check (none supplied or recorded).
 #> ℹ Mode is "single" (or unset) -- no subset files to check.

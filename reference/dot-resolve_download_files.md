@@ -1,4 +1,4 @@
-# Resolve file list from job manifest and cluster ID
+# Resolve file list from submission state and cluster ID
 
 Internal helper that constructs the list of files to download based on
 the job mode, output file pattern, subset names, and cluster ID.

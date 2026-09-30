@@ -72,24 +72,24 @@ have completed.</p>
 <dd><p>A character vector or <code>NULL</code>. One or more filenames or glob
 patterns to download from <code>remote_path</code> on the submit node. Examples:
 <code>"results.tar.gz"</code>, <code>c("job.log", "job.err")</code>, <code>"*.tar.gz"</code>. When
-<code>NULL</code>, the function uses <code>cluster_id</code> and the job manifest to
+<code>NULL</code>, the function uses <code>cluster_id</code> and the submission state to
 determine which files to download. Defaults to <code>NULL</code>.</p></dd>
 
 
 <dt id="arg-cluster-id">cluster_id<a class="anchor" aria-label="anchor" href="#arg-cluster-id"></a></dt>
 <dd><p>A character string or <code>NULL</code>. The cluster ID returned
 by <code><a href="htc_submit.html">htc_submit()</a></code>. When supplied without <code>files</code>, the function
-constructs the file list from the job manifest. When <code>NULL</code>, falls
-back to the most recently submitted cluster ID stored in the manifest.
+constructs the file list from the submission state. When <code>NULL</code>, falls
+back to the most recently submitted cluster ID stored in the submission state.
 Defaults to <code>NULL</code>.</p></dd>
 
 
 <dt id="arg-remote-path">remote_path<a class="anchor" aria-label="anchor" href="#arg-remote-path"></a></dt>
 <dd><p>A character string or <code>NULL</code>. The directory on the
 submit node where the files are located. When <code>NULL</code> (the default),
-resolves to the <code>remote_path</code> recorded in the job manifest by the
-preceding call to <code><a href="htc_submit.html">htc_submit()</a></code>, falling back to <code>"~/"</code> if no manifest
-value is available. Should match the <code>remote_path</code> used in
+resolves to the <code>remote_path</code> recorded in the submission state by the
+preceding call to <code><a href="htc_submit.html">htc_submit()</a></code>, falling back to <code>"~/"</code> if the submission state
+holds no value. Should match the <code>remote_path</code> used in
 <code><a href="htc_upload.html">htc_upload()</a></code> and <code><a href="htc_submit.html">htc_submit()</a></code>.</p></dd>
 
 
@@ -116,7 +116,7 @@ executed without running it. Defaults to <code>FALSE</code>.</p></dd>
 
 
 <dt id="arg-path">path<a class="anchor" aria-label="anchor" href="#arg-path"></a></dt>
-<dd><p>A character string. Directory holding the job manifest
+<dd><p>A character string. Directory holding the submission state
 (<code>htc-manifest.yaml</code>). This is where the function looks for job
 metadata; it is not where downloaded files are written, which is
 <code>local_path</code>. Defaults to <code>"."</code>. If you passed a non-default <code>output</code>
@@ -131,11 +131,11 @@ same directory here.</p></dd>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
     <p>When <code>cluster_id</code> is supplied without <code>files</code>, the function uses the
-job manifest built up by <code><a href="htc_gen_submit.html">htc_gen_submit()</a></code>, <code><a href="htc_gen_executable.html">htc_gen_executable()</a></code>,
+submission state built up by <code><a href="htc_gen_submit.html">htc_gen_submit()</a></code>, <code><a href="htc_gen_executable.html">htc_gen_executable()</a></code>,
 and <code><a href="htc_submit.html">htc_submit()</a></code> to determine which files to download. For single-mode
 jobs, this includes the results tarball and the log, error, and output
 files. For multiple-mode jobs, the function reads the subset names from
-the manifest and constructs per-job tarball names and per-process log
+the submission state and constructs per-job tarball names and per-process log
 file patterns.</p>
 <p>Glob patterns such as <code>"*.tar.gz"</code> are supported when using the <code>files</code>
 argument and are evaluated on the remote server, not locally.</p>
@@ -145,7 +145,7 @@ argument and are evaluated on the remote server, not locally.</p>
 
 
 <p>When <code>files</code> is <code>NULL</code>, the function resolves the file list from the
-job manifest. The manifest is built automatically as you call
+submission state. The submission state is built automatically as you call
 <code><a href="htc_gen_submit.html">htc_gen_submit()</a></code>, <code><a href="htc_gen_executable.html">htc_gen_executable()</a></code>, and <code><a href="htc_submit.html">htc_submit()</a></code> during
 the normal workflow. No extra steps are needed.</p>
 <p>For a single-mode job:</p><ul><li><p>The results tarball (e.g. <code>"analysis-results.tar.gz"</code>)</p></li>
@@ -159,7 +159,7 @@ the normal workflow. No extra steps are needed.</p>
 
 <p><code>htc_download()</code> is the final system-facing step in the submitr workflow.
 Call it after <code><a href="htc_status.html">htc_status()</a></code> confirms all jobs have completed.</p>
-<p></p><div class="sourceCode r"><pre><code><span><span class="co"># Automatic: uses the job manifest to determine what to download</span></span>
+<p></p><div class="sourceCode r"><pre><code><span><span class="co"># Automatic: uses the submission state to determine what to download</span></span>
 <span><span class="fu"><a href="../reference/htc_start.html">htc_start</a></span><span class="op">(</span><span class="op">)</span></span>
 <span><span class="fu"><a href="../reference/htc_gen_submit.html">htc_gen_submit</a></span><span class="op">(</span><span class="va">...</span><span class="op">)</span></span>
 <span><span class="fu"><a href="../reference/htc_gen_executable.html">htc_gen_executable</a></span><span class="op">(</span><span class="va">...</span><span class="op">)</span></span>

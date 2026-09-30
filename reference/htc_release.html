@@ -68,7 +68,7 @@ resource request reported by <code><a href="htc_status.html">htc_status()</a></c
 <dl><dt id="arg-cluster-id">cluster_id<a class="anchor" aria-label="anchor" href="#arg-cluster-id"></a></dt>
 <dd><p>An integer, character string, or <code>NULL</code>. The cluster ID
 to release, e.g. <code>6302860</code>. When <code>NULL</code> (the default), resolves to the
-cluster ID recorded in the job manifest by the most recent
+cluster ID recorded in the submission state by the most recent
 <code><a href="htc_submit.html">htc_submit()</a></code> call. Unlike <code><a href="htc_status.html">htc_status()</a></code>, <code>htc_release()</code> never falls
 back to "all of my jobs": a bare <code>condor_release</code> with no arguments
 releases every held job you have on the submit node, not just the ones
@@ -94,7 +94,7 @@ executed without running it. Defaults to <code>FALSE</code>.</p></dd>
 
 
 <dt id="arg-path">path<a class="anchor" aria-label="anchor" href="#arg-path"></a></dt>
-<dd><p>A character string. Directory holding the job manifest
+<dd><p>A character string. Directory holding the submission state
 (<code>htc-manifest.yaml</code>), consulted only when <code>cluster_id</code> is <code>NULL</code>.
 Defaults to <code>"."</code>, matching the default used elsewhere in the family.</p></dd>
 

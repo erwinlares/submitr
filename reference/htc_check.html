@@ -66,6 +66,7 @@ locally – that the container image looks reachable.</p>
 <span>  input_files <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  data_files <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  resources <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  check_image <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  verbose <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  path <span class="op">=</span> <span class="st">"."</span></span>
 <span><span class="op">)</span></span></code></pre></div>
@@ -79,7 +80,7 @@ locally – that the container image looks reachable.</p>
 <dd><p>A character string or <code>NULL</code>. The container image
 reference to check, e.g. <code>"registry.doit.wisc.edu/netid/myimage:1.0.0"</code>.
 When <code>NULL</code> (the default), resolves to the <code>container_image</code> recorded
-in the job manifest by <code><a href="htc_gen_submit.html">htc_gen_submit()</a></code>. When still <code>NULL</code>, image
+in the submission state by <code><a href="htc_gen_submit.html">htc_gen_submit()</a></code>. When still <code>NULL</code>, image
 checks are skipped.</p></dd>
 
 
@@ -87,21 +88,30 @@ checks are skipped.</p></dd>
 <dd><p>A character vector or <code>NULL</code>. Local paths that are
 expected to exist before upload – normally the same value passed to
 <code><a href="htc_gen_submit.html">htc_gen_submit()</a></code>. When <code>NULL</code> (the default), resolves to
-<code>input_files</code> recorded in the manifest.</p></dd>
+<code>input_files</code> recorded in the submission state.</p></dd>
 
 
 <dt id="arg-data-files">data_files<a class="anchor" aria-label="anchor" href="#arg-data-files"></a></dt>
 <dd><p>A character vector or <code>NULL</code>. Local paths to data files
 expected to exist before a container image bakes them in – normally
 the same value passed to <code><a href="htc_gen_executable.html">htc_gen_executable()</a></code>. When <code>NULL</code> (the
-default), resolves to <code>data_files</code> recorded in the manifest.</p></dd>
+default), resolves to <code>data_files</code> recorded in the submission state.</p></dd>
 
 
 <dt id="arg-resources">resources<a class="anchor" aria-label="anchor" href="#arg-resources"></a></dt>
 <dd><p>A named list with <code>cpus</code>, <code>memory</code>, and <code>disk</code>, or
 <code>NULL</code>. When <code>NULL</code> (the default), resolves to the resolved resource
-values <code><a href="htc_gen_submit.html">htc_gen_submit()</a></code> recorded in the manifest (whichever preset,
+values <code><a href="htc_gen_submit.html">htc_gen_submit()</a></code> recorded in the submission state (whichever preset,
 or <code>custom_resources</code>, was actually used).</p></dd>
+
+
+<dt id="arg-check-image">check_image<a class="anchor" aria-label="anchor" href="#arg-check-image"></a></dt>
+<dd><p>Logical. If <code>TRUE</code> (the default), and <code>podman</code> or
+<code>docker</code> is on the local <code>PATH</code>, asks it whether <code>container_image</code> is
+pullable (see the section on the image check below). Set <code>FALSE</code> to
+skip that probe, which contacts the registry and can take up to 15
+seconds – when working offline, for instance. The <code>latest</code>-tag check
+runs either way.</p></dd>
 
 
 <dt id="arg-verbose">verbose<a class="anchor" aria-label="anchor" href="#arg-verbose"></a></dt>
@@ -111,7 +121,7 @@ to only see problems.</p></dd>
 
 
 <dt id="arg-path">path<a class="anchor" aria-label="anchor" href="#arg-path"></a></dt>
-<dd><p>A character string. Directory holding the job manifest
+<dd><p>A character string. Directory holding the submission state
 (<code>htc-manifest.yaml</code>). Defaults to <code>"."</code>, matching the default used
 elsewhere in the family.</p></dd>
 
@@ -125,7 +135,7 @@ assign it to inspect the detail behind the printed summary.</p>
     </div>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
-    <p>Every argument can be resolved from the job manifest, so the common case
+    <p>Every argument can be resolved from the submission state, so the common case
 is <code>htc_check()</code> with no arguments at all, run right after
 <code><a href="htc_gen_submit.html">htc_gen_submit()</a></code> and <code><a href="htc_gen_executable.html">htc_gen_executable()</a></code> and before <code><a href="htc_upload.html">htc_upload()</a></code>.</p>
     </div>
@@ -151,7 +161,8 @@ blocks the upload on <code>"error"</code>s.</p>
 an error, and is not conclusive either way: it may mean the image
 genuinely does not exist, or simply that you are not logged in to the
 registry from this machine, or that the tool timed out. When neither
-tool is found, the image check is skipped entirely and reported as such.</p>
+tool is found, or <code>check_image = FALSE</code>, the probe is skipped and
+reported as such.</p>
     </div>
     <div class="section level2">
     <h2 id="see-also">See also<a class="anchor" aria-label="anchor" href="#see-also"></a></h2>
@@ -170,8 +181,10 @@ is found.</p></div>
 <span class="r-in"><span>  output          <span class="op">=</span> <span class="va">tmp</span>,</span></span>
 <span class="r-in"><span>  path            <span class="op">=</span> <span class="va">tmp</span></span></span>
 <span class="r-in"><span><span class="op">)</span></span></span>
-<span class="r-err co"><span class="r-pr">#&gt;</span> <span class="error">Error in htc_gen_submit(container_image = "registry.doit.wisc.edu/netid/myimage:latest",     resources = "small", output = tmp, path = tmp):</span> Output directory <span style="color: #0000BB;">/tmp/RtmpTA4CG0/file492c4e2da565</span> does not exist.</span>
-<span class="r-in"><span><span class="fu">htc_check</span><span class="op">(</span>path <span class="op">=</span> <span class="va">tmp</span><span class="op">)</span></span></span>
+<span class="r-err co"><span class="r-pr">#&gt;</span> <span class="error">Error in htc_gen_submit(container_image = "registry.doit.wisc.edu/netid/myimage:latest",     resources = "small", output = tmp, path = tmp):</span> Output directory <span style="color: #0000BB;">/tmp/Rtmp8DxLm7/file4ab6300b8e81</span> does not exist.</span>
+<span class="r-in"><span><span class="co"># check_image = FALSE skips asking podman or docker about the image,</span></span></span>
+<span class="r-in"><span><span class="co"># which would otherwise contact the registry.</span></span></span>
+<span class="r-in"><span><span class="fu">htc_check</span><span class="op">(</span>path <span class="op">=</span> <span class="va">tmp</span>, check_image <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span></span>
 <span class="r-msg co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">ℹ</span> No `input_files` to check (none supplied or recorded).</span>
 <span class="r-msg co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">ℹ</span> No `data_files` to check (none supplied or recorded).</span>
 <span class="r-msg co"><span class="r-pr">#&gt;</span> <span style="color: #00BBBB;">ℹ</span> Mode is <span style="color: #0000BB;">"single"</span> (or unset) -- no subset files to check.</span>

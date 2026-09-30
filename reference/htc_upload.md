@@ -29,22 +29,22 @@ htc_upload(
   directory paths to copy to the submit node. A single file, a vector of
   files, and a directory path are all accepted. Directories are copied
   recursively. When `NULL` (the default), the function resolves the
-  files to upload from the job manifest built up by
+  files to upload from the submission state built up by
   [`htc_gen_submit()`](https://erwinlares.github.io/submitr/reference/htc_gen_submit.md)
   and
   [`htc_gen_executable()`](https://erwinlares.github.io/submitr/reference/htc_gen_executable.md):
   the submit file, the executable script, any shared input files, and –
-  in `"multiple"` mode – the subdatasets manifest and the individual
-  subset data files.
+  in `"multiple"` mode – `subdatasets.csv` and the individual subset
+  data files.
 
 - remote_path:
 
   A character string or `NULL`. The destination directory on the submit
   node. When `NULL` (the default), resolves to the `remote_path`
-  recorded in the job manifest by a previous call to `htc_upload()`,
-  falling back to `"~/"` if no manifest value is available. On a
+  recorded in the submission state by a previous call to `htc_upload()`,
+  falling back to `"~/"` if the submission state holds no value. On a
   successful (non-`dry_run`) upload, the resolved value is recorded back
-  to the manifest, so
+  to the submission state, so
   [`htc_submit()`](https://erwinlares.github.io/submitr/reference/htc_submit.md)
   and
   [`htc_download()`](https://erwinlares.github.io/submitr/reference/htc_download.md)
@@ -71,7 +71,7 @@ htc_upload(
 
 - path:
 
-  A character string. Directory holding the job manifest
+  A character string. Directory holding the submission state
   (`htc-manifest.yaml`), consulted only when `files` is `NULL`. Defaults
   to `"."`, which matches the generator functions' own default. If you
   passed a non-default `output` or `path` to
@@ -105,8 +105,8 @@ and
 and before calling
 [`htc_submit()`](https://erwinlares.github.io/submitr/reference/htc_submit.md).
 
-The typical sequence relies on automatic resolution from the job
-manifest, so `files` can usually be omitted:
+The typical sequence relies on automatic resolution from the submission
+state, so `files` can usually be omitted:
 
     cfg <- htc_config()
 
@@ -143,14 +143,14 @@ tmp <- tempfile(fileext = ".sub")
 writeLines("queue 1", tmp)
 htc_upload(files = tmp, config = cfg, dry_run = TRUE)
 #> ✔ Dry run -- command that would be executed:
-#>   `scp /tmp/RtmpTA4CG0/file492c386c0b04.sub netid@ap2002.chtc.wisc.edu:~/`
+#>   `scp /tmp/Rtmp8DxLm7/file4ab621062fcb.sub netid@ap2002.chtc.wisc.edu:~/`
 # }
 
 if (FALSE) { # \dontrun{
 # All remaining examples require a live CHTC connection
 cfg <- htc_config()
 
-# Resolve files automatically from the job manifest
+# Resolve files automatically from the submission state
 htc_gen_submit(executable = "job.sh", r_script = "R/analysis.R",
                input_files = "R/analysis.R")
 htc_gen_executable(r_script = "R/analysis.R")

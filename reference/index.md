@@ -7,7 +7,7 @@
 - [`htc_check()`](https://erwinlares.github.io/submitr/reference/htc_check.md)
   : Preflight check for a submitr job before upload or submission
 - [`htc_collect()`](https://erwinlares.github.io/submitr/reference/htc_collect.md)
-  : Stitch downloaded multi-job results back into one tibble
+  : Unpack downloaded results and index them, one row per job
 - [`htc_config()`](https://erwinlares.github.io/submitr/reference/htc_config.md)
   : Configure a connection to an HTC submit server
 - [`htc_download()`](https://erwinlares.github.io/submitr/reference/htc_download.md)

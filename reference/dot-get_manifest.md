@@ -1,8 +1,8 @@
-# Retrieve the current job manifest
+# Retrieve the current submission state
 
-Internal helper that reads the accumulated job manifest from
-`htc-manifest.yaml` in `path`. Returns `NULL` if no manifest file exists
-yet.
+Internal helper that reads the accumulated submission state from
+`htc-manifest.yaml` in `path`. Returns `NULL` if no `htc-manifest.yaml`
+exists yet.
 
 ## Usage
 

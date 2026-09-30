@@ -69,17 +69,17 @@ so that relative paths in the submit file resolve correctly.</p>
 <dl><dt id="arg-submit-file">submit_file<a class="anchor" aria-label="anchor" href="#arg-submit-file"></a></dt>
 <dd><p>A character string or <code>NULL</code>. Name of the submit file
 on the remote node, e.g. <code>"job.sub"</code>. Must end in <code>".sub"</code>. When <code>NULL</code>
-(the default), resolves to the <code>submit_file</code> recorded in the job
-manifest by <code><a href="htc_gen_submit.html">htc_gen_submit()</a></code>, falling back to <code>"job.sub"</code> if no
-manifest value is available.</p></dd>
+(the default), resolves to the <code>submit_file</code> recorded in the submission
+state by <code><a href="htc_gen_submit.html">htc_gen_submit()</a></code>, falling back to <code>"job.sub"</code> if the
+submission state holds no value.</p></dd>
 
 
 <dt id="arg-remote-path">remote_path<a class="anchor" aria-label="anchor" href="#arg-remote-path"></a></dt>
 <dd><p>A character string or <code>NULL</code>. The directory on the
 submit node where the submit file was uploaded. When <code>NULL</code> (the
-default), resolves to the <code>remote_path</code> recorded in the job manifest by
-the preceding call to <code><a href="htc_upload.html">htc_upload()</a></code>, falling back to <code>"~/"</code> if no
-manifest value is available.</p></dd>
+default), resolves to the <code>remote_path</code> recorded in the submission state by
+the preceding call to <code><a href="htc_upload.html">htc_upload()</a></code>, falling back to <code>"~/"</code> if the
+submission state holds no value.</p></dd>
 
 
 <dt id="arg-config">config<a class="anchor" aria-label="anchor" href="#arg-config"></a></dt>
@@ -101,12 +101,12 @@ submitting. Defaults to <code>FALSE</code>.</p></dd>
 
 
 <dt id="arg-path">path<a class="anchor" aria-label="anchor" href="#arg-path"></a></dt>
-<dd><p>A character string. Directory holding the job manifest
+<dd><p>A character string. Directory holding the submission state
 (<code>htc-manifest.yaml</code>), where the cluster ID and <code>remote_path</code> are
 recorded on a successful submission. Defaults to <code>"."</code>. If you passed a
 non-default <code>output</code> or <code>path</code> to <code><a href="htc_gen_submit.html">htc_gen_submit()</a></code>, pass that same
 directory here, or the cluster ID will be written to a second, separate
-manifest and <code><a href="htc_download.html">htc_download()</a></code> will not find it alongside the job
+<code>htc-manifest.yaml</code> and <code><a href="htc_download.html">htc_download()</a></code> will not find it alongside the job
 metadata it needs.</p></dd>
 
 </dl></div>

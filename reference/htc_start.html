@@ -81,7 +81,7 @@ function to override the session config.</p>
 <p>The session config is stored via <code>options(submitr.config = ...)</code> and
 is cleared automatically when the R session ends. To clear it
 manually, call <code>options(submitr.config = NULL)</code>.</p>
-<p>The job manifest built up by <code><a href="htc_gen_submit.html">htc_gen_submit()</a></code>, <code><a href="htc_gen_executable.html">htc_gen_executable()</a></code>,
+<p>The submission state built up by <code><a href="htc_gen_submit.html">htc_gen_submit()</a></code>, <code><a href="htc_gen_executable.html">htc_gen_executable()</a></code>,
 and <code><a href="htc_submit.html">htc_submit()</a></code> is persisted to disk separately (see
 <code><a href="htc_upload.html">htc_upload()</a></code>/<code><a href="htc_download.html">htc_download()</a></code>), so calling <code>htc_start()</code> again –
 for example, in a new R session – does not discard it.</p>

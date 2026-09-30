@@ -64,7 +64,7 @@
       <img src="../logo.png" class="logo" alt=""><h1>From the Notebook to the Cluster: Your First CHTC Job with submitr</h1>
             
             <h4 data-toc-skip class="date">Created 2026-04-30 | Last
-updated 2026-09-28</h4>
+updated 2026-09-30</h4>
       
       <small class="dont-index">Source: <a href="https://github.com/erwinlares/submitr/blob/main/vignettes/from-notebook-to-cluster.Rmd" class="external-link"><code>vignettes/from-notebook-to-cluster.Rmd</code></a></small>
       <div class="d-none name"><code>from-notebook-to-cluster.Rmd</code></div>
@@ -168,9 +168,9 @@ them:</p>
 <span><span class="fu">submitr</span><span class="fu">::</span><span class="fu"><a href="../reference/htc_download.html">htc_download</a></span><span class="op">(</span><span class="op">)</span>       <span class="co"># copy results back</span></span></code></pre></div>
 <p>Two of those calls take no arguments in a normal workflow. As you go,
 <code>submitr</code> records what it has generated in a small file
-called <code>htc-manifest.yaml</code>, and <code><a href="../reference/htc_upload.html">htc_upload()</a></code> and
-<code><a href="../reference/htc_download.html">htc_download()</a></code> read it to work out which files to move.
-There is a section on that below.</p>
+called <code>htc-manifest.yaml</code>, the <em>submission state</em>,
+and <code><a href="../reference/htc_upload.html">htc_upload()</a></code> and <code><a href="../reference/htc_download.html">htc_download()</a></code> read it to
+work out which files to move. There is a section on that below.</p>
 <hr>
 </div>
 <div class="section level2">
@@ -434,11 +434,11 @@ changes anything on the remote system. Once the command looks right,
 upload the files:</p>
 <div class="sourceCode" id="cb13"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/htc_upload.html">htc_upload</a></span><span class="op">(</span><span class="op">)</span></span></code></pre></div>
-<p>Neither call names any files. <code><a href="../reference/htc_upload.html">htc_upload()</a></code> reads the job
-manifest that the two generators just wrote, and sends the submit file,
-the executable, and any shared input files you declared. You can still
-pass <code>files</code> explicitly, which bypasses the manifest
-entirely:</p>
+<p>Neither call names any files. <code><a href="../reference/htc_upload.html">htc_upload()</a></code> reads the
+submission state that the two generators just wrote, and sends the
+submit file, the executable, and any shared input files you declared.
+You can still pass <code>files</code> explicitly, which bypasses the
+submission state entirely:</p>
 <div class="sourceCode" id="cb14"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/htc_upload.html">htc_upload</a></span><span class="op">(</span>files <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"analysis.sub"</span>, <span class="st">"analysis.sh"</span>, <span class="st">"R/analysis.R"</span>, <span class="st">"data.csv"</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
 <hr>
@@ -456,9 +456,9 @@ entirely:</p>
 <span><span class="co">#&gt; v Job submitted from "~/analysis.sub" on "ap2002.chtc.wisc.edu".</span></span></code></pre></div>
 <p>The cluster ID is the handle for this submission. Store it in an
 object so you can check the job later without having to look it up.
-<code><a href="../reference/htc_submit.html">htc_submit()</a></code> also writes it to the job manifest, along with
-the remote directory it submitted from, so the next two steps can find
-the job without being told.</p>
+<code><a href="../reference/htc_submit.html">htc_submit()</a></code> also writes it to the submission state, along
+with the remote directory it submitted from, so the next two steps can
+find the job without being told.</p>
 <hr>
 </div>
 <div class="section level2">
@@ -504,22 +504,25 @@ a single self-contained file.</p>
 <hr>
 </div>
 <div class="section level2">
-<h2 id="the-job-manifest">The job manifest<a class="anchor" aria-label="anchor" href="#the-job-manifest"></a>
+<h2 id="the-submission-state">The submission state<a class="anchor" aria-label="anchor" href="#the-submission-state"></a>
 </h2>
 <p>Steps 4 and 7 took no arguments, and it is worth understanding why,
 because it also explains something that matters when a job runs
 long.</p>
 <p>As you work, <code>submitr</code> writes what it learns to
 <code>htc-manifest.yaml</code>, a small file that sits in your project
-beside <code>htc.cfg</code>. <code><a href="../reference/htc_gen_submit.html">htc_gen_submit()</a></code> records the
-submit file, the mode and the derived results name.
-<code><a href="../reference/htc_gen_executable.html">htc_gen_executable()</a></code> records the analysis script and the
-executable it wrote. <code><a href="../reference/htc_upload.html">htc_upload()</a></code> records the remote
-directory it sent files to. <code><a href="../reference/htc_submit.html">htc_submit()</a></code> resolves the
-submit file and remote directory from those records when you do not
-supply them, and records the cluster ID HTCondor assigned. By the time
-you reach <code><a href="../reference/htc_download.html">htc_download()</a></code>, the manifest holds everything
-needed to work out what to ask the submit node for.</p>
+beside <code>htc.cfg</code>. The family calls it the <em>submission
+state</em>, to keep it distinct from the <em>job manifest</em> that
+<code><a href="https://erwinlares.github.io/toolero/reference/write_by_group.html" class="external-link">toolero::write_by_group()</a></code> writes; the file name predates
+that distinction and is kept for compatibility.
+<code><a href="../reference/htc_gen_submit.html">htc_gen_submit()</a></code> records the submit file, the mode and the
+derived results name. <code><a href="../reference/htc_gen_executable.html">htc_gen_executable()</a></code> records the
+analysis script and the executable it wrote. <code><a href="../reference/htc_upload.html">htc_upload()</a></code>
+records the remote directory it sent files to. <code><a href="../reference/htc_submit.html">htc_submit()</a></code>
+resolves the submit file and remote directory from those records when
+you do not supply them, and records the cluster ID HTCondor assigned. By
+the time you reach <code><a href="../reference/htc_download.html">htc_download()</a></code>, the submission state
+holds everything needed to work out what to ask the submit node for.</p>
 <p>It is ordinary YAML, and reading it is often the quickest way to see
 what <code>submitr</code> thinks the state of your job is:</p>
 <div class="sourceCode" id="cb19"><pre class="sourceCode yaml"><code class="sourceCode yaml"><span id="cb19-1"><a href="#cb19-1" tabindex="-1"></a><span class="fu">submit_file</span><span class="kw">:</span><span class="at"> analysis.sub</span></span>
@@ -534,10 +537,10 @@ what <code>submitr</code> thinks the state of your job is:</p>
 is the shape of the work. A job worth sending to CHTC usually takes a
 while, so you submit it one day and collect it another, and somewhere in
 between you close RStudio or your laptop sleeps. Anything held in memory
-would be gone. Because the manifest is on disk, you can restart R, come
-back on Thursday, call <code><a href="../reference/htc_download.html">htc_download()</a></code> with no arguments,
-and it still knows what to fetch. <code><a href="../reference/htc_start.html">htc_start()</a></code> leaves it
-alone for exactly that reason.</p>
+would be gone. Because the submission state is on disk, you can restart
+R, come back on Thursday, call <code><a href="../reference/htc_download.html">htc_download()</a></code> with no
+arguments, and it still knows what to fetch. <code><a href="../reference/htc_start.html">htc_start()</a></code>
+leaves it alone for exactly that reason.</p>
 <hr>
 </div>
 <div class="section level2">
@@ -550,8 +553,8 @@ pieces?</p>
 specification, input file, county, participant, sample, parameter set,
 or bootstrap iteration. This is where
 <code><a href="https://erwinlares.github.io/toolero/reference/write_by_group.html" class="external-link">toolero::write_by_group()</a></code> helps upstream. It splits a data
-frame into separate CSV files and writes a manifest describing those
-files. Then <code>submitr</code> queues one job per row of the
+frame into separate CSV files and writes a job manifest describing those
+files. Then <code>submitr</code> queues one job per row of the job
 manifest:</p>
 <div class="sourceCode" id="cb20"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/htc_gen_submit.html">htc_gen_submit</a></span><span class="op">(</span></span>

@@ -64,7 +64,7 @@
       <img src="../logo.png" class="logo" alt=""><h1>Single Jobs vs Multiple Jobs on HTCondor</h1>
             
             <h4 data-toc-skip class="date">Created 2026-05-20 | Last
-updated 2026-09-28</h4>
+updated 2026-09-30</h4>
       
       <small class="dont-index">Source: <a href="https://github.com/erwinlares/submitr/blob/main/vignettes/single-vs-multiple-jobs.Rmd" class="external-link"><code>vignettes/single-vs-multiple-jobs.Rmd</code></a></small>
       <div class="d-none name"><code>single-vs-multiple-jobs.Rmd</code></div>
@@ -133,32 +133,33 @@ is the folder name all three packages in the family use, which is what
 lets the same line of R work in all three places.</p>
 </div>
 <div class="section level2">
-<h2 id="two-kinds-of-manifest">Two kinds of manifest<a class="anchor" aria-label="anchor" href="#two-kinds-of-manifest"></a>
+<h2 id="the-job-manifest-and-the-submission-state">The job manifest and the submission state<a class="anchor" aria-label="anchor" href="#the-job-manifest-and-the-submission-state"></a>
 </h2>
-<p>The word “manifest” appears in two different contexts in the submitr
-workflow. They serve different purposes and should not be confused.</p>
-<p>The <strong>data manifest</strong> is a CSV file produced by
+<p>Two files in the submitr workflow have “manifest” in their name. They
+serve different purposes and should not be confused, so the family gives
+each its own name.</p>
+<p>The <strong>job manifest</strong> is a CSV file produced by
 <code>toolero::write_by_group(manifest = TRUE)</code>. It lists the
 subset data files created when splitting a dataset by a grouping column.
 <code><a href="../reference/htc_gen_submit.html">htc_gen_submit()</a></code> reads it via the <code>queue_from</code>
 argument to produce the <code>subdatasets.csv</code> that HTCondor uses
-to dispatch one job per subset. The data manifest is only relevant in
+to dispatch one job per subset. The job manifest is only relevant in
 multiple mode.</p>
-<p>The <strong>job manifest</strong> is <code>htc-manifest.yaml</code>,
-written by <code>submitr</code> into your project beside
-<code>htc.cfg</code>. It accumulates metadata as you work through the
-pipeline, and each step after the first also reads back what an earlier
-one wrote. <code><a href="../reference/htc_gen_submit.html">htc_gen_submit()</a></code> records the submit file, the
-mode, the results name, and in multiple mode the subset names;
-<code><a href="../reference/htc_gen_executable.html">htc_gen_executable()</a></code> records the analysis script and the
-executable; <code><a href="../reference/htc_upload.html">htc_upload()</a></code> records the remote directory it
-sent files to; <code><a href="../reference/htc_submit.html">htc_submit()</a></code> resolves the submit file and
+<p>The <strong>submission state</strong> is kept in
+<code>htc-manifest.yaml</code>, written by <code>submitr</code> into
+your project beside <code>htc.cfg</code>. It accumulates metadata as you
+work through the pipeline, and each step after the first also reads back
+what an earlier one wrote. <code><a href="../reference/htc_gen_submit.html">htc_gen_submit()</a></code> records the
+submit file, the mode, the results name, and in multiple mode the subset
+names; <code><a href="../reference/htc_gen_executable.html">htc_gen_executable()</a></code> records the analysis script and
+the executable; <code><a href="../reference/htc_upload.html">htc_upload()</a></code> records the remote directory
+it sent files to; <code><a href="../reference/htc_submit.html">htc_submit()</a></code> resolves the submit file and
 remote directory from those records when you do not supply them, and
 records the cluster ID HTCondor assigned. At the end,
 <code><a href="../reference/htc_download.html">htc_download()</a></code> reads all of it to work out which files to
 move, with no glob patterns or manual file lists required.</p>
-<p>Because the job manifest is a file rather than something held in the
-R session, it survives restarting R. That matters more than it may
+<p>Because the submission state is a file rather than something held in
+the R session, it survives restarting R. That matters more than it may
 sound. A job worth sending to CHTC usually takes a while, so you submit
 it in one sitting and collect it in another, and in between you close
 RStudio or your laptop sleeps. Calling <code><a href="../reference/htc_start.html">htc_start()</a></code> again
@@ -171,8 +172,8 @@ does not disturb it.</p>
 </colgroup>
 <thead><tr class="header">
 <th></th>
-<th>Data manifest</th>
 <th>Job manifest</th>
+<th>Submission state</th>
 </tr></thead>
 <tbody>
 <tr class="odd">
@@ -341,9 +342,9 @@ entry here because it is already inside the image.</p>
 <span><span class="fu">submitr</span><span class="fu">::</span><span class="fu"><a href="../reference/htc_status.html">htc_status</a></span><span class="op">(</span>cluster_id <span class="op">=</span> <span class="va">job</span>, watch <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
 <span><span class="fu">submitr</span><span class="fu">::</span><span class="fu"><a href="../reference/htc_download.html">htc_download</a></span><span class="op">(</span><span class="op">)</span></span></code></pre></div>
 <p>Neither <code><a href="../reference/htc_upload.html">htc_upload()</a></code> nor <code><a href="../reference/htc_download.html">htc_download()</a></code>
-takes arguments here, because the job manifest has everything they need.
-<code><a href="../reference/htc_gen_submit.html">htc_gen_submit()</a></code> recorded that this is a single-mode job
-with <code>analysis-results.tar.gz</code> as its output, which files
+takes arguments here, because the submission state has everything they
+need. <code><a href="../reference/htc_gen_submit.html">htc_gen_submit()</a></code> recorded that this is a single-mode
+job with <code>analysis-results.tar.gz</code> as its output, which files
 were generated, and that <code>R/analysis.R</code> needs to travel as an
 input file, so <code><a href="../reference/htc_upload.html">htc_upload()</a></code> sends the submit file, the
 executable, and the analysis script together. <code><a href="../reference/htc_submit.html">htc_submit()</a></code>
@@ -376,7 +377,7 @@ resources.</p>
 <h3 id="splitting-the-data">Splitting the data<a class="anchor" aria-label="anchor" href="#splitting-the-data"></a>
 </h3>
 <p>Use <code><a href="https://erwinlares.github.io/toolero/reference/write_by_group.html" class="external-link">toolero::write_by_group()</a></code> to split the dataset by
-species and produce a data manifest:</p>
+species and produce a job manifest:</p>
 <div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">penguins</span> <span class="op">&lt;-</span> <span class="fu">toolero</span><span class="fu">::</span><span class="fu"><a href="https://erwinlares.github.io/toolero/reference/read_clean_csv.html" class="external-link">read_clean_csv</a></span><span class="op">(</span><span class="st">"data-raw/sample.csv"</span><span class="op">)</span></span>
 <span></span>
@@ -387,7 +388,7 @@ species and produce a data manifest:</p>
 <span>  manifest   <span class="op">=</span> <span class="cn">TRUE</span></span>
 <span><span class="op">)</span></span></code></pre></div>
 <p>This produces three CSV files (<code>adelie.csv</code>,
-<code>chinstrap.csv</code>, <code>gentoo.csv</code>) and a data manifest
+<code>chinstrap.csv</code>, <code>gentoo.csv</code>) and a job manifest
 (<code>manifest.csv</code>) listing them.</p>
 <p>If a project splits more than one dataset, pass <code>prefix</code>
 as well. Uploaded files land in a single flat directory on the access
@@ -430,11 +431,11 @@ project-specific copied in.</p>
 <span>  output_file <span class="op">=</span> <span class="st">"analysis.sh"</span>,</span>
 <span>  mode        <span class="op">=</span> <span class="st">"multiple"</span></span>
 <span><span class="op">)</span></span></code></pre></div>
-<p><code><a href="../reference/htc_gen_submit.html">htc_gen_submit()</a></code> reads the data manifest via
+<p><code><a href="../reference/htc_gen_submit.html">htc_gen_submit()</a></code> reads the job manifest via
 <code>queue_from</code>, extracts the subset filenames, and writes
 <code>subdatasets.csv</code> alongside the submit file. It also records
 the mode, subset names, script stem, <code>input_files</code>, and the
-full local paths of the subsets in the job manifest, which is how
+full local paths of the subsets in the submission state, which is how
 <code><a href="../reference/htc_upload.html">htc_upload()</a></code> later knows to send them and
 <code><a href="../reference/htc_download.html">htc_download()</a></code> knows what to bring back.</p>
 <p>The generated <code>.sh</code> file:</p>
@@ -501,14 +502,15 @@ a file that was never produced.</p>
 <span><span class="va">job</span> <span class="op">&lt;-</span> <span class="fu">submitr</span><span class="fu">::</span><span class="fu"><a href="../reference/htc_submit.html">htc_submit</a></span><span class="op">(</span><span class="st">"analysis.sub"</span><span class="op">)</span></span>
 <span><span class="fu">submitr</span><span class="fu">::</span><span class="fu"><a href="../reference/htc_status.html">htc_status</a></span><span class="op">(</span>cluster_id <span class="op">=</span> <span class="va">job</span>, watch <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
 <span><span class="fu">submitr</span><span class="fu">::</span><span class="fu"><a href="../reference/htc_download.html">htc_download</a></span><span class="op">(</span><span class="op">)</span></span></code></pre></div>
-<p>This is where the job manifest pays off. <code><a href="../reference/htc_upload.html">htc_upload()</a></code>
-sends the submit file, the executable, the analysis script,
-<code>subdatasets.csv</code>, and all three subset files without being
-told, because <code><a href="../reference/htc_gen_submit.html">htc_gen_submit()</a></code> recorded where they are. On
-the way back, there are 12 files to retrieve across three species and
-three log types per job, and <code><a href="../reference/htc_download.html">htc_download()</a></code> constructs the
-full list automatically: it reads the subset names and script stem from
-the job manifest, composes <code>analysis-adelie-results.tar.gz</code>,
+<p>This is where the submission state pays off.
+<code><a href="../reference/htc_upload.html">htc_upload()</a></code> sends the submit file, the executable, the
+analysis script, <code>subdatasets.csv</code>, and all three subset
+files without being told, because <code><a href="../reference/htc_gen_submit.html">htc_gen_submit()</a></code> recorded
+where they are. On the way back, there are 12 files to retrieve across
+three species and three log types per job, and
+<code><a href="../reference/htc_download.html">htc_download()</a></code> constructs the full list automatically: it
+reads the subset names and script stem from the submission state,
+composes <code>analysis-adelie-results.tar.gz</code>,
 <code>analysis-chinstrap-results.tar.gz</code> and
 <code>analysis-gentoo-results.tar.gz</code>, and generates the nine log
 file names from the cluster ID and process count.</p>
@@ -733,7 +735,7 @@ know whether it’s running in single or multiple mode.</p>
 the image; the full dataset is uploaded in neither, since single mode
 bakes it into the image and multiple mode transfers only the per-job
 subsets instead. In both modes <code><a href="../reference/htc_upload.html">htc_upload()</a></code> works this out
-from the job manifest, so the column above describes what it sends
+from the submission state, so the column above describes what it sends
 rather than what you have to type.</p>
 </div>
 <div class="section level3">
@@ -772,7 +774,7 @@ rather than what you have to type.</p>
 <div class="section level3">
 <h3 id="how-htc_download-resolves-files">How <code>htc_download()</code> resolves files<a class="anchor" aria-label="anchor" href="#how-htc_download-resolves-files"></a>
 </h3>
-<p>In both modes, <code><a href="../reference/htc_download.html">htc_download()</a></code> reads the job manifest
+<p>In both modes, <code><a href="../reference/htc_download.html">htc_download()</a></code> reads the submission state
 that was built automatically during the workflow. No file lists or glob
 patterns are needed.</p>
 <table class="table">
@@ -788,7 +790,7 @@ patterns are needed.</p>
 </tr></thead>
 <tbody>
 <tr class="odd">
-<td>Job manifest knows</td>
+<td>Submission state knows</td>
 <td>Tarball name, cluster ID, remote path</td>
 <td>Script stem, subset names, cluster ID, remote path</td>
 </tr>
@@ -804,30 +806,30 @@ patterns are needed.</p>
 </tr>
 </tbody>
 </table>
-<p>The same zero-argument call works for both modes because the job
-manifest captures the difference.</p>
+<p>The same zero-argument call works for both modes because the
+submission state captures the difference.</p>
 </div>
 <div class="section level3">
-<h3 id="how-the-two-manifests-relate">How the two manifests relate<a class="anchor" aria-label="anchor" href="#how-the-two-manifests-relate"></a>
+<h3 id="how-the-two-files-relate">How the two files relate<a class="anchor" aria-label="anchor" href="#how-the-two-files-relate"></a>
 </h3>
-<p>The data manifest and the job manifest are connected but distinct.
-The data manifest feeds into the job manifest: when
-<code><a href="../reference/htc_gen_submit.html">htc_gen_submit()</a></code> reads the data manifest via
+<p>The job manifest and the submission state are connected but distinct.
+The job manifest feeds into the submission state: when
+<code><a href="../reference/htc_gen_submit.html">htc_gen_submit()</a></code> reads the job manifest via
 <code>queue_from</code>, it extracts the subset filenames and stores
-them in the job manifest. From that point on, the job manifest carries
-the subset names forward so that <code><a href="../reference/htc_upload.html">htc_upload()</a></code> can send the
-right files and <code><a href="../reference/htc_download.html">htc_download()</a></code> can reconstruct the tarball
-names without re-reading anything.</p>
+them in the submission state. From that point on, the submission state
+carries the subset names forward so that <code><a href="../reference/htc_upload.html">htc_upload()</a></code> can
+send the right files and <code><a href="../reference/htc_download.html">htc_download()</a></code> can reconstruct the
+tarball names without re-reading anything.</p>
 <pre><code>toolero::write_by_group()
   |
   v
-manifest.csv  (data manifest, a CSV on disk)
+manifest.csv  (job manifest, a CSV on disk)
   |
   v
 htc_gen_submit(queue_from = "manifest.csv")
   |
   +---&gt; subdatasets.csv    (sent to HTCondor)
-  +---&gt; htc-manifest.yaml  (job manifest: subsets, script stem, mode)
+  +---&gt; htc-manifest.yaml  (submission state: subsets, script stem, mode)
           |
           v
         htc_gen_executable()

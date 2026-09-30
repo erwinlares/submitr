@@ -2,7 +2,7 @@
 
 Internal helper used by
 [`htc_collect()`](https://erwinlares.github.io/submitr/reference/htc_collect.md)
-to rebuild, from the job manifest, the same tarball names
+to rebuild, from the submission state, the same tarball names
 [`htc_download()`](https://erwinlares.github.io/submitr/reference/htc_download.md)
 would have fetched into `local_path` – reusing
 [`.tarball_name()`](https://erwinlares.github.io/submitr/reference/dot-tarball_name.md)

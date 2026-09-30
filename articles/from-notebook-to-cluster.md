@@ -116,7 +116,7 @@ submitr::htc_download()       # copy results back
 
 Two of those calls take no arguments in a normal workflow. As you go,
 `submitr` records what it has generated in a small file called
-`htc-manifest.yaml`, and
+`htc-manifest.yaml`, the *submission state*, and
 [`htc_upload()`](https://erwinlares.github.io/submitr/reference/htc_upload.md)
 and
 [`htc_download()`](https://erwinlares.github.io/submitr/reference/htc_download.md)
@@ -405,10 +405,10 @@ htc_upload()
 
 Neither call names any files.
 [`htc_upload()`](https://erwinlares.github.io/submitr/reference/htc_upload.md)
-reads the job manifest that the two generators just wrote, and sends the
-submit file, the executable, and any shared input files you declared.
-You can still pass `files` explicitly, which bypasses the manifest
-entirely:
+reads the submission state that the two generators just wrote, and sends
+the submit file, the executable, and any shared input files you
+declared. You can still pass `files` explicitly, which bypasses the
+submission state entirely:
 
 ``` r
 
@@ -433,8 +433,8 @@ cluster_id <- htc_submit(
 The cluster ID is the handle for this submission. Store it in an object
 so you can check the job later without having to look it up.
 [`htc_submit()`](https://erwinlares.github.io/submitr/reference/htc_submit.md)
-also writes it to the job manifest, along with the remote directory it
-submitted from, so the next two steps can find the job without being
+also writes it to the submission state, along with the remote directory
+it submitted from, so the next two steps can find the job without being
 told.
 
 ------------------------------------------------------------------------
@@ -494,13 +494,18 @@ it the report arrives as a single self-contained file.
 
 ------------------------------------------------------------------------
 
-## The job manifest
+## The submission state
 
 Steps 4 and 7 took no arguments, and it is worth understanding why,
 because it also explains something that matters when a job runs long.
 
 As you work, `submitr` writes what it learns to `htc-manifest.yaml`, a
-small file that sits in your project beside `htc.cfg`.
+small file that sits in your project beside `htc.cfg`. The family calls
+it the *submission state*, to keep it distinct from the *job manifest*
+that
+[`toolero::write_by_group()`](https://erwinlares.github.io/toolero/reference/write_by_group.html)
+writes; the file name predates that distinction and is kept for
+compatibility.
 [`htc_gen_submit()`](https://erwinlares.github.io/submitr/reference/htc_gen_submit.md)
 records the submit file, the mode and the derived results name.
 [`htc_gen_executable()`](https://erwinlares.github.io/submitr/reference/htc_gen_executable.md)
@@ -512,8 +517,8 @@ resolves the submit file and remote directory from those records when
 you do not supply them, and records the cluster ID HTCondor assigned. By
 the time you reach
 [`htc_download()`](https://erwinlares.github.io/submitr/reference/htc_download.md),
-the manifest holds everything needed to work out what to ask the submit
-node for.
+the submission state holds everything needed to work out what to ask the
+submit node for.
 
 It is ordinary YAML, and reading it is often the quickest way to see
 what `submitr` thinks the state of your job is:
@@ -533,8 +538,8 @@ The reason it is a file rather than something held in the R session is
 the shape of the work. A job worth sending to CHTC usually takes a
 while, so you submit it one day and collect it another, and somewhere in
 between you close RStudio or your laptop sleeps. Anything held in memory
-would be gone. Because the manifest is on disk, you can restart R, come
-back on Thursday, call
+would be gone. Because the submission state is on disk, you can restart
+R, come back on Thursday, call
 [`htc_download()`](https://erwinlares.github.io/submitr/reference/htc_download.md)
 with no arguments, and it still knows what to fetch.
 [`htc_start()`](https://erwinlares.github.io/submitr/reference/htc_start.md)
@@ -553,8 +558,8 @@ specification, input file, county, participant, sample, parameter set,
 or bootstrap iteration. This is where
 [`toolero::write_by_group()`](https://erwinlares.github.io/toolero/reference/write_by_group.html)
 helps upstream. It splits a data frame into separate CSV files and
-writes a manifest describing those files. Then `submitr` queues one job
-per row of the manifest:
+writes a job manifest describing those files. Then `submitr` queues one
+job per row of the job manifest:
 
 ``` r
 

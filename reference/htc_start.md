@@ -45,7 +45,7 @@ The session config is stored via `options(submitr.config = ...)` and is
 cleared automatically when the R session ends. To clear it manually,
 call `options(submitr.config = NULL)`.
 
-The job manifest built up by
+The submission state built up by
 [`htc_gen_submit()`](https://erwinlares.github.io/submitr/reference/htc_gen_submit.md),
 [`htc_gen_executable()`](https://erwinlares.github.io/submitr/reference/htc_gen_executable.md),
 and

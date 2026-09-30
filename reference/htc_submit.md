@@ -25,19 +25,19 @@ htc_submit(
 
   A character string or `NULL`. Name of the submit file on the remote
   node, e.g. `"job.sub"`. Must end in `".sub"`. When `NULL` (the
-  default), resolves to the `submit_file` recorded in the job manifest
-  by
+  default), resolves to the `submit_file` recorded in the submission
+  state by
   [`htc_gen_submit()`](https://erwinlares.github.io/submitr/reference/htc_gen_submit.md),
-  falling back to `"job.sub"` if no manifest value is available.
+  falling back to `"job.sub"` if the submission state holds no value.
 
 - remote_path:
 
   A character string or `NULL`. The directory on the submit node where
   the submit file was uploaded. When `NULL` (the default), resolves to
-  the `remote_path` recorded in the job manifest by the preceding call
-  to
+  the `remote_path` recorded in the submission state by the preceding
+  call to
   [`htc_upload()`](https://erwinlares.github.io/submitr/reference/htc_upload.md),
-  falling back to `"~/"` if no manifest value is available.
+  falling back to `"~/"` if the submission state holds no value.
 
 - config:
 
@@ -61,13 +61,13 @@ htc_submit(
 
 - path:
 
-  A character string. Directory holding the job manifest
+  A character string. Directory holding the submission state
   (`htc-manifest.yaml`), where the cluster ID and `remote_path` are
   recorded on a successful submission. Defaults to `"."`. If you passed
   a non-default `output` or `path` to
   [`htc_gen_submit()`](https://erwinlares.github.io/submitr/reference/htc_gen_submit.md),
   pass that same directory here, or the cluster ID will be written to a
-  second, separate manifest and
+  second, separate `htc-manifest.yaml` and
   [`htc_download()`](https://erwinlares.github.io/submitr/reference/htc_download.md)
   will not find it alongside the job metadata it needs.
 

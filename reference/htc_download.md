@@ -28,7 +28,7 @@ htc_download(
   A character vector or `NULL`. One or more filenames or glob patterns
   to download from `remote_path` on the submit node. Examples:
   `"results.tar.gz"`, `c("job.log", "job.err")`, `"*.tar.gz"`. When
-  `NULL`, the function uses `cluster_id` and the job manifest to
+  `NULL`, the function uses `cluster_id` and the submission state to
   determine which files to download. Defaults to `NULL`.
 
 - cluster_id:
@@ -36,17 +36,19 @@ htc_download(
   A character string or `NULL`. The cluster ID returned by
   [`htc_submit()`](https://erwinlares.github.io/submitr/reference/htc_submit.md).
   When supplied without `files`, the function constructs the file list
-  from the job manifest. When `NULL`, falls back to the most recently
-  submitted cluster ID stored in the manifest. Defaults to `NULL`.
+  from the submission state. When `NULL`, falls back to the most
+  recently submitted cluster ID stored in the submission state. Defaults
+  to `NULL`.
 
 - remote_path:
 
   A character string or `NULL`. The directory on the submit node where
   the files are located. When `NULL` (the default), resolves to the
-  `remote_path` recorded in the job manifest by the preceding call to
+  `remote_path` recorded in the submission state by the preceding call
+  to
   [`htc_submit()`](https://erwinlares.github.io/submitr/reference/htc_submit.md),
-  falling back to `"~/"` if no manifest value is available. Should match
-  the `remote_path` used in
+  falling back to `"~/"` if the submission state holds no value. Should
+  match the `remote_path` used in
   [`htc_upload()`](https://erwinlares.github.io/submitr/reference/htc_upload.md)
   and
   [`htc_submit()`](https://erwinlares.github.io/submitr/reference/htc_submit.md).
@@ -76,7 +78,7 @@ htc_download(
 
 - path:
 
-  A character string. Directory holding the job manifest
+  A character string. Directory holding the submission state
   (`htc-manifest.yaml`). This is where the function looks for job
   metadata; it is not where downloaded files are written, which is
   `local_path`. Defaults to `"."`. If you passed a non-default `output`
@@ -92,8 +94,8 @@ Called for its side effects. Returns `invisible(NULL)`.
 
 ## Details
 
-When `cluster_id` is supplied without `files`, the function uses the job
-manifest built up by
+When `cluster_id` is supplied without `files`, the function uses the
+submission state built up by
 [`htc_gen_submit()`](https://erwinlares.github.io/submitr/reference/htc_gen_submit.md),
 [`htc_gen_executable()`](https://erwinlares.github.io/submitr/reference/htc_gen_executable.md),
 and
@@ -101,16 +103,17 @@ and
 to determine which files to download. For single-mode jobs, this
 includes the results tarball and the log, error, and output files. For
 multiple-mode jobs, the function reads the subset names from the
-manifest and constructs per-job tarball names and per-process log file
-patterns.
+submission state and constructs per-job tarball names and per-process
+log file patterns.
 
 Glob patterns such as `"*.tar.gz"` are supported when using the `files`
 argument and are evaluated on the remote server, not locally.
 
 ## Automatic file resolution
 
-When `files` is `NULL`, the function resolves the file list from the job
-manifest. The manifest is built automatically as you call
+When `files` is `NULL`, the function resolves the file list from the
+submission state. The submission state is built automatically as you
+call
 [`htc_gen_submit()`](https://erwinlares.github.io/submitr/reference/htc_gen_submit.md),
 [`htc_gen_executable()`](https://erwinlares.github.io/submitr/reference/htc_gen_executable.md),
 and
@@ -136,7 +139,7 @@ workflow. Call it after
 [`htc_status()`](https://erwinlares.github.io/submitr/reference/htc_status.md)
 confirms all jobs have completed.
 
-    # Automatic: uses the job manifest to determine what to download
+    # Automatic: uses the submission state to determine what to download
     htc_start()
     htc_gen_submit(...)
     htc_gen_executable(...)
