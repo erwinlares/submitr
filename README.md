@@ -415,7 +415,10 @@ htc_check()
 
 It returns a tibble of issues (zero rows means nothing was found), each
 tagged `"error"` (the job will not run without it) or `"warning"` (worth a
-second look, not necessarily wrong). `htc_upload(check = TRUE)` runs this
+second look, not necessarily wrong). When `podman` or `docker` is on your
+`PATH`, it also asks that tool whether the image can be pulled, which
+contacts the registry; pass `check_image = FALSE` to skip that when you
+are offline. `htc_upload(check = TRUE)` runs this
 automatically and aborts on an `"error"`; warnings never block anything.
 
 ---

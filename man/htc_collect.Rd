@@ -80,9 +80,12 @@ the Workflow section).
 
 A job whose tarball is missing, or will not extract, still gets a row,
 with \code{extracted = FALSE}, and the collection carries on with the other
-jobs. A job that fails before packing its results sends nothing back, so
-a missing tarball usually means a failed job; its \code{.err} file, in the
-\code{err} column when it was downloaded, is the place to look.
+jobs. A job whose R script fails still sends its tarball back (see
+\code{\link[=htc_gen_executable]{htc_gen_executable()}}), so a missing tarball means the job stopped
+before it got that far: the container did not start, a file it needed
+was not transferred, or the job was removed. Its \code{.err} and \code{.log}
+files, in the \code{err} and \code{log} columns when they were downloaded, are the
+place to look.
 }
 \section{Workflow}{
 

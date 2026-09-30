@@ -69,6 +69,12 @@
 #'   `NULL`. When `NULL` (the default), resolves to the resolved resource
 #'   values [htc_gen_submit()] recorded in the submission state (whichever preset,
 #'   or `custom_resources`, was actually used).
+#' @param check_image Logical. If `TRUE` (the default), and `podman` or
+#'   `docker` is on the local `PATH`, asks it whether `container_image` is
+#'   pullable (see the section on the image check below). Set `FALSE` to
+#'   skip that probe, which contacts the registry and can take up to 15
+#'   seconds -- when working offline, for instance. The `latest`-tag check
+#'   runs either way.
 #' @param verbose Logical. If `TRUE` (the default), prints a line for every
 #'   check performed, not just the ones that found something. Set `FALSE`
 #'   to only see problems.
@@ -97,7 +103,8 @@
 #' an error, and is not conclusive either way: it may mean the image
 #' genuinely does not exist, or simply that you are not logged in to the
 #' registry from this machine, or that the tool timed out. When neither
-#' tool is found, the image check is skipped entirely and reported as such.
+#' tool is found, or `check_image = FALSE`, the probe is skipped and
+#' reported as such.
 #'
 #' @seealso [htc_upload()]'s `check` argument, which runs this
 #'   automatically and aborts before uploading if an `"error"`-level issue
@@ -115,14 +122,21 @@
 #'   output          = tmp,
 #'   path            = tmp
 #' )
-#' htc_check(path = tmp)
+#' # check_image = FALSE skips asking podman or docker about the image,
+#' # which would otherwise contact the registry.
+#' htc_check(path = tmp, check_image = FALSE)
 #' }
 htc_check <- function(container_image = NULL,
                       input_files     = NULL,
                       data_files      = NULL,
                       resources       = NULL,
+                      check_image     = TRUE,
                       verbose         = TRUE,
                       path            = ".") {
+
+    if (!is.logical(check_image) || length(check_image) != 1L || is.na(check_image)) {
+        cli::cli_abort("{.arg check_image} must be {.code TRUE} or {.code FALSE}.")
+    }
 
     manifest <- .get_manifest(path = path)
 
@@ -310,28 +324,17 @@ htc_check <- function(container_image = NULL,
             )
         }
 
-        tool <- if (nzchar(Sys.which("podman"))) {
-            "podman"
-        } else if (nzchar(Sys.which("docker"))) {
-            "docker"
-        } else {
-            NULL
-        }
+        tool <- if (isTRUE(check_image)) .image_check_tool() else NULL
 
-        if (is.null(tool)) {
+        if (!isTRUE(check_image)) {
+            .say("i" = "Skipping image reachability check ({.code check_image = FALSE}).")
+        } else if (is.null(tool)) {
             .say(c(
                 "i" = "Skipping image reachability check: neither {.val podman}",
                 " " = "  nor {.val docker} was found on the local PATH."
             ))
         } else {
-            inspect_exit <- tryCatch(
-                system2(
-                    tool, c("manifest", "inspect", bare_image),
-                    stdout = FALSE, stderr = FALSE, timeout = 15
-                ),
-                warning = function(w) 1L,
-                error   = function(e) 1L
-            )
+            inspect_exit <- .inspect_image(tool, bare_image)
 
             if (!identical(inspect_exit, 0L)) {
                 .add_issue(
@@ -376,4 +379,52 @@ htc_check <- function(container_image = NULL,
     }
 
     invisible(result)
+}
+
+
+#' The container tool htc_check() asks about an image, if any
+#'
+#' Internal helper used by [htc_check()]: `"podman"` if it is on the local
+#' `PATH`, otherwise `"docker"` if that is, otherwise `NULL`. A function of
+#' its own so the test suite can replace it: calling a real container tool
+#' during `R CMD check` can leave a directory of the tool's own behind in
+#' the check's temporary directory (podman's `storage-run-<uid>`), which
+#' the check reports as detritus.
+#'
+#' @return `"podman"`, `"docker"`, or `NULL`.
+#'
+#' @keywords internal
+.image_check_tool <- function() {
+    if (nzchar(Sys.which("podman"))) {
+        "podman"
+    } else if (nzchar(Sys.which("docker"))) {
+        "docker"
+    } else {
+        NULL
+    }
+}
+
+
+#' Ask a container tool whether an image is pullable
+#'
+#' Internal helper used by [htc_check()]. Runs
+#' `<tool> manifest inspect <image>` with a 15-second timeout and returns
+#' its exit status, treating an error or a warning from `system2()` as a
+#' failure (`1L`).
+#'
+#' @param tool Character. `"podman"` or `"docker"`.
+#' @param image Character. The image reference, without `docker://`.
+#'
+#' @return An integer exit status; `0L` means the tool found the image.
+#'
+#' @keywords internal
+.inspect_image <- function(tool, image) {
+    tryCatch(
+        system2(
+            tool, c("manifest", "inspect", image),
+            stdout = FALSE, stderr = FALSE, timeout = 15
+        ),
+        warning = function(w) 1L,
+        error   = function(e) 1L
+    )
 }

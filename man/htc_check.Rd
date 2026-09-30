@@ -9,6 +9,7 @@ htc_check(
   input_files = NULL,
   data_files = NULL,
   resources = NULL,
+  check_image = TRUE,
   verbose = TRUE,
   path = "."
 )
@@ -34,6 +35,13 @@ default), resolves to \code{data_files} recorded in the submission state.}
 \code{NULL}. When \code{NULL} (the default), resolves to the resolved resource
 values \code{\link[=htc_gen_submit]{htc_gen_submit()}} recorded in the submission state (whichever preset,
 or \code{custom_resources}, was actually used).}
+
+\item{check_image}{Logical. If \code{TRUE} (the default), and \code{podman} or
+\code{docker} is on the local \code{PATH}, asks it whether \code{container_image} is
+pullable (see the section on the image check below). Set \code{FALSE} to
+skip that probe, which contacts the registry and can take up to 15
+seconds -- when working offline, for instance. The \code{latest}-tag check
+runs either way.}
 
 \item{verbose}{Logical. If \code{TRUE} (the default), prints a line for every
 check performed, not just the ones that found something. Set \code{FALSE}
@@ -82,7 +90,8 @@ blocks the upload on \code{"error"}s.
 an error, and is not conclusive either way: it may mean the image
 genuinely does not exist, or simply that you are not logged in to the
 registry from this machine, or that the tool timed out. When neither
-tool is found, the image check is skipped entirely and reported as such.
+tool is found, or \code{check_image = FALSE}, the probe is skipped and
+reported as such.
 }
 
 \examples{
@@ -94,7 +103,9 @@ htc_gen_submit(
   output          = tmp,
   path            = tmp
 )
-htc_check(path = tmp)
+# check_image = FALSE skips asking podman or docker about the image,
+# which would otherwise contact the registry.
+htc_check(path = tmp, check_image = FALSE)
 }
 }
 \seealso{

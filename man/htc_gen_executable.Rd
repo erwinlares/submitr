@@ -119,7 +119,8 @@ Called for its side effects. Writes a bash script to
 HTCondor runs inside the container for each job. The script changes to
 HTCondor's writable scratch directory, creates an output folder, runs
 the R script via \code{Rscript}, and compresses the results into a tarball
-for transfer back to the submit node.
+for transfer back to the submit node. The tarball is built whether or
+not the R script succeeds (see the section on failed jobs below).
 }
 \section{How file paths work inside the container}{
 
@@ -154,6 +155,21 @@ using a relative path, which resolves to the scratch directory.
 This separation means the R script stays portable -- \code{"output/"} works
 in RStudio, in \verb{quarto render}, and on HTCondor -- while the \code{.sh}
 script handles the HTCondor-specific directory setup.
+}
+
+\section{When the R script fails}{
+
+The script runs under \verb{set -euo pipefail}, so any failing command stops
+it -- except the \code{Rscript} line, which is bracketed by \code{set +e} and
+\code{set -e} so that its exit status is recorded rather than fatal. The
+results folder is then compressed as usual, and the script exits with
+the status R returned. A failed job therefore still sends back its
+tarball, holding whatever the analysis wrote before it stopped (and,
+with \code{toolero::save_output()}, the accumulator row recording the failed
+write), while HTCondor still sees a non-zero exit code and reports the
+job as failed rather than completed. Without this, a failed job would
+leave no tarball behind, and HTCondor would hold the job for a missing
+\code{transfer_output_files} entry instead of letting it finish.
 }
 
 \section{Relationship to htc_gen_submit()}{

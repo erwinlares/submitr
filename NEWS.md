@@ -1,4 +1,4 @@
- # submitr (development version)
+# submitr (development version)
 
 ## Breaking changes
 
@@ -129,10 +129,11 @@
   whose subset files no longer match `subdatasets.csv`, an implausible
   resource request, and a `container_image` tagged `latest` (or carrying no
   tag at all). When `podman` or `docker` is available locally, it also
-  makes a best-effort attempt to confirm the image is pullable. Every
-  argument resolves from the submission state, so the common case is
-  `htc_check()` with no arguments, run after the generators and before
-  `htc_upload()`. Returns a tibble of issues (possibly zero rows), each
+  makes a best-effort attempt to confirm the image is pullable;
+  `check_image = FALSE` skips that probe, which contacts the registry.
+  Every other argument resolves from the submission state, so the common
+  case is `htc_check()` with no arguments, run after the generators and
+  before `htc_upload()`. Returns a tibble of issues (possibly zero rows), each
   tagged `"error"` or `"warning"`.
 
 * `htc_upload()` gains a `files = NULL` default. When `files` is omitted,

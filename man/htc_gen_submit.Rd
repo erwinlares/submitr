@@ -60,13 +60,19 @@ image (see \code{\link[=htc_gen_executable]{htc_gen_executable()}}), so its base
 function warns when it does not. Defaults to \code{NULL}.}
 
 \item{input_files}{A character vector. Files to transfer to the job's
-working directory before execution, e.g. \code{c("analysis.R", "data.csv")}.
-This must include the R script named by \code{r_script} (by basename) --
-the script travels to the execute node as an uploaded input file, not
-as part of the container image. In \code{"multiple"} mode, the per-job
-subset file is added automatically from the job manifest; use this
-argument for files shared across all jobs (e.g. the analysis script).
-Defaults to \code{NULL}.}
+working directory before execution, given as paths on this machine,
+e.g. \code{c("R/analysis.R", "data/lookup.csv")}. This must include the R
+script named by \code{r_script} -- the script travels to the execute node
+as an uploaded input file, not as part of the container image. The
+submission state keeps the paths as given, which is how
+\code{\link[=htc_upload]{htc_upload()}} finds the files; the submit file lists them by
+basename (\verb{transfer_input_files = analysis.R, lookup.csv}), because
+\code{\link[=htc_upload]{htc_upload()}} sends every file flat into one directory on the submit
+node and HTCondor transfers them flat to the execute node. Two files
+that share a basename would overwrite each other there, so that is an
+error. In \code{"multiple"} mode, the per-job subset file is added
+automatically from the job manifest; use this argument for files
+shared across all jobs (e.g. the analysis script). Defaults to \code{NULL}.}
 
 \item{output_files}{A character vector. Files to transfer back from the
 job's working directory after execution. When not supplied, it is
