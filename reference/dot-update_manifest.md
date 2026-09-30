@@ -26,7 +26,7 @@ read the accumulated submission state to resolve files automatically.
 
 - path:
 
-  A character string. Directory where `htc-manifest.yaml` is read from
+  A character string. Directory where `htc-manifest.yml` is read from
   and written to. Defaults to `"."` (current working directory).
   Functions that write to a caller-supplied `output` directory (e.g.
   [`htc_gen_submit()`](https://erwinlares.github.io/submitr/reference/htc_gen_submit.md),
@@ -41,7 +41,7 @@ Called for its side effects. Returns `invisible(NULL)`.
 
 ## Details
 
-The submission state is persisted to `htc-manifest.yaml` in `path`, not
+The submission state is persisted to `htc-manifest.yml` in `path`, not
 to session options. Persisting it to disk means the submission state
 survives across R sessions: restarting a session with
 [`htc_start()`](https://erwinlares.github.io/submitr/reference/htc_start.md)

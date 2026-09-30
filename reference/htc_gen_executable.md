@@ -138,7 +138,7 @@ htc_gen_executable(
 - path:
 
   A character string. Directory where the submission state
-  (`htc-manifest.yaml`) is read from and written to. Defaults to `"."`
+  (`htc-manifest.yml`) is read from and written to. Defaults to `"."`
   (the current working directory), matching the default used by
   [`htc_upload()`](https://erwinlares.github.io/submitr/reference/htc_upload.md),
   [`htc_submit()`](https://erwinlares.github.io/submitr/reference/htc_submit.md),
@@ -228,7 +228,7 @@ approach is
 
 ``` r
 # output writes the generated .sh file; path is where the submission state
-# (htc-manifest.yaml) gets read from and written to. The two are
+# (htc-manifest.yml) gets read from and written to. The two are
 # independent arguments (see @param path), so both must point at the
 # same scratch directory here to keep the submission state out of the current
 # working directory.
@@ -274,6 +274,6 @@ htc_gen_executable(
 #> Writing Rscript execution line (mode: single)
 #> Writing compression line
 #> Writing exit line
-#> Set executable permissions on /tmp/Rtmp8DxLm7/run.sh
-#> ✔ Executable script written to /tmp/Rtmp8DxLm7/run.sh
+#> Set executable permissions on /tmp/RtmpQBBnf4/run.sh
+#> ✔ Executable script written to /tmp/RtmpQBBnf4/run.sh
 ```

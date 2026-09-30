@@ -1,7 +1,7 @@
 # Retrieve the current submission state
 
 Internal helper that reads the accumulated submission state from
-`htc-manifest.yaml` in `path`. Returns `NULL` if no `htc-manifest.yaml`
+`htc-manifest.yml` in `path`. Returns `NULL` if no `htc-manifest.yml`
 exists yet.
 
 ## Usage
@@ -14,7 +14,7 @@ exists yet.
 
 - path:
 
-  A character string. Directory to look for `htc-manifest.yaml` in.
+  A character string. Directory to look for `htc-manifest.yml` in.
   Defaults to `"."` (current working directory).
 
 ## Value

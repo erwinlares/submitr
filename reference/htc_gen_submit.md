@@ -140,7 +140,7 @@ htc_gen_submit(
   A character string. Compute resource preset. One of `"small"`,
   `"medium"`, `"large"`, or `"custom"` (requires `custom_resources`).
   Default preset values reflect CHTC recommendations and are loaded from
-  `inst/extdata/htc-resources.yaml`. A local `htc-resources.yaml` in the
+  `inst/extdata/htc-resources.yml`. A local `htc-resources.yml` in the
   working directory takes precedence over the package default, allowing
   per-project customization. Defaults to `"small"`.
 
@@ -193,7 +193,7 @@ htc_gen_submit(
 - path:
 
   A character string. Directory where the submission state
-  (`htc-manifest.yaml`) is read from and written to. Defaults to `"."`
+  (`htc-manifest.yml`) is read from and written to. Defaults to `"."`
   (the current working directory), matching the default used by
   [`htc_upload()`](https://erwinlares.github.io/submitr/reference/htc_upload.md),
   [`htc_submit()`](https://erwinlares.github.io/submitr/reference/htc_submit.md),
@@ -251,17 +251,23 @@ The typical workflow is:
 ## Resource presets
 
 Resource presets are loaded at runtime from
-`inst/extdata/htc-resources.yaml`. To customize presets for a specific
-project, copy that file to your project directory as
-`htc-resources.yaml` and edit the values. `htc_gen_submit()` checks for
-a local `htc-resources.yaml` in the working directory first, falling
-back to the package default if none is found.
+`inst/extdata/htc-resources.yml`. To customize presets for a specific
+project, copy that file to your project directory as `htc-resources.yml`
+and edit the values. `htc_gen_submit()` checks for a local
+`htc-resources.yml` in the working directory first, falling back to the
+package default if none is found.
+
+submitr 0.1.0 named the file `htc-resources.yaml`. A local file by that
+name is still read, with a warning asking for it to be renamed, for this
+release only; the family writes YAML files with the `.yml` extension.
+When both names are present, `htc-resources.yml` is used and the old
+file is ignored, also with a warning.
 
 ## Examples
 
 ``` r
 # output writes the generated .sub file; path is where the submission state
-# (htc-manifest.yaml) gets read from and written to. The two are
+# (htc-manifest.yml) gets read from and written to. The two are
 # independent arguments (see @param path), so both must point at the
 # same scratch directory here to keep the submission state out of the current
 # working directory.
@@ -316,7 +322,7 @@ htc_gen_submit(
 #> Writing logging section
 #> Writing resources section (small preset: 1 CPU / 4GB RAM / 4GB disk)
 #> Writing queue section (1 job)
-#> ✔ Submit file written to /tmp/Rtmp8DxLm7/annotated.sub
+#> ✔ Submit file written to /tmp/RtmpQBBnf4/annotated.sub
 
 # Custom resource request
 htc_gen_submit(

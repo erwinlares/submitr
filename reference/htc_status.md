@@ -65,7 +65,7 @@ htc_status(
 - path:
 
   A character string. Directory holding the submission state
-  (`htc-manifest.yaml`), consulted only when `cluster_id` is `NULL`.
+  (`htc-manifest.yml`), consulted only when `cluster_id` is `NULL`.
   Defaults to `"."`, matching the default used by
   [`htc_upload()`](https://erwinlares.github.io/submitr/reference/htc_upload.md),
   [`htc_submit()`](https://erwinlares.github.io/submitr/reference/htc_submit.md),

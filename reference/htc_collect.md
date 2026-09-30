@@ -58,7 +58,7 @@ htc_collect(
 - path:
 
   A character string. Directory holding the submission state
-  (`htc-manifest.yaml`). Defaults to `"."`, matching the default used
+  (`htc-manifest.yml`). Defaults to `"."`, matching the default used
   elsewhere in the family. Consulted for the tarball names when
   `tarballs` is `NULL`, and in every case for the cluster ID, process
   numbers, container image, and results folder.
@@ -149,12 +149,12 @@ index <- htc_collect(
   tarballs    = c(analysis = tarball),
   extract_dir = tempfile("collected")
 )
-#> ✔ Collected 1 of 1 job into /tmp/Rtmp8DxLm7/collected4ab611f7cd60.
+#> ✔ Collected 1 of 1 job into /tmp/RtmpQBBnf4/collected4978188105b7.
 index
 #> # A tibble: 1 × 12
 #>   group_id proc_id cluster_id extracted n_files has_record output_dir      files
 #>   <chr>      <int> <chr>      <lgl>       <int> <lgl>      <chr>           <lis>
-#> 1 analysis      NA NA         TRUE            1 FALSE      /tmp/Rtmp8DxLm… <chr>
+#> 1 analysis      NA NA         TRUE            1 FALSE      /tmp/RtmpQBBnf… <chr>
 #> # ℹ 4 more variables: log <chr>, err <chr>, out <chr>, container_image <chr>
 index$files[[1]]
 #> [1] "mtcars.rds"

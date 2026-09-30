@@ -79,7 +79,7 @@ htc_download(
 - path:
 
   A character string. Directory holding the submission state
-  (`htc-manifest.yaml`). This is where the function looks for job
+  (`htc-manifest.yml`). This is where the function looks for job
   metadata; it is not where downloaded files are written, which is
   `local_path`. Defaults to `"."`. If you passed a non-default `output`
   or `path` to

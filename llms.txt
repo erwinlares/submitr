@@ -695,7 +695,7 @@ only checks that the file is there; interpreting it is toolero’s job.
 ## The submission state
 
 Several calls above take no arguments at all, and they are not guessing.
-As you work, submitr writes what it learns to `htc-manifest.yaml`, a
+As you work, submitr writes what it learns to `htc-manifest.yml`, a
 small file that sits in your project beside `htc.cfg`. The family calls
 this file the *submission state*: submitr’s working memory for the job
 in progress. Its name predates that term and is kept for compatibility,
@@ -751,12 +751,12 @@ cluster_id: '6302860'
 remote_path: ~/
 ```
 
-By default `htc-manifest.yaml` lives in your project root
-(`path = "."`), regardless of where `output` points – generating files
-into a subdirectory does not move it along with them. If you do write
-generated files elsewhere, pass the same `path` to every function that
-touches the submission state, so that all five are reading and writing
-the same file:
+By default `htc-manifest.yml` lives in your project root (`path = "."`),
+regardless of where `output` points – generating files into a
+subdirectory does not move it along with them. If you do write generated
+files elsewhere, pass the same `path` to every function that touches the
+submission state, so that all five are reading and writing the same
+file:
 
 ``` r
 

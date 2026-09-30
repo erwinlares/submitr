@@ -61,7 +61,7 @@ htc_cancel(
 - path:
 
   A character string. Directory holding the submission state
-  (`htc-manifest.yaml`), consulted only when `cluster_id` is `NULL`.
+  (`htc-manifest.yml`), consulted only when `cluster_id` is `NULL`.
   Defaults to `"."`, matching the default used elsewhere in the family.
 
 ## Value

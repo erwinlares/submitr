@@ -62,12 +62,12 @@ htc_submit(
 - path:
 
   A character string. Directory holding the submission state
-  (`htc-manifest.yaml`), where the cluster ID and `remote_path` are
+  (`htc-manifest.yml`), where the cluster ID and `remote_path` are
   recorded on a successful submission. Defaults to `"."`. If you passed
   a non-default `output` or `path` to
   [`htc_gen_submit()`](https://erwinlares.github.io/submitr/reference/htc_gen_submit.md),
   pass that same directory here, or the cluster ID will be written to a
-  second, separate `htc-manifest.yaml` and
+  second, separate `htc-manifest.yml` and
   [`htc_download()`](https://erwinlares.github.io/submitr/reference/htc_download.md)
   will not find it alongside the job metadata it needs.
 

@@ -174,8 +174,8 @@ which HTCondor reads to generate one job per subset file.</p></dd>
 <dd><p>A character string. Compute resource preset. One of
 <code>"small"</code>, <code>"medium"</code>, <code>"large"</code>, or <code>"custom"</code> (requires
 <code>custom_resources</code>). Default preset values reflect CHTC recommendations
-and are loaded from <code>inst/extdata/htc-resources.yaml</code>. A local
-<code>htc-resources.yaml</code> in the working directory takes precedence over the
+and are loaded from <code>inst/extdata/htc-resources.yml</code>. A local
+<code>htc-resources.yml</code> in the working directory takes precedence over the
 package default, allowing per-project customization. Defaults to
 <code>"small"</code>.</p></dd>
 
@@ -228,7 +228,7 @@ can still be passed explicitly.</p></dd>
 
 <dt id="arg-path">path<a class="anchor" aria-label="anchor" href="#arg-path"></a></dt>
 <dd><p>A character string. Directory where the submission state
-(<code>htc-manifest.yaml</code>) is read from and written to. Defaults to <code>"."</code>
+(<code>htc-manifest.yml</code>) is read from and written to. Defaults to <code>"."</code>
 (the current working directory), matching the default used by
 <code><a href="htc_upload.html">htc_upload()</a></code>, <code><a href="htc_submit.html">htc_submit()</a></code>, and <code><a href="htc_download.html">htc_download()</a></code>. This is
 independent of <code>output</code>: if you write generated files to a subfolder
@@ -275,17 +275,22 @@ to produce the submit file and <code>subdatasets.csv</code>.</p></li>
     <h2 id="resource-presets">Resource presets<a class="anchor" aria-label="anchor" href="#resource-presets"></a></h2>
 
 
-<p>Resource presets are loaded at runtime from <code>inst/extdata/htc-resources.yaml</code>.
+<p>Resource presets are loaded at runtime from <code>inst/extdata/htc-resources.yml</code>.
 To customize presets for a specific project, copy that file to your project
-directory as <code>htc-resources.yaml</code> and edit the values. <code>htc_gen_submit()</code>
-checks for a local <code>htc-resources.yaml</code> in the working directory first,
+directory as <code>htc-resources.yml</code> and edit the values. <code>htc_gen_submit()</code>
+checks for a local <code>htc-resources.yml</code> in the working directory first,
 falling back to the package default if none is found.</p>
+<p>submitr 0.1.0 named the file <code>htc-resources.yaml</code>. A local file by that
+name is still read, with a warning asking for it to be renamed, for this
+release only; the family writes YAML files with the <code>.yml</code> extension.
+When both names are present, <code>htc-resources.yml</code> is used and the old
+file is ignored, also with a warning.</p>
     </div>
 
     <div class="section level2">
     <h2 id="ref-examples">Examples<a class="anchor" aria-label="anchor" href="#ref-examples"></a></h2>
     <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="co"># output writes the generated .sub file; path is where the submission state</span></span></span>
-<span class="r-in"><span><span class="co"># (htc-manifest.yaml) gets read from and written to. The two are</span></span></span>
+<span class="r-in"><span><span class="co"># (htc-manifest.yml) gets read from and written to. The two are</span></span></span>
 <span class="r-in"><span><span class="co"># independent arguments (see @param path), so both must point at the</span></span></span>
 <span class="r-in"><span><span class="co"># same scratch directory here to keep the submission state out of the current</span></span></span>
 <span class="r-in"><span><span class="co"># working directory.</span></span></span>
@@ -340,7 +345,7 @@ falling back to the package default if none is found.</p>
 <span class="r-msg co"><span class="r-pr">#&gt;</span> Writing logging section</span>
 <span class="r-msg co"><span class="r-pr">#&gt;</span> Writing resources section (small preset: 1 CPU / 4GB RAM / 4GB disk)</span>
 <span class="r-msg co"><span class="r-pr">#&gt;</span> Writing queue section (1 job)</span>
-<span class="r-msg co"><span class="r-pr">#&gt;</span> <span style="color: #00BB00;">✔</span> Submit file written to <span style="color: #0000BB;">/tmp/Rtmp8DxLm7/annotated.sub</span></span>
+<span class="r-msg co"><span class="r-pr">#&gt;</span> <span style="color: #00BB00;">✔</span> Submit file written to <span style="color: #0000BB;">/tmp/RtmpQBBnf4/annotated.sub</span></span>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="co"># Custom resource request</span></span></span>
 <span class="r-in"><span><span class="fu">htc_gen_submit</span><span class="op">(</span></span></span>

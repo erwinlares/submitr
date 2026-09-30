@@ -72,7 +72,7 @@ htc_upload(
 - path:
 
   A character string. Directory holding the submission state
-  (`htc-manifest.yaml`), consulted only when `files` is `NULL`. Defaults
+  (`htc-manifest.yml`), consulted only when `files` is `NULL`. Defaults
   to `"."`, which matches the generator functions' own default. If you
   passed a non-default `output` or `path` to
   [`htc_gen_submit()`](https://erwinlares.github.io/submitr/reference/htc_gen_submit.md)
@@ -143,7 +143,7 @@ tmp <- tempfile(fileext = ".sub")
 writeLines("queue 1", tmp)
 htc_upload(files = tmp, config = cfg, dry_run = TRUE)
 #> ✔ Dry run -- command that would be executed:
-#>   `scp /tmp/Rtmp8DxLm7/file4ab621062fcb.sub netid@ap2002.chtc.wisc.edu:~/`
+#>   `scp /tmp/RtmpQBBnf4/file497814bc41bd.sub netid@ap2002.chtc.wisc.edu:~/`
 # }
 
 if (FALSE) { # \dontrun{

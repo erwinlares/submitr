@@ -68,7 +68,7 @@ differently.</p></dd>
 
 
 <dt id="arg-path">path<a class="anchor" aria-label="anchor" href="#arg-path"></a></dt>
-<dd><p>A character string. Directory where <code>htc-manifest.yaml</code>
+<dd><p>A character string. Directory where <code>htc-manifest.yml</code>
 is read from and written to. Defaults to <code>"."</code> (current working
 directory). Functions that write to a caller-supplied <code>output</code>
 directory (e.g. <code><a href="htc_gen_submit.html">htc_gen_submit()</a></code>, <code><a href="htc_gen_executable.html">htc_gen_executable()</a></code>) pass
@@ -82,7 +82,7 @@ files, and so package examples never write outside <code><a href="https://rdrr.i
     </div>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
-    <p>The submission state is persisted to <code>htc-manifest.yaml</code> in <code>path</code>, not to
+    <p>The submission state is persisted to <code>htc-manifest.yml</code> in <code>path</code>, not to
 session options. Persisting it to disk means the submission state survives
 across R sessions: restarting a session with <code><a href="htc_start.html">htc_start()</a></code> no longer
 discards job metadata recorded by an earlier call to

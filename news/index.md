@@ -76,6 +76,16 @@
   affect anyone; both options are now documented under
   [`?htc_config`](https://erwinlares.github.io/submitr/reference/htc_config.md).
 
+- The resource presets file is now `htc-resources.yml`, following the
+  family-wide rule (toolero’s `CONVENTIONS.md`, section 8) that every
+  YAML file a family package names for itself ends in `.yml`. The copy
+  shipped in `inst/extdata/` is renamed. A project’s own
+  `htc-resources.yaml`, as submitr 0.1.0 documented it, is still read
+  for this release, with a warning asking for it to be renamed; the old
+  name will stop being read in the next release. When both names are
+  present, `htc-resources.yml` is used and the old file is ignored, also
+  with a warning.
+
 ### New features
 
 - [`htc_start()`](https://erwinlares.github.io/submitr/reference/htc_start.md)
@@ -124,7 +134,7 @@
   untouched if a matching `Host` block already exists, and supports
   `dry_run = TRUE` to preview the change first.
 
-- submitr now keeps a *submission state* file, `htc-manifest.yaml`, in
+- submitr now keeps a *submission state* file, `htc-manifest.yml`, in
   the project root beside `htc.cfg`.
   [`htc_gen_submit()`](https://erwinlares.github.io/submitr/reference/htc_gen_submit.md),
   [`htc_gen_executable()`](https://erwinlares.github.io/submitr/reference/htc_gen_executable.md),
@@ -142,7 +152,11 @@
   is independent of their `output` argument, so generated job files can
   be written to a subfolder while the submission state stays in the
   project root; to keep it elsewhere, pass the same `path` to every
-  call.
+  call. Development versions before 0.2.0 wrote the file as
+  `htc-manifest.yaml`. It is now `htc-manifest.yml`, following the
+  family’s `.yml` rule, with no fallback to the old name since no
+  release ever wrote it: in a project set up with a development version,
+  rename the file or regenerate the job files.
 
 - [`htc_gen_submit()`](https://erwinlares.github.io/submitr/reference/htc_gen_submit.md)
   and
@@ -381,13 +395,13 @@
 
 - Documentation, vignettes, and user-facing messages now use the
   family’s shared vocabulary (see toolero’s `CONVENTIONS.md`).
-  `htc-manifest.yaml` is the *submission state* and `manifest.csv` from
+  `htc-manifest.yml` is the *submission state* and `manifest.csv` from
   [`toolero::write_by_group()`](https://erwinlares.github.io/toolero/reference/write_by_group.html)
-  is the *job manifest*. Earlier releases called `htc-manifest.yaml` the
-  “job manifest”, which collided with the toolero file of the same name.
-  Messages across the package now say “submission state” wherever they
-  mean `htc-manifest.yaml` and “job manifest” only when they mean
-  `manifest.csv`. File names, function names, and arguments are
+  is the *job manifest*. Earlier development versions called the
+  submission state the “job manifest”, which collided with the toolero
+  file of the same name. Messages across the package now say “submission
+  state” wherever they mean `htc-manifest.yml` and “job manifest” only
+  when they mean `manifest.csv`. Function names and arguments are
   unchanged.
 
 ### Testing
