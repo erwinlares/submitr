@@ -149,12 +149,12 @@ index <- htc_collect(
   tarballs    = c(analysis = tarball),
   extract_dir = tempfile("collected")
 )
-#> ✔ Collected 1 of 1 job into /tmp/RtmpQBBnf4/collected4978188105b7.
+#> ✔ Collected 1 of 1 job into /tmp/Rtmpl7h864/collected4ac8186aa071.
 index
 #> # A tibble: 1 × 12
 #>   group_id proc_id cluster_id extracted n_files has_record output_dir      files
 #>   <chr>      <int> <chr>      <lgl>       <int> <lgl>      <chr>           <lis>
-#> 1 analysis      NA NA         TRUE            1 FALSE      /tmp/RtmpQBBnf… <chr>
+#> 1 analysis      NA NA         TRUE            1 FALSE      /tmp/Rtmpl7h86… <chr>
 #> # ℹ 4 more variables: log <chr>, err <chr>, out <chr>, container_image <chr>
 index$files[[1]]
 #> [1] "mtcars.rds"

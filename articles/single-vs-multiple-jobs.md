@@ -83,7 +83,7 @@ reads it via the `queue_from` argument to produce the `subdatasets.csv`
 that HTCondor uses to dispatch one job per subset. The job manifest is
 only relevant in multiple mode.
 
-The **submission state** is kept in `htc-manifest.yaml`, written by
+The **submission state** is kept in `htc-manifest.yml`, written by
 `submitr` into your project beside `htc.cfg`. It accumulates metadata as
 you work through the pipeline, and each step after the first also reads
 back what an earlier one wrote.
@@ -112,7 +112,7 @@ again does not disturb it.
 
 |  | Job manifest | Submission state |
 |----|----|----|
-| What is it | A CSV file (`manifest.csv`) | A YAML file (`htc-manifest.yaml`) |
+| What is it | A CSV file (`manifest.csv`) | A YAML file (`htc-manifest.yml`) |
 | Created by | [`toolero::write_by_group()`](https://erwinlares.github.io/toolero/reference/write_by_group.html) | [`htc_gen_submit()`](https://erwinlares.github.io/submitr/reference/htc_gen_submit.md), [`htc_gen_executable()`](https://erwinlares.github.io/submitr/reference/htc_gen_executable.md), [`htc_submit()`](https://erwinlares.github.io/submitr/reference/htc_submit.md) |
 | Contains | Subset filenames and row counts | Mode, script stem, results name, subset names, cluster ID, remote path |
 | Used by | `htc_gen_submit(queue_from = ...)` | [`htc_upload()`](https://erwinlares.github.io/submitr/reference/htc_upload.md) and [`htc_download()`](https://erwinlares.github.io/submitr/reference/htc_download.md) |
@@ -594,15 +594,15 @@ can reconstruct the tarball names without re-reading anything.
     htc_gen_submit(queue_from = "manifest.csv")
       |
       +---> subdatasets.csv    (sent to HTCondor)
-      +---> htc-manifest.yaml  (submission state: subsets, script stem, mode)
+      +---> htc-manifest.yml  (submission state: subsets, script stem, mode)
               |
               v
             htc_gen_executable()
-              +---> htc-manifest.yaml  (executable and script recorded)
+              +---> htc-manifest.yml  (executable and script recorded)
                       |
                       v
                     htc_submit()
-                      +---> htc-manifest.yaml  (cluster ID, remote path added)
+                      +---> htc-manifest.yml  (cluster ID, remote path added)
                               |
                               v
                             htc_download()  (resolves all files automatically)

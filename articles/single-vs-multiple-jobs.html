@@ -146,14 +146,14 @@ argument to produce the <code>subdatasets.csv</code> that HTCondor uses
 to dispatch one job per subset. The job manifest is only relevant in
 multiple mode.</p>
 <p>The <strong>submission state</strong> is kept in
-<code>htc-manifest.yaml</code>, written by <code>submitr</code> into
-your project beside <code>htc.cfg</code>. It accumulates metadata as you
-work through the pipeline, and each step after the first also reads back
-what an earlier one wrote. <code><a href="../reference/htc_gen_submit.html">htc_gen_submit()</a></code> records the
-submit file, the mode, the results name, and in multiple mode the subset
-names; <code><a href="../reference/htc_gen_executable.html">htc_gen_executable()</a></code> records the analysis script and
-the executable; <code><a href="../reference/htc_upload.html">htc_upload()</a></code> records the remote directory
-it sent files to; <code><a href="../reference/htc_submit.html">htc_submit()</a></code> resolves the submit file and
+<code>htc-manifest.yml</code>, written by <code>submitr</code> into your
+project beside <code>htc.cfg</code>. It accumulates metadata as you work
+through the pipeline, and each step after the first also reads back what
+an earlier one wrote. <code><a href="../reference/htc_gen_submit.html">htc_gen_submit()</a></code> records the submit
+file, the mode, the results name, and in multiple mode the subset names;
+<code><a href="../reference/htc_gen_executable.html">htc_gen_executable()</a></code> records the analysis script and the
+executable; <code><a href="../reference/htc_upload.html">htc_upload()</a></code> records the remote directory it
+sent files to; <code><a href="../reference/htc_submit.html">htc_submit()</a></code> resolves the submit file and
 remote directory from those records when you do not supply them, and
 records the cluster ID HTCondor assigned. At the end,
 <code><a href="../reference/htc_download.html">htc_download()</a></code> reads all of it to work out which files to
@@ -179,7 +179,7 @@ does not disturb it.</p>
 <tr class="odd">
 <td>What is it</td>
 <td>A CSV file (<code>manifest.csv</code>)</td>
-<td>A YAML file (<code>htc-manifest.yaml</code>)</td>
+<td>A YAML file (<code>htc-manifest.yml</code>)</td>
 </tr>
 <tr class="even">
 <td>Created by</td>
@@ -829,15 +829,15 @@ manifest.csv  (job manifest, a CSV on disk)
 htc_gen_submit(queue_from = "manifest.csv")
   |
   +---&gt; subdatasets.csv    (sent to HTCondor)
-  +---&gt; htc-manifest.yaml  (submission state: subsets, script stem, mode)
+  +---&gt; htc-manifest.yml  (submission state: subsets, script stem, mode)
           |
           v
         htc_gen_executable()
-          +---&gt; htc-manifest.yaml  (executable and script recorded)
+          +---&gt; htc-manifest.yml  (executable and script recorded)
                   |
                   v
                 htc_submit()
-                  +---&gt; htc-manifest.yaml  (cluster ID, remote path added)
+                  +---&gt; htc-manifest.yml  (cluster ID, remote path added)
                           |
                           v
                         htc_download()  (resolves all files automatically)</code></pre>

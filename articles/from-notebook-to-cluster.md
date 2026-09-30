@@ -116,7 +116,7 @@ submitr::htc_download()       # copy results back
 
 Two of those calls take no arguments in a normal workflow. As you go,
 `submitr` records what it has generated in a small file called
-`htc-manifest.yaml`, the *submission state*, and
+`htc-manifest.yml`, the *submission state*, and
 [`htc_upload()`](https://erwinlares.github.io/submitr/reference/htc_upload.md)
 and
 [`htc_download()`](https://erwinlares.github.io/submitr/reference/htc_download.md)
@@ -499,7 +499,7 @@ it the report arrives as a single self-contained file.
 Steps 4 and 7 took no arguments, and it is worth understanding why,
 because it also explains something that matters when a job runs long.
 
-As you work, `submitr` writes what it learns to `htc-manifest.yaml`, a
+As you work, `submitr` writes what it learns to `htc-manifest.yml`, a
 small file that sits in your project beside `htc.cfg`. The family calls
 it the *submission state*, to keep it distinct from the *job manifest*
 that

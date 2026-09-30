@@ -168,8 +168,8 @@ them:</p>
 <span><span class="fu">submitr</span><span class="fu">::</span><span class="fu"><a href="../reference/htc_download.html">htc_download</a></span><span class="op">(</span><span class="op">)</span>       <span class="co"># copy results back</span></span></code></pre></div>
 <p>Two of those calls take no arguments in a normal workflow. As you go,
 <code>submitr</code> records what it has generated in a small file
-called <code>htc-manifest.yaml</code>, the <em>submission state</em>,
-and <code><a href="../reference/htc_upload.html">htc_upload()</a></code> and <code><a href="../reference/htc_download.html">htc_download()</a></code> read it to
+called <code>htc-manifest.yml</code>, the <em>submission state</em>, and
+<code><a href="../reference/htc_upload.html">htc_upload()</a></code> and <code><a href="../reference/htc_download.html">htc_download()</a></code> read it to
 work out which files to move. There is a section on that below.</p>
 <hr>
 </div>
@@ -510,7 +510,7 @@ a single self-contained file.</p>
 because it also explains something that matters when a job runs
 long.</p>
 <p>As you work, <code>submitr</code> writes what it learns to
-<code>htc-manifest.yaml</code>, a small file that sits in your project
+<code>htc-manifest.yml</code>, a small file that sits in your project
 beside <code>htc.cfg</code>. The family calls it the <em>submission
 state</em>, to keep it distinct from the <em>job manifest</em> that
 <code><a href="https://erwinlares.github.io/toolero/reference/write_by_group.html" class="external-link">toolero::write_by_group()</a></code> writes; the file name predates
