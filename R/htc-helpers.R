@@ -40,6 +40,23 @@
 }
 
 
+#' File name of the submission state
+#'
+#' Internal helper returning the name of the file the submission state is
+#' kept in, `htc-manifest.yml`. Every reader and writer goes through it, so
+#' the name lives in one place. The family writes YAML files with the
+#' `.yml` extension (toolero's `CONVENTIONS.md`, section 8). Development
+#' versions before 0.2.0 wrote `htc-manifest.yaml`; none of them reached
+#' CRAN, so there is no fallback to the old name.
+#'
+#' @return A single character string.
+#'
+#' @keywords internal
+.submission_state_file <- function() {
+  "htc-manifest.yml"
+}
+
+
 #' Update the submission state with new information
 #'
 #' Internal helper that accumulates job metadata across the submitr
@@ -47,7 +64,7 @@
 #' with the information it knows. `htc_download()` and `htc_upload()`
 #' read the accumulated submission state to resolve files automatically.
 #'
-#' The submission state is persisted to `htc-manifest.yaml` in `path`, not to
+#' The submission state is persisted to `htc-manifest.yml` in `path`, not to
 #' session options. Persisting it to disk means the submission state survives
 #' across R sessions: restarting a session with [htc_start()] no longer
 #' discards job metadata recorded by an earlier call to
@@ -62,7 +79,7 @@
 #'   never be stored as a submission-state field. Nothing in the package needs a
 #'   field called `path`, but any future one would have to be named
 #'   differently.
-#' @param path A character string. Directory where `htc-manifest.yaml`
+#' @param path A character string. Directory where `htc-manifest.yml`
 #'   is read from and written to. Defaults to `"."` (current working
 #'   directory). Functions that write to a caller-supplied `output`
 #'   directory (e.g. [htc_gen_submit()], [htc_gen_executable()]) pass
@@ -81,7 +98,7 @@
     ))
   }
 
-  manifest_file <- file.path(path, "htc-manifest.yaml")
+  manifest_file <- file.path(path, .submission_state_file())
 
   current <- if (file.exists(manifest_file)) {
     yaml::read_yaml(manifest_file)
@@ -105,7 +122,7 @@
 #' Retrieve the current submission state
 #'
 #' Internal helper that reads the accumulated submission state from
-#' `htc-manifest.yaml` in `path`. Returns `NULL` if no `htc-manifest.yaml`
+#' `htc-manifest.yml` in `path`. Returns `NULL` if no `htc-manifest.yml`
 #' exists yet.
 #'
 #' YAML represents a sequence (e.g. a character vector recorded via
@@ -115,21 +132,21 @@
 #' passed to `.update_manifest()`.
 #'
 #' @param path A character string. Directory to look for
-#'   `htc-manifest.yaml` in. Defaults to `"."` (current working
+#'   `htc-manifest.yml` in. Defaults to `"."` (current working
 #'   directory).
 #'
 #' @return A named list or `NULL`.
 #'
 #' @keywords internal
 .get_manifest <- function(path = ".") {
-  manifest_file <- file.path(path, "htc-manifest.yaml")
+  manifest_file <- file.path(path, .submission_state_file())
   if (!file.exists(manifest_file)) {
     return(NULL)
   }
 
   manifest <- yaml::read_yaml(manifest_file)
 
-  # An empty or unreadable htc-manifest.yaml is treated the same as no
+  # An empty or unreadable htc-manifest.yml is treated the same as no
   # submission state at all, so callers only ever have to test for NULL.
   if (!is.list(manifest) || length(manifest) == 0L) {
     return(NULL)

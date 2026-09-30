@@ -30,7 +30,7 @@
 #' @param verbose Logical. If `TRUE`, prints progress messages. Defaults to
 #'   `FALSE`.
 #' @param path A character string. Directory holding the submission state
-#'   (`htc-manifest.yaml`), consulted only when `files` is `NULL`. Defaults
+#'   (`htc-manifest.yml`), consulted only when `files` is `NULL`. Defaults
 #'   to `"."`, which matches the generator functions' own default. If you
 #'   passed a non-default `output` or `path` to [htc_gen_submit()] and
 #'   [htc_gen_executable()], pass that same directory here.
@@ -168,7 +168,7 @@ htc_upload <- function(files       = NULL,
             "i" = "Pass {.arg files} directly, or run {.fn htc_gen_submit} and",
             " " = "  {.fn htc_gen_executable} first so the submission state can",
             " " = "  resolve them automatically.",
-            "i" = "Looked for the submission state ({.file htc-manifest.yaml}) in {.path {path}}."
+            "i" = "Looked for the submission state ({.file htc-manifest.yml}) in {.path {path}}."
         ))
     }
 

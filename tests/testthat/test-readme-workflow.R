@@ -238,9 +238,9 @@ test_that("the results-naming table holds: single name unchanged, multiple gains
 # Resource preset table
 # ---------------------------------------------------------------------------
 
-test_that("the resource preset table matches the shipped htc-resources.yaml", {
+test_that("the resource preset table matches the shipped htc-resources.yml", {
     resources_file <- system.file(
-        "extdata", "htc-resources.yaml",
+        "extdata", "htc-resources.yml",
         package = "submitr", mustWork = TRUE
     )
     presets <- yaml::read_yaml(resources_file)

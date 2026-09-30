@@ -245,7 +245,7 @@
 #'   extracted, so a second `htc_collect()` call never silently mixes stale
 #'   and fresh results.
 #' @param path A character string. Directory holding the submission state
-#'   (`htc-manifest.yaml`). Defaults to `"."`, matching the default used
+#'   (`htc-manifest.yml`). Defaults to `"."`, matching the default used
 #'   elsewhere in the family. Consulted for the tarball names when
 #'   `tarballs` is `NULL`, and in every case for the cluster ID, process
 #'   numbers, container image, and results folder.
@@ -332,7 +332,7 @@ htc_collect <- function(tarballs    = NULL,
                 " " = "  workflow first ({.fn htc_gen_submit}, {.fn htc_gen_executable},",
                 " " = "  {.fn htc_submit}, {.fn htc_download}) so the submission state",
                 " " = "  can resolve them automatically.",
-                "i" = "Looked for the submission state ({.file htc-manifest.yaml}) in {.path {path}}."
+                "i" = "Looked for the submission state ({.file htc-manifest.yml}) in {.path {path}}."
             ))
         }
 

@@ -26,7 +26,7 @@
 #' @param verbose Logical. If `TRUE`, prints progress messages. Defaults to
 #'   `FALSE`.
 #' @param path A character string. Directory holding the submission state
-#'   (`htc-manifest.yaml`), consulted only when `cluster_id` is `NULL`.
+#'   (`htc-manifest.yml`), consulted only when `cluster_id` is `NULL`.
 #'   Defaults to `"."`, matching the default used elsewhere in the family.
 #'
 #' @return The `condor_rm` output as a character vector, returned invisibly.
@@ -180,7 +180,7 @@ htc_cancel <- function(cluster_id = NULL,
 #' @param verbose Logical. If `TRUE`, prints progress messages. Defaults to
 #'   `FALSE`.
 #' @param path A character string. Directory holding the submission state
-#'   (`htc-manifest.yaml`), consulted only when `cluster_id` is `NULL`.
+#'   (`htc-manifest.yml`), consulted only when `cluster_id` is `NULL`.
 #'   Defaults to `"."`, matching the default used elsewhere in the family.
 #'
 #' @return The `condor_release` output as a character vector, returned

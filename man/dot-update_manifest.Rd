@@ -13,7 +13,7 @@ never be stored as a submission-state field. Nothing in the package needs a
 field called \code{path}, but any future one would have to be named
 differently.}
 
-\item{path}{A character string. Directory where \code{htc-manifest.yaml}
+\item{path}{A character string. Directory where \code{htc-manifest.yml}
 is read from and written to. Defaults to \code{"."} (current working
 directory). Functions that write to a caller-supplied \code{output}
 directory (e.g. \code{\link[=htc_gen_submit]{htc_gen_submit()}}, \code{\link[=htc_gen_executable]{htc_gen_executable()}}) pass
@@ -30,7 +30,7 @@ with the information it knows. \code{htc_download()} and \code{htc_upload()}
 read the accumulated submission state to resolve files automatically.
 }
 \details{
-The submission state is persisted to \code{htc-manifest.yaml} in \code{path}, not to
+The submission state is persisted to \code{htc-manifest.yml} in \code{path}, not to
 session options. Persisting it to disk means the submission state survives
 across R sessions: restarting a session with \code{\link[=htc_start]{htc_start()}} no longer
 discards job metadata recorded by an earlier call to

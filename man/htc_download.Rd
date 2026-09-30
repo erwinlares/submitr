@@ -50,7 +50,7 @@ executed without running it. Defaults to \code{FALSE}.}
 \code{FALSE}.}
 
 \item{path}{A character string. Directory holding the submission state
-(\code{htc-manifest.yaml}). This is where the function looks for job
+(\code{htc-manifest.yml}). This is where the function looks for job
 metadata; it is not where downloaded files are written, which is
 \code{local_path}. Defaults to \code{"."}. If you passed a non-default \code{output}
 or \code{path} to \code{\link[=htc_gen_submit]{htc_gen_submit()}} and \code{\link[=htc_gen_executable]{htc_gen_executable()}}, pass that

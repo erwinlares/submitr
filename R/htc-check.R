@@ -79,7 +79,7 @@
 #'   check performed, not just the ones that found something. Set `FALSE`
 #'   to only see problems.
 #' @param path A character string. Directory holding the submission state
-#'   (`htc-manifest.yaml`). Defaults to `"."`, matching the default used
+#'   (`htc-manifest.yml`). Defaults to `"."`, matching the default used
 #'   elsewhere in the family.
 #'
 #' @return A tibble with one row per issue found, columns `check`,

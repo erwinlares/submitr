@@ -45,7 +45,7 @@ transferring files. Defaults to \code{FALSE}.}
 \code{FALSE}.}
 
 \item{path}{A character string. Directory holding the submission state
-(\code{htc-manifest.yaml}), consulted only when \code{files} is \code{NULL}. Defaults
+(\code{htc-manifest.yml}), consulted only when \code{files} is \code{NULL}. Defaults
 to \code{"."}, which matches the generator functions' own default. If you
 passed a non-default \code{output} or \code{path} to \code{\link[=htc_gen_submit]{htc_gen_submit()}} and
 \code{\link[=htc_gen_executable]{htc_gen_executable()}}, pass that same directory here.}

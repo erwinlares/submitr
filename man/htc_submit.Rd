@@ -39,11 +39,11 @@ submitting. Defaults to \code{FALSE}.}
 \code{condor_submit} output. Defaults to \code{FALSE}.}
 
 \item{path}{A character string. Directory holding the submission state
-(\code{htc-manifest.yaml}), where the cluster ID and \code{remote_path} are
+(\code{htc-manifest.yml}), where the cluster ID and \code{remote_path} are
 recorded on a successful submission. Defaults to \code{"."}. If you passed a
 non-default \code{output} or \code{path} to \code{\link[=htc_gen_submit]{htc_gen_submit()}}, pass that same
 directory here, or the cluster ID will be written to a second, separate
-\code{htc-manifest.yaml} and \code{\link[=htc_download]{htc_download()}} will not find it alongside the job
+\code{htc-manifest.yml} and \code{\link[=htc_download]{htc_download()}} will not find it alongside the job
 metadata it needs.}
 }
 \value{

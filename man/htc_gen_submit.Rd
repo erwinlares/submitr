@@ -106,8 +106,8 @@ which HTCondor reads to generate one job per subset file.}
 \item{resources}{A character string. Compute resource preset. One of
 \code{"small"}, \code{"medium"}, \code{"large"}, or \code{"custom"} (requires
 \code{custom_resources}). Default preset values reflect CHTC recommendations
-and are loaded from \code{inst/extdata/htc-resources.yaml}. A local
-\code{htc-resources.yaml} in the working directory takes precedence over the
+and are loaded from \code{inst/extdata/htc-resources.yml}. A local
+\code{htc-resources.yml} in the working directory takes precedence over the
 package default, allowing per-project customization. Defaults to
 \code{"small"}.}
 
@@ -144,7 +144,7 @@ is used to default \code{queue_from} (S-G5). Not required -- everything here
 can still be passed explicitly.}
 
 \item{path}{A character string. Directory where the submission state
-(\code{htc-manifest.yaml}) is read from and written to. Defaults to \code{"."}
+(\code{htc-manifest.yml}) is read from and written to. Defaults to \code{"."}
 (the current working directory), matching the default used by
 \code{\link[=htc_upload]{htc_upload()}}, \code{\link[=htc_submit]{htc_submit()}}, and \code{\link[=htc_download]{htc_download()}}. This is
 independent of \code{output}: if you write generated files to a subfolder
@@ -197,16 +197,22 @@ to produce the submit file and \code{subdatasets.csv}.
 
 \section{Resource presets}{
 
-Resource presets are loaded at runtime from \code{inst/extdata/htc-resources.yaml}.
+Resource presets are loaded at runtime from \code{inst/extdata/htc-resources.yml}.
 To customize presets for a specific project, copy that file to your project
-directory as \code{htc-resources.yaml} and edit the values. \code{htc_gen_submit()}
-checks for a local \code{htc-resources.yaml} in the working directory first,
+directory as \code{htc-resources.yml} and edit the values. \code{htc_gen_submit()}
+checks for a local \code{htc-resources.yml} in the working directory first,
 falling back to the package default if none is found.
+
+submitr 0.1.0 named the file \code{htc-resources.yaml}. A local file by that
+name is still read, with a warning asking for it to be renamed, for this
+release only; the family writes YAML files with the \code{.yml} extension.
+When both names are present, \code{htc-resources.yml} is used and the old
+file is ignored, also with a warning.
 }
 
 \examples{
 # output writes the generated .sub file; path is where the submission state
-# (htc-manifest.yaml) gets read from and written to. The two are
+# (htc-manifest.yml) gets read from and written to. The two are
 # independent arguments (see @param path), so both must point at the
 # same scratch directory here to keep the submission state out of the current
 # working directory.

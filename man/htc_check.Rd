@@ -48,7 +48,7 @@ check performed, not just the ones that found something. Set \code{FALSE}
 to only see problems.}
 
 \item{path}{A character string. Directory holding the submission state
-(\code{htc-manifest.yaml}). Defaults to \code{"."}, matching the default used
+(\code{htc-manifest.yml}). Defaults to \code{"."}, matching the default used
 elsewhere in the family.}
 }
 \value{

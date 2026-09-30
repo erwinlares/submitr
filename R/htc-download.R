@@ -43,7 +43,7 @@
 #' @param verbose Logical. If `TRUE`, prints progress messages. Defaults to
 #'   `FALSE`.
 #' @param path A character string. Directory holding the submission state
-#'   (`htc-manifest.yaml`). This is where the function looks for job
+#'   (`htc-manifest.yml`). This is where the function looks for job
 #'   metadata; it is not where downloaded files are written, which is
 #'   `local_path`. Defaults to `"."`. If you passed a non-default `output`
 #'   or `path` to [htc_gen_submit()] and [htc_gen_executable()], pass that

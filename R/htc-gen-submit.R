@@ -74,8 +74,8 @@
 #' @param resources A character string. Compute resource preset. One of
 #'   `"small"`, `"medium"`, `"large"`, or `"custom"` (requires
 #'   `custom_resources`). Default preset values reflect CHTC recommendations
-#'   and are loaded from `inst/extdata/htc-resources.yaml`. A local
-#'   `htc-resources.yaml` in the working directory takes precedence over the
+#'   and are loaded from `inst/extdata/htc-resources.yml`. A local
+#'   `htc-resources.yml` in the working directory takes precedence over the
 #'   package default, allowing per-project customization. Defaults to
 #'   `"small"`.
 #' @param custom_resources A named list. Required when `resources = "custom"`.
@@ -104,7 +104,7 @@
 #'   is used to default `queue_from` (S-G5). Not required -- everything here
 #'   can still be passed explicitly.
 #' @param path A character string. Directory where the submission state
-#'   (`htc-manifest.yaml`) is read from and written to. Defaults to `"."`
+#'   (`htc-manifest.yml`) is read from and written to. Defaults to `"."`
 #'   (the current working directory), matching the default used by
 #'   [htc_upload()], [htc_submit()], and [htc_download()]. This is
 #'   independent of `output`: if you write generated files to a subfolder
@@ -147,17 +147,23 @@
 #'    `analysis.sh`, and `subdatasets.csv` to CHTC and submit.
 #'
 #' @section Resource presets:
-#' Resource presets are loaded at runtime from `inst/extdata/htc-resources.yaml`.
+#' Resource presets are loaded at runtime from `inst/extdata/htc-resources.yml`.
 #' To customize presets for a specific project, copy that file to your project
-#' directory as `htc-resources.yaml` and edit the values. `htc_gen_submit()`
-#' checks for a local `htc-resources.yaml` in the working directory first,
+#' directory as `htc-resources.yml` and edit the values. `htc_gen_submit()`
+#' checks for a local `htc-resources.yml` in the working directory first,
 #' falling back to the package default if none is found.
+#'
+#' submitr 0.1.0 named the file `htc-resources.yaml`. A local file by that
+#' name is still read, with a warning asking for it to be renamed, for this
+#' release only; the family writes YAML files with the `.yml` extension.
+#' When both names are present, `htc-resources.yml` is used and the old
+#' file is ignored, also with a warning.
 #'
 #' @export
 #'
 #' @examples
 #' # output writes the generated .sub file; path is where the submission state
-#' # (htc-manifest.yaml) gets read from and written to. The two are
+#' # (htc-manifest.yml) gets read from and written to. The two are
 #' # independent arguments (see @param path), so both must point at the
 #' # same scratch directory here to keep the submission state out of the current
 #' # working directory.
@@ -407,19 +413,10 @@ htc_gen_submit <- function(output_file      = "job.sub",
     }
 
     # -- 8. Resolve resource values --------------------------------------------
-    # Check for a local htc-resources.yaml in the working directory first,
-    # falling back to the package default in inst/extdata/.
-    local_resources_file <- file.path(getwd(), "htc-resources.yaml")
-    package_resources_file <- system.file(
-        "extdata", "htc-resources.yaml",
-        package  = "submitr",
-        mustWork = TRUE
-    )
-    resources_file <- if (file.exists(local_resources_file)) {
-        local_resources_file
-    } else {
-        package_resources_file
-    }
+    # A local htc-resources.yml in the working directory first (or, for this
+    # release only, a local htc-resources.yaml), falling back to the package
+    # default in inst/extdata/.
+    resources_file <- .resources_file(getwd())
 
     resource_map <- yaml::read_yaml(resources_file)
 
@@ -830,4 +827,50 @@ htc_gen_submit <- function(output_file      = "job.sub",
         path             = path
     )
     invisible(NULL)
+}
+
+
+#' Locate the resource presets file
+#'
+#' Internal helper used by [htc_gen_submit()]. Returns the local
+#' `htc-resources.yml` in `dir` when there is one; otherwise a local
+#' `htc-resources.yaml`, the name submitr 0.1.0 used, with a warning asking
+#' for it to be renamed (read for this release only); otherwise the package
+#' default in `inst/extdata/`. When both local names exist, the `.yml` file
+#' wins and a warning says the `.yaml` file is being ignored, so a stale
+#' copy never silently shadows or is silently shadowed by the current one.
+#'
+#' @param dir A character string. Directory to look in for a local file,
+#'   normally the working directory.
+#'
+#' @return A single character string: the path to read.
+#'
+#' @keywords internal
+.resources_file <- function(dir = getwd()) {
+    local_yml  <- file.path(dir, "htc-resources.yml")
+    local_yaml <- file.path(dir, "htc-resources.yaml")
+
+    if (file.exists(local_yml)) {
+        if (file.exists(local_yaml)) {
+            cli::cli_warn(c(
+                "!" = "Found both {.file htc-resources.yml} and {.file htc-resources.yaml}; using {.file htc-resources.yml}.",
+                "i" = "{.file htc-resources.yaml} is the name submitr 0.1.0 used. Delete it once its presets are in {.file htc-resources.yml}."
+            ))
+        }
+        return(local_yml)
+    }
+
+    if (file.exists(local_yaml)) {
+        cli::cli_warn(c(
+            "!" = "Reading resource presets from {.file htc-resources.yaml}, the name submitr 0.1.0 used.",
+            "i" = "Rename it to {.file htc-resources.yml}. The old name will stop being read in the next release."
+        ))
+        return(local_yaml)
+    }
+
+    system.file(
+        "extdata", "htc-resources.yml",
+        package  = "submitr",
+        mustWork = TRUE
+    )
 }

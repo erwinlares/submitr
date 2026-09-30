@@ -8,7 +8,7 @@
 }
 \arguments{
 \item{path}{A character string. Directory to look for
-\code{htc-manifest.yaml} in. Defaults to \code{"."} (current working
+\code{htc-manifest.yml} in. Defaults to \code{"."} (current working
 directory).}
 }
 \value{
@@ -16,7 +16,7 @@ A named list or \code{NULL}.
 }
 \description{
 Internal helper that reads the accumulated submission state from
-\code{htc-manifest.yaml} in \code{path}. Returns \code{NULL} if no \code{htc-manifest.yaml}
+\code{htc-manifest.yml} in \code{path}. Returns \code{NULL} if no \code{htc-manifest.yml}
 exists yet.
 }
 \details{

@@ -34,7 +34,7 @@ extracted, so a second \code{htc_collect()} call never silently mixes stale
 and fresh results.}
 
 \item{path}{A character string. Directory holding the submission state
-(\code{htc-manifest.yaml}). Defaults to \code{"."}, matching the default used
+(\code{htc-manifest.yml}). Defaults to \code{"."}, matching the default used
 elsewhere in the family. Consulted for the tarball names when
 \code{tarballs} is \code{NULL}, and in every case for the cluster ID, process
 numbers, container image, and results folder.}

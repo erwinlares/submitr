@@ -40,7 +40,7 @@ executed without running it. Defaults to \code{FALSE}.}
 \code{FALSE}.}
 
 \item{path}{A character string. Directory holding the submission state
-(\code{htc-manifest.yaml}), consulted only when \code{cluster_id} is \code{NULL}.
+(\code{htc-manifest.yml}), consulted only when \code{cluster_id} is \code{NULL}.
 Defaults to \code{"."}, matching the default used elsewhere in the family.}
 }
 \value{

@@ -25,11 +25,11 @@
 #' @param verbose Logical. If `TRUE`, prints progress messages and the
 #'   `condor_submit` output. Defaults to `FALSE`.
 #' @param path A character string. Directory holding the submission state
-#'   (`htc-manifest.yaml`), where the cluster ID and `remote_path` are
+#'   (`htc-manifest.yml`), where the cluster ID and `remote_path` are
 #'   recorded on a successful submission. Defaults to `"."`. If you passed a
 #'   non-default `output` or `path` to [htc_gen_submit()], pass that same
 #'   directory here, or the cluster ID will be written to a second, separate
-#'   `htc-manifest.yaml` and [htc_download()] will not find it alongside the job
+#'   `htc-manifest.yml` and [htc_download()] will not find it alongside the job
 #'   metadata it needs.
 #'
 #' @return The cluster ID assigned by HTCondor as a character string,

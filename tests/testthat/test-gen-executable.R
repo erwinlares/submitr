@@ -553,7 +553,7 @@ test_that("set_executable = TRUE is the default", {
 test_that("htc_gen_executable() writes the submission state to path", {
     tmp <- withr::local_tempdir()
     htc_gen_executable(r_script = "analysis.R", output = tmp, path = tmp)
-    expect_true(file.exists(file.path(tmp, "htc-manifest.yaml")))
+    expect_true(file.exists(file.path(tmp, "htc-manifest.yml")))
 })
 
 test_that("htc_gen_executable() records the executable file in the submission state", {
@@ -589,16 +589,16 @@ test_that("htc_gen_executable() defaults path to the working directory, independ
     wd  <- withr::local_tempdir()
     withr::local_dir(wd)
     htc_gen_executable(r_script = "analysis.R", output = out)
-    expect_true(file.exists(file.path(wd, "htc-manifest.yaml")))
-    expect_false(file.exists(file.path(out, "htc-manifest.yaml")))
+    expect_true(file.exists(file.path(wd, "htc-manifest.yml")))
+    expect_false(file.exists(file.path(out, "htc-manifest.yml")))
 })
 
 test_that("htc_gen_executable() writes the submission state to an explicit path, independent of output", {
     out  <- withr::local_tempdir()
     proj <- withr::local_tempdir()
     htc_gen_executable(r_script = "analysis.R", output = out, path = proj)
-    expect_true(file.exists(file.path(proj, "htc-manifest.yaml")))
-    expect_false(file.exists(file.path(out, "htc-manifest.yaml")))
+    expect_true(file.exists(file.path(proj, "htc-manifest.yml")))
+    expect_false(file.exists(file.path(out, "htc-manifest.yml")))
 })
 
 # ---------------------------------------------------------------------------

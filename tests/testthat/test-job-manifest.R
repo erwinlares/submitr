@@ -3,11 +3,11 @@
 # ---------------------------------------------------------------------------
 # .update_manifest() and .get_manifest()
 #
-# The job manifest is persisted to htc-manifest.yaml in `path` (default
+# The submission state is persisted to htc-manifest.yml in `path` (default
 # "."), not to session options, so restarting a session no longer discards
 # it (see the htc_start() tests below). Tests that call .update_manifest()/
 # .get_manifest() without an explicit `path` run inside an isolated
-# temporary working directory so no stray htc-manifest.yaml file leaks
+# temporary working directory so no stray htc-manifest.yml file leaks
 # into the package source tree.
 # ---------------------------------------------------------------------------
 
@@ -18,7 +18,7 @@ test_that(".get_manifest() returns NULL when no manifest file exists", {
 
 test_that(".get_manifest() returns NULL for an empty manifest file", {
     tmp <- withr::local_tempdir()
-    file.create(file.path(tmp, "htc-manifest.yaml"))
+    file.create(file.path(tmp, "htc-manifest.yml"))
     expect_null(.get_manifest(path = tmp))
 })
 
@@ -56,11 +56,24 @@ test_that(".update_manifest() drops a key when passed NULL for it", {
     expect_equal(m$mode, "single")
 })
 
-test_that(".update_manifest() persists htc-manifest.yaml to disk", {
+test_that(".update_manifest() persists htc-manifest.yml to disk", {
     tmp <- withr::local_tempdir()
     withr::local_dir(tmp)
     .update_manifest(mode = "single", cluster_id = "999")
-    expect_true(file.exists(file.path(tmp, "htc-manifest.yaml")))
+    expect_true(file.exists(file.path(tmp, "htc-manifest.yml")))
+    expect_false(file.exists(file.path(tmp, "htc-manifest.yaml")))
+})
+
+test_that("the submission state file name comes from one helper", {
+    expect_equal(.submission_state_file(), "htc-manifest.yml")
+})
+
+test_that(".get_manifest() does not read an htc-manifest.yaml left by a development version", {
+    # No release ever wrote htc-manifest.yaml, so there is no fallback to it.
+    tmp <- withr::local_tempdir()
+    yaml::write_yaml(list(mode = "single", cluster_id = "123"),
+                     file.path(tmp, "htc-manifest.yaml"))
+    expect_null(.get_manifest(path = tmp))
 })
 
 test_that(".update_manifest() errors when path does not exist", {
@@ -73,7 +86,7 @@ test_that(".update_manifest() errors when path does not exist", {
 test_that(".update_manifest() and .get_manifest() respect a custom path", {
     tmp <- withr::local_tempdir()
     .update_manifest(mode = "single", path = tmp)
-    expect_true(file.exists(file.path(tmp, "htc-manifest.yaml")))
+    expect_true(file.exists(file.path(tmp, "htc-manifest.yml")))
     m <- .get_manifest(path = tmp)
     expect_equal(m$mode, "single")
 })

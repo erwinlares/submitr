@@ -340,6 +340,77 @@ test_that("custom preset writes supplied resource values", {
 })
 
 # ---------------------------------------------------------------------------
+# Resource presets file: htc-resources.yml, with htc-resources.yaml read for
+# one release
+# ---------------------------------------------------------------------------
+
+write_presets <- function(path, small_cpus) {
+    writeLines(c(
+        "small:",
+        paste0("  cpus: ", small_cpus),
+        "  memory: 4GB",
+        "  disk: 4GB"
+    ), path)
+}
+
+test_that(".resources_file() falls back to the shipped htc-resources.yml", {
+    tmp <- withr::local_tempdir()
+    result <- .resources_file(tmp)
+    expect_equal(basename(result), "htc-resources.yml")
+    expect_true(file.exists(result))
+    expect_false(startsWith(normalizePath(result), normalizePath(tmp)))
+})
+
+test_that(".resources_file() prefers a local htc-resources.yml, quietly", {
+    tmp <- withr::local_tempdir()
+    write_presets(file.path(tmp, "htc-resources.yml"), 2)
+    expect_no_warning(result <- .resources_file(tmp))
+    expect_equal(result, file.path(tmp, "htc-resources.yml"))
+})
+
+test_that(".resources_file() reads a local htc-resources.yaml, with a warning", {
+    tmp <- withr::local_tempdir()
+    write_presets(file.path(tmp, "htc-resources.yaml"), 2)
+    expect_warning(
+        result <- .resources_file(tmp),
+        regexp = "Rename"
+    )
+    expect_equal(result, file.path(tmp, "htc-resources.yaml"))
+})
+
+test_that(".resources_file() uses htc-resources.yml when both names exist, and says so", {
+    tmp <- withr::local_tempdir()
+    write_presets(file.path(tmp, "htc-resources.yml"),  2)
+    write_presets(file.path(tmp, "htc-resources.yaml"), 3)
+    expect_warning(
+        result <- .resources_file(tmp),
+        regexp = "both"
+    )
+    expect_equal(result, file.path(tmp, "htc-resources.yml"))
+})
+
+test_that("htc_gen_submit() takes presets from a local htc-resources.yml", {
+    tmp <- withr::local_tempdir()
+    withr::local_dir(tmp)
+    write_presets("htc-resources.yml", 2)
+    htc_gen_submit(resources = "small", output = tmp)
+    content <- paste(read_subfile(tmp), collapse = "\n")
+    expect_match(content, "request_cpus   = 2", fixed = TRUE)
+})
+
+test_that("htc_gen_submit() still takes presets from a local htc-resources.yaml, with a warning", {
+    tmp <- withr::local_tempdir()
+    withr::local_dir(tmp)
+    write_presets("htc-resources.yaml", 3)
+    expect_warning(
+        htc_gen_submit(resources = "small", output = tmp),
+        regexp = "Rename"
+    )
+    content <- paste(read_subfile(tmp), collapse = "\n")
+    expect_match(content, "request_cpus   = 3", fixed = TRUE)
+})
+
+# ---------------------------------------------------------------------------
 # GPU section
 # ---------------------------------------------------------------------------
 
@@ -604,7 +675,7 @@ test_that("htc_gen_submit() writes the submission state to path", {
     tmp <- withr::local_tempdir()
     withr::local_dir(tmp)
     htc_gen_submit(output = tmp)
-    expect_true(file.exists(file.path(tmp, "htc-manifest.yaml")))
+    expect_true(file.exists(file.path(tmp, "htc-manifest.yml")))
 })
 
 test_that("htc_gen_submit() records the submit file and input files in the submission state", {
@@ -635,8 +706,8 @@ test_that("htc_gen_submit() writes the submission state to path when it differs 
     out  <- withr::local_tempdir()
     proj <- withr::local_tempdir()
     htc_gen_submit(output = out, path = proj)
-    expect_true(file.exists(file.path(proj, "htc-manifest.yaml")))
-    expect_false(file.exists(file.path(out, "htc-manifest.yaml")))
+    expect_true(file.exists(file.path(proj, "htc-manifest.yml")))
+    expect_false(file.exists(file.path(out, "htc-manifest.yml")))
     expect_equal(.get_manifest(path = proj)$submit_path,
                  file.path(out, "job.sub"))
 })
@@ -905,5 +976,5 @@ test_that("a basename clash is caught before anything is written", {
     )
     expect_false(file.exists(file.path(tmp, "subdatasets.csv")))
     expect_false(file.exists(file.path(tmp, "job.sub")))
-    expect_false(file.exists(file.path(tmp, "htc-manifest.yaml")))
+    expect_false(file.exists(file.path(tmp, "htc-manifest.yml")))
 })

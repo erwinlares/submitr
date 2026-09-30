@@ -29,7 +29,7 @@
 #' @param verbose Logical. If `TRUE`, prints progress messages. Defaults to
 #'   `FALSE`.
 #' @param path A character string. Directory holding the submission state
-#'   (`htc-manifest.yaml`), consulted only when `cluster_id` is `NULL`.
+#'   (`htc-manifest.yml`), consulted only when `cluster_id` is `NULL`.
 #'   Defaults to `"."`, matching the default used by [htc_upload()],
 #'   [htc_submit()], and [htc_download()]. If you passed a non-default
 #'   `path` to [htc_submit()], pass that same directory here.

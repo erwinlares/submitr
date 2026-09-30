@@ -42,7 +42,7 @@ executed without running it. Defaults to \code{FALSE}.}
 \code{FALSE}.}
 
 \item{path}{A character string. Directory holding the submission state
-(\code{htc-manifest.yaml}), consulted only when \code{cluster_id} is \code{NULL}.
+(\code{htc-manifest.yml}), consulted only when \code{cluster_id} is \code{NULL}.
 Defaults to \code{"."}, matching the default used by \code{\link[=htc_upload]{htc_upload()}},
 \code{\link[=htc_submit]{htc_submit()}}, and \code{\link[=htc_download]{htc_download()}}. If you passed a non-default
 \code{path} to \code{\link[=htc_submit]{htc_submit()}}, pass that same directory here.}

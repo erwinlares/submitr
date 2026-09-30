@@ -78,7 +78,7 @@
 #'   is used to default `results_folder` (S-G5). Not required -- everything
 #'   here can still be passed explicitly.
 #' @param path A character string. Directory where the submission state
-#'   (`htc-manifest.yaml`) is read from and written to. Defaults to `"."`
+#'   (`htc-manifest.yml`) is read from and written to. Defaults to `"."`
 #'   (the current working directory), matching the default used by
 #'   [htc_upload()], [htc_submit()], and [htc_download()]. This is
 #'   independent of `output`: if you write generated files to a subfolder
@@ -158,7 +158,7 @@
 #'
 #' @examples
 #' # output writes the generated .sh file; path is where the submission state
-#' # (htc-manifest.yaml) gets read from and written to. The two are
+#' # (htc-manifest.yml) gets read from and written to. The two are
 #' # independent arguments (see @param path), so both must point at the
 #' # same scratch directory here to keep the submission state out of the current
 #' # working directory.

@@ -59,6 +59,15 @@
   is unlikely to affect anyone; both options are now documented under
   `?htc_config`.
 
+* The resource presets file is now `htc-resources.yml`, following the
+  family-wide rule (toolero's `CONVENTIONS.md`, section 8) that every YAML
+  file a family package names for itself ends in `.yml`. The copy shipped in
+  `inst/extdata/` is renamed. A project's own `htc-resources.yaml`, as
+  submitr 0.1.0 documented it, is still read for this release, with a
+  warning asking for it to be renamed; the old name will stop being read in
+  the next release. When both names are present, `htc-resources.yml` is
+  used and the old file is ignored, also with a warning.
+
 ## New features
 
 * `htc_start()` starts an HTC session by reading the project's `htc.cfg`
@@ -94,7 +103,7 @@
   file untouched if a matching `Host` block already exists, and supports
   `dry_run = TRUE` to preview the change first.
 
-* submitr now keeps a *submission state* file, `htc-manifest.yaml`, in the
+* submitr now keeps a *submission state* file, `htc-manifest.yml`, in the
   project root beside `htc.cfg`. `htc_gen_submit()`, `htc_gen_executable()`,
   `htc_upload()`, and `htc_submit()` record what they know as they run (mode,
   submit and executable file names, input and output files, subset names,
@@ -107,6 +116,11 @@
   `path` is independent of their `output` argument, so generated job files
   can be written to a subfolder while the submission state stays in the
   project root; to keep it elsewhere, pass the same `path` to every call.
+  Development versions before 0.2.0 wrote the file as `htc-manifest.yaml`.
+  It is now `htc-manifest.yml`, following the family's `.yml` rule, with no
+  fallback to the old name since no release ever wrote it: in a project set
+  up with a development version, rename the file or regenerate the job
+  files.
 
 * `htc_gen_submit()` and `htc_gen_executable()` gain a `config` argument (a
   named list as returned by `htc_config()`). When `config` was built with
@@ -288,14 +302,14 @@
 ## Documentation
 
 * Documentation, vignettes, and user-facing messages now use the family's
-  shared vocabulary (see toolero's `CONVENTIONS.md`). `htc-manifest.yaml`
+  shared vocabulary (see toolero's `CONVENTIONS.md`). `htc-manifest.yml`
   is the *submission state* and `manifest.csv` from
-  `toolero::write_by_group()` is the *job manifest*. Earlier releases
-  called `htc-manifest.yaml` the "job manifest", which collided with the
-  toolero file of the same name. Messages across the package now say
-  "submission state" wherever they mean `htc-manifest.yaml` and "job
-  manifest" only when they mean `manifest.csv`. File names, function
-  names, and arguments are unchanged.
+  `toolero::write_by_group()` is the *job manifest*. Earlier development
+  versions called the submission state the "job manifest", which collided
+  with the toolero file of the same name. Messages across the package now
+  say "submission state" wherever they mean `htc-manifest.yml` and "job
+  manifest" only when they mean `manifest.csv`. Function names and
+  arguments are unchanged.
 
 ## Testing
 
