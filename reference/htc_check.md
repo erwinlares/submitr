@@ -135,7 +135,7 @@ htc_gen_submit(
   output          = tmp,
   path            = tmp
 )
-#> Error in htc_gen_submit(container_image = "registry.doit.wisc.edu/netid/myimage:latest",     resources = "small", output = tmp, path = tmp): Output directory /tmp/Rtmpl7h864/file4ac83f2fbe19 does not exist.
+#> Error in htc_gen_submit(container_image = "registry.doit.wisc.edu/netid/myimage:latest",     resources = "small", output = tmp, path = tmp): Output directory /tmp/Rtmp4Pmd3C/file4b172dac13db does not exist.
 # check_image = FALSE skips asking podman or docker about the image,
 # which would otherwise contact the registry.
 htc_check(path = tmp, check_image = FALSE)
