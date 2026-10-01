@@ -39,6 +39,16 @@
     invisible(tarball_path)
 }
 
+# On Windows, dirname() hands back forward slashes while withr::local_tempdir()
+# returns backslashes, so the same directory can be spelled two ways. Compare
+# paths by what they point at, not by how they are spelled.
+.expect_same_path <- function(actual, expected) {
+    testthat::expect_equal(
+        normalizePath(actual,   winslash = "/", mustWork = FALSE),
+        normalizePath(expected, winslash = "/", mustWork = FALSE)
+    )
+}
+
 # Writes the three HTCondor files htc_download() would have fetched.
 .write_logs <- function(dir, cluster_id, proc_id) {
     for (ext in c("log", "err", "out")) {
@@ -222,9 +232,9 @@ test_that("log, err, and out point at the HTCondor files beside the tarball", {
         path        = state
     ))
 
-    expect_equal(index$log, file.path(local_path, "6302860-0-job.log"))
-    expect_equal(index$err, file.path(local_path, "6302860-0-job.err"))
-    expect_equal(index$out, file.path(local_path, "6302860-0-job.out"))
+    .expect_same_path(index$log, file.path(local_path, "6302860-0-job.log"))
+    .expect_same_path(index$err, file.path(local_path, "6302860-0-job.err"))
+    .expect_same_path(index$out, file.path(local_path, "6302860-0-job.out"))
 })
 
 test_that("log, err, and out are NA when the files were not downloaded", {
@@ -359,7 +369,7 @@ test_that("a missing tarball becomes a failed row and a warning, not an error", 
     expect_true(is.na(failed$n_files))
     expect_true(is.na(failed$has_record))
     expect_identical(failed$files[[1]], character(0))
-    expect_equal(failed$err, file.path(local_path, "6302861-1-job.err"))
+    .expect_same_path(failed$err, file.path(local_path, "6302861-1-job.err"))
 
     expect_true(all(index$extracted[index$group_id != "chinstrap"]))
 })
